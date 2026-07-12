@@ -1,0 +1,53 @@
+<aside
+  class="flex h-dvh w-[250px] shrink-0 flex-col gap-1 border-r border-ink/10 bg-white px-3.5 py-6"
+>
+  <!-- Brand -->
+  <div class="flex items-center gap-2.5 px-2.5 pb-5">
+    <span
+      class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white"
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
+        <path
+          d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"
+        />
+      </svg>
+    </span>
+    <div class="flex flex-col leading-tight">
+      <span class="font-heading text-sm font-extrabold text-ink">Fino Agroindustriales</span>
+      <span class="text-[10px] font-semibold tracking-[0.14em] text-ink-soft">BACKOFFICE</span>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="flex flex-col gap-1" aria-label="Navegación principal">
+    <ul class="flex flex-col gap-1">
+      @for (item of navItems; track item.route) {
+        <li>
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="bg-brand-mist text-ink font-semibold"
+            class="flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-cream"
+          >
+            <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
+            <span>{{ item.label }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  </nav>
+
+  <!-- User -->
+  <div class="mt-auto flex items-center gap-2.5 rounded-xl p-2.5">
+    <span
+      class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-mist text-xs font-bold text-ink"
+      aria-hidden="true"
+    >
+      AC
+    </span>
+    <div class="flex min-w-0 flex-col leading-tight">
+      <span class="truncate text-sm font-semibold text-ink">Ana Castillo</span>
+      <span class="truncate text-xs text-ink-soft">Administradora</span>
+    </div>
+  </div>
+</aside>
