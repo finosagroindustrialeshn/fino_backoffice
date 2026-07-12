@@ -29,12 +29,56 @@ export const routes: Routes = [
         data: { title: 'Dashboard' },
       },
       { path: 'despacho', loadComponent: placeholder, data: { title: 'Despacho' } },
-      { path: 'retorno', loadComponent: placeholder, data: { title: 'Retorno' } },
-      { path: 'mapa', loadComponent: placeholder, data: { title: 'Mapa de rutas' } },
+      {
+        path: 'retorno',
+        loadComponent: () =>
+          import(
+            './features/catalogs/return-reasons/pages/return-reason-list/return-reason-list'
+          ).then((m) => m.ReturnReasonList),
+        data: { title: 'Retorno' },
+      },
+      {
+        path: 'mapa',
+        loadComponent: () =>
+          import('./features/catalogs/zones/pages/zone-list/zone-list').then(
+            (m) => m.ZoneList,
+          ),
+        data: { title: 'Mapa de rutas' },
+      },
       { path: 'clientes', loadComponent: placeholder, data: { title: 'Clientes' } },
       {
+        path: 'productos',
+        loadComponent: () =>
+          import('./features/catalogs/pages/productos/productos').then(
+            (m) => m.ProductosShell,
+          ),
+        data: { title: 'Productos' },
+        children: [
+          { path: '', redirectTo: 'categorias', pathMatch: 'full' },
+          {
+            path: 'categorias',
+            loadComponent: () =>
+              import(
+                './features/catalogs/product-categories/pages/product-category-list/product-category-list'
+              ).then((m) => m.ProductCategoryList),
+            data: { title: 'Productos' },
+          },
+          {
+            path: 'presentaciones',
+            loadComponent: () =>
+              import(
+                './features/catalogs/product-presentations/pages/product-presentation-list/product-presentation-list'
+              ).then((m) => m.ProductPresentationList),
+            data: { title: 'Productos' },
+          },
+        ],
+      },
+      {
         path: 'contabilidad',
-        loadComponent: placeholder,
+        loadComponent: () =>
+          import(
+            './features/catalogs/expense-categories/pages/expense-category-list/expense-category-list'
+          ).then((m) => m.ExpenseCategoryList),
         data: { title: 'Contabilidad' },
       },
       {
