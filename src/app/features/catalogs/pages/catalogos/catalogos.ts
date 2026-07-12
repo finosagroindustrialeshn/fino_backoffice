@@ -2,9 +2,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 @Component({
-  selector: 'app-productos',
+  selector: 'app-catalogos',
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
-  templateUrl: './productos.html',
+  templateUrl: './catalogos.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProductosShell {}
+export class CatalogosShell {}

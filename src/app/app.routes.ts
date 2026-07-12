@@ -29,39 +29,34 @@ export const routes: Routes = [
         data: { title: 'Dashboard' },
       },
       { path: 'despacho', loadComponent: placeholder, data: { title: 'Despacho' } },
-      {
-        path: 'retorno',
-        loadComponent: () =>
-          import(
-            './features/catalogs/return-reasons/pages/return-reason-list/return-reason-list'
-          ).then((m) => m.ReturnReasonList),
-        data: { title: 'Retorno' },
-      },
+      { path: 'retorno', loadComponent: placeholder, data: { title: 'Retorno' } },
       {
         path: 'mapa',
-        loadComponent: () =>
-          import('./features/catalogs/zones/pages/zone-list/zone-list').then(
-            (m) => m.ZoneList,
-          ),
+        loadComponent: placeholder,
         data: { title: 'Mapa de rutas' },
       },
       { path: 'clientes', loadComponent: placeholder, data: { title: 'Clientes' } },
       {
-        path: 'productos',
+        path: 'contabilidad',
+        loadComponent: placeholder,
+        data: { title: 'Contabilidad' },
+      },
+      {
+        path: 'catalogos',
         loadComponent: () =>
-          import('./features/catalogs/pages/productos/productos').then(
-            (m) => m.ProductosShell,
+          import('./features/catalogs/pages/catalogos/catalogos').then(
+            (m) => m.CatalogosShell,
           ),
-        data: { title: 'Productos' },
+        data: { title: 'Catálogos' },
         children: [
-          { path: '', redirectTo: 'categorias', pathMatch: 'full' },
+          { path: '', redirectTo: 'categorias-producto', pathMatch: 'full' },
           {
-            path: 'categorias',
+            path: 'categorias-producto',
             loadComponent: () =>
               import(
                 './features/catalogs/product-categories/pages/product-category-list/product-category-list'
               ).then((m) => m.ProductCategoryList),
-            data: { title: 'Productos' },
+            data: { title: 'Catálogos' },
           },
           {
             path: 'presentaciones',
@@ -69,17 +64,33 @@ export const routes: Routes = [
               import(
                 './features/catalogs/product-presentations/pages/product-presentation-list/product-presentation-list'
               ).then((m) => m.ProductPresentationList),
-            data: { title: 'Productos' },
+            data: { title: 'Catálogos' },
+          },
+          {
+            path: 'zonas',
+            loadComponent: () =>
+              import(
+                './features/catalogs/zones/pages/zone-list/zone-list'
+              ).then((m) => m.ZoneList),
+            data: { title: 'Catálogos' },
+          },
+          {
+            path: 'categorias-gasto',
+            loadComponent: () =>
+              import(
+                './features/catalogs/expense-categories/pages/expense-category-list/expense-category-list'
+              ).then((m) => m.ExpenseCategoryList),
+            data: { title: 'Catálogos' },
+          },
+          {
+            path: 'motivos-retorno',
+            loadComponent: () =>
+              import(
+                './features/catalogs/return-reasons/pages/return-reason-list/return-reason-list'
+              ).then((m) => m.ReturnReasonList),
+            data: { title: 'Catálogos' },
           },
         ],
-      },
-      {
-        path: 'contabilidad',
-        loadComponent: () =>
-          import(
-            './features/catalogs/expense-categories/pages/expense-category-list/expense-category-list'
-          ).then((m) => m.ExpenseCategoryList),
-        data: { title: 'Contabilidad' },
       },
       {
         path: 'usuarios',

@@ -15,13 +15,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Retorno', icon: 'pi pi-replay', route: '/retorno' },
   { label: 'Mapa de rutas', icon: 'pi pi-map', route: '/mapa' },
   { label: 'Clientes', icon: 'pi pi-users', route: '/clientes' },
+  { label: 'Contabilidad', icon: 'pi pi-calculator', route: '/contabilidad' },
   {
-    label: 'Productos',
-    icon: 'pi pi-shopping-bag',
-    route: '/productos',
+    label: 'Catálogos',
+    icon: 'pi pi-tags',
+    route: '/catalogos',
     roles: ['ADMIN', 'SUPERVISOR'],
   },
-  { label: 'Contabilidad', icon: 'pi pi-calculator', route: '/contabilidad' },
   {
     label: 'Usuarios y roles',
     icon: 'pi pi-shield',
