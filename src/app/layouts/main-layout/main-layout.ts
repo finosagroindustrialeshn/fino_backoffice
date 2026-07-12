@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   ActivatedRoute,
@@ -20,6 +20,9 @@ import { Topbar } from './topbar/topbar';
 export class MainLayout {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+
+  /** Owned here since the toggle (topbar) and the drawer (sidebar) are siblings. */
+  protected readonly drawerOpen = signal(false);
 
   /** Title of the deepest active route, shown in the topbar. */
   protected readonly pageTitle = toSignal(

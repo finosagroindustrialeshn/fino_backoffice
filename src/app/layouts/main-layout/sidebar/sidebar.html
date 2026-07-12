@@ -1,6 +1,4 @@
-<aside
-  class="flex h-dvh w-[250px] shrink-0 flex-col gap-1 border-r border-ink/10 bg-white px-3.5 py-6"
->
+<ng-template #navContent>
   <!-- Brand -->
   <div class="flex items-center gap-2.5 px-2.5 pb-5">
     <span
@@ -22,11 +20,12 @@
   <!-- Navigation -->
   <nav class="flex flex-col gap-1" aria-label="Navegación principal">
     <ul class="flex flex-col gap-1">
-      @for (item of navItems; track item.route) {
+      @for (item of navItems(); track item.route) {
         <li>
           <a
             [routerLink]="item.route"
             routerLinkActive="bg-brand-mist text-ink font-semibold"
+            (click)="open.set(false)"
             class="flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-cream"
           >
             <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
@@ -43,11 +42,28 @@
       class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-mist text-xs font-bold text-ink"
       aria-hidden="true"
     >
-      AC
+      {{ initials() }}
     </span>
     <div class="flex min-w-0 flex-col leading-tight">
-      <span class="truncate text-sm font-semibold text-ink">Ana Castillo</span>
-      <span class="truncate text-xs text-ink-soft">Administradora</span>
+      <span class="truncate text-sm font-semibold text-ink">{{ profile()?.fullName }}</span>
+      <span class="truncate text-xs text-ink-soft">{{ roleLabel() }}</span>
     </div>
   </div>
+</ng-template>
+
+<!-- Desktop: static column, always visible at lg+ -->
+<aside
+  class="hidden h-dvh w-[250px] shrink-0 flex-col gap-1 border-r border-ink/10 bg-white px-3.5 py-6 lg:flex"
+>
+  <ng-container [ngTemplateOutlet]="navContent" />
 </aside>
+
+<!-- Mobile/tablet: off-canvas drawer below lg, toggled from the topbar -->
+<p-drawer
+  [(visible)]="open"
+  [blockScroll]="true"
+  appendTo="body"
+  styleClass="w-[250px] px-1.5 py-4 lg:!hidden"
+>
+  <ng-container [ngTemplateOutlet]="navContent" />
+</p-drawer>

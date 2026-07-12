@@ -1,15 +1,27 @@
 <header
-  class="flex h-[72px] shrink-0 items-center justify-between border-b border-ink/10 bg-cream/80 px-7 backdrop-blur-sm"
+  class="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-ink/10 bg-cream/80 px-4 backdrop-blur-sm sm:px-5 lg:px-7"
 >
-  <h1 class="font-heading text-2xl font-extrabold tracking-tight text-ink">
-    {{ title() }}
-  </h1>
+  <div class="flex min-w-0 items-center gap-2">
+    <button
+      type="button"
+      aria-label="Abrir menú de navegación"
+      (click)="menuToggle.emit()"
+      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-white lg:hidden"
+    >
+      <i class="pi pi-bars text-base" aria-hidden="true"></i>
+    </button>
+    <h1
+      class="truncate font-heading text-lg font-extrabold tracking-tight text-ink sm:text-xl lg:text-2xl"
+    >
+      {{ title() }}
+    </h1>
+  </div>
 
-  <div class="flex items-center gap-2">
+  <div class="flex shrink-0 items-center gap-1 sm:gap-2">
     <button
       type="button"
       aria-label="Buscar"
-      class="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-white"
+      class="hidden h-10 w-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-white sm:flex"
     >
       <i class="pi pi-search text-base" aria-hidden="true"></i>
     </button>
@@ -20,5 +32,15 @@
     >
       <i class="pi pi-bell text-base" aria-hidden="true"></i>
     </button>
+
+    <button
+      type="button"
+      [attr.aria-label]="'Menú de ' + (profile()?.fullName ?? 'usuario') + ', ' + roleLabel()"
+      (click)="userMenu.toggle($event)"
+      class="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-brand-mist text-xs font-bold text-ink transition-opacity hover:opacity-80"
+    >
+      {{ initials() }}
+    </button>
+    <p-menu #userMenu [model]="userMenuItems" [popup]="true" appendTo="body" />
   </div>
 </header>
