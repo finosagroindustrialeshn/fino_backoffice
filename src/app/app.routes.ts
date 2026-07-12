@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/auth/auth.guard';
 import { MainLayout } from './layouts/main-layout/main-layout';
 
 const placeholder = () =>
@@ -16,7 +17,7 @@ export const routes: Routes = [
   {
     path: '',
     component: MainLayout,
-    // Enable once backend auth is ready: canActivate: [authGuard],
+    canActivate: [authGuard],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
