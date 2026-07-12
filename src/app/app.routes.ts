@@ -39,7 +39,10 @@ export const routes: Routes = [
       },
       {
         path: 'usuarios',
-        loadComponent: placeholder,
+        loadComponent: () =>
+          import('./features/users/pages/user-list/user-list').then(
+            (m) => m.UserList,
+          ),
         data: { title: 'Usuarios y roles' },
       },
       { path: '**', redirectTo: 'dashboard' },
