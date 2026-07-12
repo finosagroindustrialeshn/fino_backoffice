@@ -1,0 +1,289 @@
+<div class="flex flex-col gap-6">
+  <header class="flex flex-col gap-1">
+    <h2 class="font-heading text-2xl font-bold text-ink">
+      Presentaciones de producto
+    </h2>
+    <p class="text-sm text-ink-soft">
+      Administrá los formatos de empaque disponibles en el catálogo.
+    </p>
+  </header>
+
+  <!-- Toolbar -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+    aria-label="Acciones de presentaciones"
+  >
+    <label class="flex items-center gap-2 text-sm text-ink">
+      <p-checkbox
+        [binary]="true"
+        [ngModel]="includeInactive()"
+        (onChange)="onIncludeInactiveChange($event.checked)"
+        inputId="include-inactive"
+      />
+      <span>Incluir inactivas</span>
+    </label>
+
+    <p-button
+      label="Nueva presentación"
+      icon="pi pi-plus"
+      (onClick)="openCreate()"
+    />
+  </section>
+
+  @let view = state();
+  @switch (view.status) {
+    @case ('loading') {
+      <div
+        class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-4"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span class="sr-only">Cargando presentaciones…</span>
+        @for (row of skeletonRows; track row) {
+          <div class="flex items-center gap-4">
+            <div class="flex flex-1 flex-col gap-2">
+              <p-skeleton width="12rem" height="1rem" />
+              <p-skeleton width="16rem" height="0.75rem" />
+            </div>
+            <p-skeleton width="6rem" height="1.5rem" />
+          </div>
+        }
+      </div>
+    }
+
+    @case ('error') {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ view.message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="load()"
+        />
+      </div>
+    }
+
+    @case ('success') {
+      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+        <p-table [value]="view.items" [tableStyle]="{ 'min-width': '52rem' }">
+          <ng-template #header>
+            <tr>
+              <th scope="col">Código</th>
+              <th scope="col">Nombre</th>
+              <th scope="col">Descripción</th>
+              <th scope="col">Orden</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-item>
+            <tr>
+              <td>
+                <span class="font-medium text-ink">{{ item.code }}</span>
+              </td>
+
+              <td>{{ item.name }}</td>
+
+              <td>
+                <span
+                  class="block max-w-xs truncate text-sm text-ink-soft"
+                  [title]="item.description"
+                >
+                  {{ item.description || '—' }}
+                </span>
+              </td>
+
+              <td>{{ item.sortOrder }}</td>
+
+              <td>
+                <p-tag
+                  [value]="item.isActive ? 'Activa' : 'Inactiva'"
+                  [severity]="item.isActive ? 'success' : 'secondary'"
+                />
+              </td>
+
+              <td>
+                <div class="flex flex-col gap-2">
+                  <div class="flex items-center gap-1">
+                    <p-button
+                      icon="pi pi-pencil"
+                      severity="secondary"
+                      [text]="true"
+                      [rounded]="true"
+                      [disabled]="isPending(item.id)"
+                      [ariaLabel]="'Editar ' + item.name"
+                      (onClick)="openEdit(item)"
+                    />
+                    <p-button
+                      [icon]="item.isActive ? 'pi pi-ban' : 'pi pi-check-circle'"
+                      [severity]="item.isActive ? 'danger' : 'success'"
+                      [text]="true"
+                      [rounded]="true"
+                      [loading]="isPending(item.id)"
+                      [ariaLabel]="
+                        (item.isActive ? 'Desactivar ' : 'Activar ') + item.name
+                      "
+                      (onClick)="toggleActive(item)"
+                    />
+                    @if (canDelete()) {
+                      <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [disabled]="isPending(item.id)"
+                        [ariaLabel]="'Eliminar ' + item.name"
+                        (onClick)="confirmDelete(item)"
+                      />
+                    }
+                  </div>
+                  @if (rowError(item.id); as message) {
+                    <span class="text-xs text-red-600" role="alert">
+                      {{ message }}
+                    </span>
+                  }
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="6">
+                <p class="py-8 text-center text-sm text-ink-soft">
+                  No hay presentaciones.
+                </p>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+  }
+</div>
+
+<p-dialog
+  [visible]="dialogVisible()"
+  (visibleChange)="dialogVisible.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '32rem' }"
+  [header]="editingId() ? 'Editar presentación' : 'Nueva presentación'"
+>
+  @if (formError(); as message) {
+    <div
+      role="alert"
+      class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+    >
+      {{ message }}
+    </div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5">
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="presentation-code"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Código
+      </label>
+      <input
+        pInputText
+        id="presentation-code"
+        formControlName="code"
+        placeholder="CAJA-24U"
+        class="w-full"
+        [attr.aria-invalid]="
+          form.controls.code.invalid && form.controls.code.touched
+        "
+      />
+      @if (form.controls.code.touched && form.controls.code.invalid) {
+        <span class="text-xs text-red-600" role="alert">
+          El código es obligatorio.
+        </span>
+      }
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="presentation-name"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Nombre
+      </label>
+      <input
+        pInputText
+        id="presentation-name"
+        formControlName="name"
+        placeholder="Caja 24 unidades"
+        class="w-full"
+        [attr.aria-invalid]="
+          form.controls.name.invalid && form.controls.name.touched
+        "
+      />
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        <span class="text-xs text-red-600" role="alert">
+          El nombre es obligatorio.
+        </span>
+      }
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="presentation-description"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Descripción
+      </label>
+      <textarea
+        pTextarea
+        id="presentation-description"
+        formControlName="description"
+        rows="3"
+        placeholder="Detalle opcional de la presentación"
+        class="w-full"
+      ></textarea>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="presentation-sort-order"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Orden
+      </label>
+      <p-inputnumber
+        inputId="presentation-sort-order"
+        formControlName="sortOrder"
+        [min]="0"
+        [showButtons]="true"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+      @if (form.controls.sortOrder.touched && form.controls.sortOrder.invalid) {
+        <span class="text-xs text-red-600" role="alert">
+          El orden es obligatorio.
+        </span>
+      }
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <p-button
+        type="button"
+        label="Cancelar"
+        severity="secondary"
+        [text]="true"
+        (onClick)="dialogVisible.set(false)"
+      />
+      <p-button type="submit" label="Guardar" [loading]="submitting()" />
+    </div>
+  </form>
+</p-dialog>
+
+<p-confirmDialog />
