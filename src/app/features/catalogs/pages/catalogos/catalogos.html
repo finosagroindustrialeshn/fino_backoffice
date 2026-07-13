@@ -1,50 +1,22 @@
 <div class="flex flex-col gap-6">
   <header class="flex flex-col gap-1">
-    <h2 class="font-heading text-2xl font-bold text-ink">Catálogos</h2>
-    <p class="text-sm text-ink-soft">
-      Datos de referencia usados en productos, rutas, retornos y contabilidad.
-    </p>
+    <h2 class="font-heading text-2xl font-bold text-ink">{{ activeTab().title }}</h2>
+    <p class="text-sm text-ink-soft">{{ activeTab().description }}</p>
   </header>
 
   <nav
     class="flex flex-wrap gap-1 border-b border-ink/10"
     aria-label="Secciones de catálogos"
   >
-    <a
-      routerLink="categorias-producto"
-      routerLinkActive="border-brand text-ink"
-      class="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-    >
-      Categorías de producto
-    </a>
-    <a
-      routerLink="presentaciones"
-      routerLinkActive="border-brand text-ink"
-      class="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-    >
-      Presentaciones
-    </a>
-    <a
-      routerLink="zonas"
-      routerLinkActive="border-brand text-ink"
-      class="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-    >
-      Zonas
-    </a>
-    <a
-      routerLink="categorias-gasto"
-      routerLinkActive="border-brand text-ink"
-      class="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-    >
-      Categorías de gasto
-    </a>
-    <a
-      routerLink="motivos-retorno"
-      routerLinkActive="border-brand text-ink"
-      class="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-    >
-      Motivos de retorno
-    </a>
+    @for (tab of tabs; track tab.path) {
+      <a
+        [routerLink]="tab.path"
+        routerLinkActive="border-brand text-ink"
+        class="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
+      >
+        {{ tab.tabLabel }}
+      </a>
+    }
   </nav>
 
   <router-outlet />
