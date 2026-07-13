@@ -75,7 +75,6 @@ export class ReturnReasonList implements OnInit {
   protected readonly formError = signal<string | null>(null);
 
   protected readonly form = this.fb.group({
-    code: this.fb.control('', [Validators.required]),
     name: this.fb.control('', [Validators.required]),
     description: this.fb.control(''),
     sortOrder: this.fb.control(0, [Validators.required]),
@@ -123,7 +122,7 @@ export class ReturnReasonList implements OnInit {
   protected openCreate(): void {
     this.editing.set(null);
     this.formError.set(null);
-    this.form.reset({ code: '', name: '', description: '', sortOrder: 0 });
+    this.form.reset({ name: '', description: '', sortOrder: 0 });
     this.dialogOpen.set(true);
   }
 
@@ -131,7 +130,6 @@ export class ReturnReasonList implements OnInit {
     this.editing.set(reason);
     this.formError.set(null);
     this.form.reset({
-      code: reason.code,
       name: reason.name,
       description: reason.description ?? '',
       sortOrder: reason.sortOrder,
@@ -148,8 +146,8 @@ export class ReturnReasonList implements OnInit {
     this.submitting.set(true);
     this.formError.set(null);
 
-    const { code, name, description, sortOrder } = this.form.getRawValue();
-    const dto = { code, name, description, sortOrder };
+    const { name, description, sortOrder } = this.form.getRawValue();
+    const dto = { name, description, sortOrder };
     const target = this.editing();
 
     try {

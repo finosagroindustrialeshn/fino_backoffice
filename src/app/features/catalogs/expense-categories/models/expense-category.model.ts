@@ -12,7 +12,6 @@ export interface ExpenseCategory {
 
 /** Body shared by create (POST) and update (PATCH) — status is managed via activate/deactivate. */
 export interface ExpenseCategoryInput {
-  readonly code: string;
   readonly name: string;
   readonly description: string;
   readonly sortOrder: number;

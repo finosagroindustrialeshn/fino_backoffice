@@ -10,7 +10,6 @@ export interface Zone {
 }
 
 export interface ZonePayload {
-  readonly code: string;
   readonly name: string;
   readonly description: string;
   readonly sortOrder: number;

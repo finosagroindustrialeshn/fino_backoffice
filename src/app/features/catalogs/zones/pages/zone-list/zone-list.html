@@ -183,29 +183,6 @@
   <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5">
     <div class="flex flex-col gap-1.5">
       <label
-        for="zone-code"
-        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-      >
-        Código
-      </label>
-      <input
-        pInputText
-        id="zone-code"
-        formControlName="code"
-        class="w-full"
-        [attr.aria-invalid]="
-          form.controls.code.invalid && form.controls.code.touched
-        "
-      />
-      @if (form.controls.code.touched && form.controls.code.invalid) {
-        <span class="text-xs text-red-600" role="alert">
-          El código es obligatorio.
-        </span>
-      }
-    </div>
-
-    <div class="flex flex-col gap-1.5">
-      <label
         for="zone-name"
         class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
       >

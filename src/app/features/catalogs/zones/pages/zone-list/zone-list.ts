@@ -75,7 +75,6 @@ export class ZoneList implements OnInit {
   protected readonly formError = signal<string | null>(null);
 
   protected readonly form = this.fb.group({
-    code: this.fb.control('', [Validators.required]),
     name: this.fb.control('', [Validators.required]),
     description: this.fb.control(''),
     sortOrder: this.fb.control(0, [Validators.required]),
@@ -166,7 +165,7 @@ export class ZoneList implements OnInit {
   protected openCreate(): void {
     this.editingId.set(null);
     this.formError.set(null);
-    this.form.reset({ code: '', name: '', description: '', sortOrder: 0 });
+    this.form.reset({ name: '', description: '', sortOrder: 0 });
     this.dialogOpen.set(true);
   }
 
@@ -174,7 +173,6 @@ export class ZoneList implements OnInit {
     this.editingId.set(zone.id);
     this.formError.set(null);
     this.form.reset({
-      code: zone.code,
       name: zone.name,
       description: zone.description ?? '',
       sortOrder: zone.sortOrder,
@@ -197,7 +195,6 @@ export class ZoneList implements OnInit {
 
     const raw = this.form.getRawValue();
     const payload: ZonePayload = {
-      code: raw.code.trim(),
       name: raw.name.trim(),
       description: raw.description.trim(),
       sortOrder: raw.sortOrder,

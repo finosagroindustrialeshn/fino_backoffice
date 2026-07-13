@@ -10,7 +10,6 @@ export interface ProductCategory {
 }
 
 export interface ProductCategoryInput {
-  readonly code: string;
   readonly name: string;
   readonly description: string;
   readonly sortOrder: number;

@@ -5,7 +5,6 @@ import { ApiClient, type QueryParams } from '../../../../core/http/api-client';
 import type { ProductPresentation } from '../models/product-presentation.model';
 
 export interface ProductPresentationPayload {
-  readonly code: string;
   readonly name: string;
   readonly description: string;
   readonly sortOrder: number;

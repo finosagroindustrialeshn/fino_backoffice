@@ -5,7 +5,6 @@ import { ApiClient, type QueryParams } from '../../../../core/http/api-client';
 import type { ReturnReason } from '../models/return-reason.model';
 
 export interface ReturnReasonInput {
-  readonly code: string;
   readonly name: string;
   readonly description: string;
   readonly sortOrder: number;

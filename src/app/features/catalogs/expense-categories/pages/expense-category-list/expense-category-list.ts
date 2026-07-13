@@ -76,7 +76,6 @@ export class ExpenseCategoryList implements OnInit {
   protected readonly formError = signal<string | null>(null);
 
   protected readonly form = this.fb.group({
-    code: this.fb.control('', [Validators.required]),
     name: this.fb.control('', [Validators.required]),
     description: this.fb.control(''),
     sortOrder: this.fb.control(0, [Validators.required]),
@@ -120,7 +119,7 @@ export class ExpenseCategoryList implements OnInit {
   protected openCreate(): void {
     this.editingId.set(null);
     this.formError.set(null);
-    this.form.reset({ code: '', name: '', description: '', sortOrder: 0 });
+    this.form.reset({ name: '', description: '', sortOrder: 0 });
     this.dialogOpen.set(true);
   }
 
@@ -128,7 +127,6 @@ export class ExpenseCategoryList implements OnInit {
     this.editingId.set(category.id);
     this.formError.set(null);
     this.form.reset({
-      code: category.code,
       name: category.name,
       description: category.description ?? '',
       sortOrder: category.sortOrder,
@@ -145,8 +143,8 @@ export class ExpenseCategoryList implements OnInit {
     this.submitting.set(true);
     this.formError.set(null);
 
-    const { code, name, description, sortOrder } = this.form.getRawValue();
-    const dto = { code, name, description, sortOrder };
+    const { name, description, sortOrder } = this.form.getRawValue();
+    const dto = { name, description, sortOrder };
     const id = this.editingId();
 
     try {
