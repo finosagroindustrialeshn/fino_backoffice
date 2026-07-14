@@ -62,12 +62,31 @@
     @case ('success') {
       <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
         <p-table
+          #dt
           [value]="view.zones"
           [tableStyle]="{ 'min-width': '52rem' }"
           [paginator]="true"
           [rows]="5"
           [rowsPerPageOptions]="[5, 10, 15, 20]"
+          [globalFilterFields]="['code', 'name', 'description']"
         >
+          <ng-template #caption>
+            <div class="relative w-full sm:max-w-xs">
+              <i
+                class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft"
+                aria-hidden="true"
+              ></i>
+              <input
+                #searchInput
+                type="search"
+                (input)="dt.filterGlobal(searchInput.value, 'contains')"
+                placeholder="Buscar…"
+                aria-label="Buscar en la tabla"
+                class="w-full rounded-lg border border-ink/15 bg-white py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </ng-template>
+
           <ng-template #header>
             <tr>
               <th scope="col">Código</th>
