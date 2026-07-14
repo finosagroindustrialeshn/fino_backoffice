@@ -1,0 +1,246 @@
+<div class="flex flex-col gap-6">
+  <!-- Breadcrumb / back -->
+  <a
+    routerLink="/productos"
+    class="inline-flex w-fit items-center gap-2 text-sm text-ink-soft hover:text-ink"
+  >
+    <i class="pi pi-arrow-left" aria-hidden="true"></i>
+    Volver a productos
+  </a>
+
+  @if (loadError(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+    </div>
+  } @else if (loading()) {
+    <div
+      class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-6"
+      aria-busy="true"
+    >
+      <span class="sr-only">Cargando…</span>
+      <p-skeleton width="14rem" height="1.25rem" />
+      <p-skeleton width="100%" height="12rem" />
+    </div>
+  } @else {
+    @if (formError(); as message) {
+      <div
+        role="alert"
+        class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+      >
+        {{ message }}
+      </div>
+    }
+
+    <form
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      class="flex flex-col gap-6"
+    >
+      <div class="flex flex-col gap-5 rounded-2xl border border-ink/10 bg-white p-6">
+        <!-- Photo -->
+        <div class="flex flex-col gap-1.5">
+          <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            Foto del producto
+          </span>
+          <app-image-dropzone
+            [previewUrl]="existingImageUrl()"
+            [validate]="validateImage"
+            (fileSelected)="onImageSelected($event)"
+            (urlSelected)="onImageUrl($event)"
+            (invalid)="formError.set($event)"
+            (cleared)="onImageCleared()"
+          />
+        </div>
+
+        <!-- Name + SKU -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="product-name"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Nombre
+            </label>
+            <input
+              pInputText
+              id="product-name"
+              formControlName="name"
+              class="w-full"
+              [attr.aria-invalid]="
+                form.controls.name.invalid && form.controls.name.touched
+              "
+            />
+            @if (form.controls.name.touched && form.controls.name.invalid) {
+              <span class="text-xs text-red-600" role="alert">
+                El nombre es obligatorio.
+              </span>
+            }
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="product-sku"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              SKU
+            </label>
+            <input
+              pInputText
+              id="product-sku"
+              formControlName="sku"
+              placeholder="Código único"
+              class="w-full"
+              [attr.aria-invalid]="
+                form.controls.sku.invalid && form.controls.sku.touched
+              "
+            />
+            @if (form.controls.sku.touched && form.controls.sku.invalid) {
+              <span class="text-xs text-red-600" role="alert">
+                El SKU es obligatorio.
+              </span>
+            }
+          </div>
+        </div>
+
+        <!-- Category + Presentation -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="product-category"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Categoría
+            </label>
+            <p-select
+              inputId="product-category"
+              formControlName="categoryId"
+              [options]="categoryOptions()"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Seleccioná una categoría"
+              appendTo="body"
+              styleClass="w-full"
+            />
+            @if (
+              form.controls.categoryId.touched &&
+              form.controls.categoryId.invalid
+            ) {
+              <span class="text-xs text-red-600" role="alert">
+                Elegí una categoría.
+              </span>
+            }
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="product-presentation"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Presentación
+            </label>
+            <p-select
+              inputId="product-presentation"
+              formControlName="presentationId"
+              [options]="presentationOptions()"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Seleccioná una presentación"
+              appendTo="body"
+              styleClass="w-full"
+            />
+            @if (
+              form.controls.presentationId.touched &&
+              form.controls.presentationId.invalid
+            ) {
+              <span class="text-xs text-red-600" role="alert">
+                Elegí una presentación.
+              </span>
+            }
+          </div>
+        </div>
+
+        <!-- Cost + Price -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="product-cost"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Costo
+            </label>
+            <p-inputnumber
+              inputId="product-cost"
+              formControlName="cost"
+              mode="decimal"
+              locale="en-US"
+              prefix="L "
+              [min]="0"
+              [minFractionDigits]="2"
+              [maxFractionDigits]="2"
+              styleClass="w-full"
+              inputStyleClass="w-full"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="product-price"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Precio
+            </label>
+            <p-inputnumber
+              inputId="product-price"
+              formControlName="price"
+              mode="decimal"
+              locale="en-US"
+              prefix="L "
+              [min]="0"
+              [minFractionDigits]="2"
+              [maxFractionDigits]="2"
+              styleClass="w-full"
+              inputStyleClass="w-full"
+            />
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="product-description"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Descripción
+          </label>
+          <textarea
+            pTextarea
+            id="product-description"
+            formControlName="description"
+            rows="3"
+            class="w-full"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center justify-end gap-2">
+        <p-button
+          type="button"
+          label="Cancelar"
+          severity="secondary"
+          [text]="true"
+          routerLink="/productos"
+        />
+        <p-button
+          type="submit"
+          [label]="isEdit() ? 'Guardar cambios' : 'Crear producto'"
+          [loading]="saving()"
+          [disabled]="form.invalid || saving()"
+        />
+      </div>
+    </form>
+  }
+</div>

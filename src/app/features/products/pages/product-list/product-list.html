@@ -1,0 +1,180 @@
+<div class="flex flex-col gap-6">
+  <!-- Toolbar -->
+  @if (canManage()) {
+    <section
+      class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end"
+      aria-label="Acciones de productos"
+    >
+      <p-button
+        label="Nuevo producto"
+        icon="pi pi-plus"
+        routerLink="/productos/nuevo"
+      />
+    </section>
+  }
+
+  @let view = state();
+  @switch (view.status) {
+    @case ('loading') {
+      <div
+        class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-4"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span class="sr-only">Cargando productos…</span>
+        @for (row of skeletonRows; track row) {
+          <div class="flex items-center gap-4">
+            <p-skeleton shape="circle" size="3rem" />
+            <div class="flex flex-1 flex-col gap-2">
+              <p-skeleton width="12rem" height="1rem" />
+              <p-skeleton width="16rem" height="0.75rem" />
+            </div>
+            <p-skeleton width="6rem" height="1.5rem" />
+          </div>
+        }
+      </div>
+    }
+
+    @case ('error') {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ view.message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="load()"
+        />
+      </div>
+    }
+
+    @case ('success') {
+      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+        <p-table
+          [value]="view.products"
+          [tableStyle]="{ 'min-width': '56rem' }"
+          [paginator]="true"
+          [rows]="5"
+          [rowsPerPageOptions]="[5, 10, 15, 20]"
+        >
+          <ng-template #header>
+            <tr>
+              <th scope="col">Foto</th>
+              <th scope="col">Producto</th>
+              <th scope="col">Categoría</th>
+              <th scope="col">Precio</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-product>
+            <tr>
+              <td>
+                @if (product.imageUrl) {
+                  <img
+                    [src]="product.imageUrl"
+                    [alt]="'Foto de ' + product.name"
+                    width="48"
+                    height="48"
+                    loading="lazy"
+                    class="h-12 w-12 rounded-lg object-cover"
+                  />
+                } @else {
+                  <span
+                    class="flex h-12 w-12 items-center justify-center rounded-lg bg-ink/5 text-ink-soft"
+                    aria-hidden="true"
+                  >
+                    <i class="pi pi-box"></i>
+                  </span>
+                }
+              </td>
+
+              <td>
+                <span class="font-medium text-ink">{{ product.name }}</span>
+                <span class="block text-xs text-ink-soft">SKU: {{ product.sku }}</span>
+              </td>
+
+              <td>{{ categoryName(product.categoryId) }}</td>
+
+              <td class="whitespace-nowrap">
+                L {{ product.price | number: '1.2-2' }}
+              </td>
+
+              <td>
+                <p-tag
+                  [value]="product.isActive ? 'Activo' : 'Inactivo'"
+                  [severity]="product.isActive ? 'success' : 'secondary'"
+                />
+              </td>
+
+              <td>
+                <div class="flex flex-col gap-2">
+                  <div class="flex items-center gap-2">
+                    @if (canManage()) {
+                      <p-button
+                        icon="pi pi-pencil"
+                        severity="secondary"
+                        [text]="true"
+                        [rounded]="true"
+                        [disabled]="isPending(product.id)"
+                        [ariaLabel]="'Editar producto ' + product.name"
+                        [routerLink]="['/productos', product.id, 'editar']"
+                      />
+                      <p-button
+                        [icon]="
+                          product.isActive ? 'pi pi-ban' : 'pi pi-check-circle'
+                        "
+                        [severity]="product.isActive ? 'danger' : 'success'"
+                        [text]="true"
+                        [rounded]="true"
+                        [loading]="isPending(product.id)"
+                        [ariaLabel]="
+                          (product.isActive
+                            ? 'Desactivar producto '
+                            : 'Activar producto ') + product.name
+                        "
+                        (onClick)="toggleActive(product)"
+                      />
+                    }
+                    @if (canDelete()) {
+                      <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [disabled]="isPending(product.id)"
+                        [ariaLabel]="'Eliminar producto ' + product.name"
+                        (onClick)="confirmDelete(product)"
+                      />
+                    }
+                  </div>
+                  @if (rowError(product.id); as message) {
+                    <span class="text-xs text-red-600" role="alert">
+                      {{ message }}
+                    </span>
+                  }
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="6">
+                <p class="py-8 text-center text-sm text-ink-soft">
+                  No hay productos.
+                </p>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+  }
+</div>
+
+<p-confirmDialog />
