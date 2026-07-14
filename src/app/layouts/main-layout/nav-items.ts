@@ -23,6 +23,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     roles: ['ADMIN', 'SUPERVISOR'],
   },
   {
+    label: 'Inventario',
+    icon: 'pi pi-inbox',
+    route: '/inventario',
+    roles: ['ADMIN', 'SUPERVISOR'],
+  },
+  {
     label: 'Catálogos',
     icon: 'pi pi-tags',
     route: '/catalogos',

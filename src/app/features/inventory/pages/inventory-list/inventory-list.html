@@ -1,0 +1,309 @@
+<div class="flex flex-col gap-6">
+  @let view = state();
+  @switch (view.status) {
+    @case ('loading') {
+      <div
+        class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-4"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span class="sr-only">Cargando inventario…</span>
+        @for (row of skeletonRows; track row) {
+          <div class="flex items-center gap-4">
+            <div class="flex flex-1 flex-col gap-2">
+              <p-skeleton width="12rem" height="1rem" />
+              <p-skeleton width="16rem" height="0.75rem" />
+            </div>
+            <p-skeleton width="6rem" height="1.5rem" />
+          </div>
+        }
+      </div>
+    }
+
+    @case ('error') {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ view.message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="load()"
+        />
+      </div>
+    }
+
+    @case ('success') {
+      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+        <p-table
+          #dt
+          [value]="view.rows"
+          [tableStyle]="{ 'min-width': '48rem' }"
+          [paginator]="true"
+          [rows]="5"
+          [rowsPerPageOptions]="[5, 10, 15, 20]"
+          [globalFilterFields]="['product.name', 'product.sku']"
+        >
+          <ng-template #caption>
+            <div class="relative w-full sm:max-w-xs">
+              <i
+                class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft"
+                aria-hidden="true"
+              ></i>
+              <input
+                #searchInput
+                type="search"
+                (input)="dt.filterGlobal(searchInput.value, 'contains')"
+                placeholder="Buscar…"
+                aria-label="Buscar en la tabla"
+                class="w-full rounded-lg border border-ink/15 bg-white py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </ng-template>
+
+          <ng-template #header>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col">Existencia</th>
+              <th scope="col">Última actualización</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-row>
+            <tr>
+              <td>
+                <span class="font-medium text-ink">{{ row.product.name }}</span>
+                <span class="block text-xs text-ink-soft">
+                  SKU: {{ row.product.sku }}
+                </span>
+              </td>
+
+              <td>
+                <div class="flex items-center gap-2">
+                  <span class="text-base font-semibold text-ink">
+                    {{ row.quantity }}
+                  </span>
+                  <p-tag
+                    [value]="stockLabel(row.quantity)"
+                    [severity]="stockSeverity(row.quantity)"
+                  />
+                </div>
+              </td>
+
+              <td>
+                <span class="text-sm text-ink-soft">
+                  {{
+                    row.updatedAt ? (row.updatedAt | date: 'dd/MM/yyyy HH:mm') : '—'
+                  }}
+                </span>
+              </td>
+
+              <td>
+                <div class="flex items-center gap-2">
+                  @if (canManage()) {
+                    <p-button
+                      label="Movimiento"
+                      icon="pi pi-plus"
+                      size="small"
+                      [outlined]="true"
+                      (onClick)="openRegister(row.product)"
+                    />
+                  }
+                  <p-button
+                    label="Historial"
+                    icon="pi pi-history"
+                    size="small"
+                    severity="secondary"
+                    [text]="true"
+                    (onClick)="openHistory(row.product)"
+                  />
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="4">
+                <p class="py-8 text-center text-sm text-ink-soft">
+                  No hay productos en inventario.
+                </p>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+  }
+</div>
+
+<!-- Register movement dialog -->
+<p-dialog
+  [visible]="registerOpen()"
+  (visibleChange)="registerOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '30rem' }"
+  [header]="'Movimiento — ' + (registerProduct()?.name ?? '')"
+  [dismissableMask]="true"
+>
+  @if (registerError(); as message) {
+    <div
+      role="alert"
+      class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+    >
+      {{ message }}
+    </div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submitMovement()" class="flex flex-col gap-5">
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="movement-type"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Tipo de movimiento
+      </label>
+      <p-select
+        inputId="movement-type"
+        formControlName="option"
+        [options]="typeOptions"
+        optionLabel="label"
+        appendTo="body"
+        styleClass="w-full"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="movement-quantity"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Cantidad
+      </label>
+      <p-inputnumber
+        inputId="movement-quantity"
+        formControlName="quantity"
+        [min]="1"
+        [step]="1"
+        [showButtons]="true"
+        [maxFractionDigits]="0"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="movement-note"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Nota
+      </label>
+      <textarea
+        pTextarea
+        id="movement-note"
+        formControlName="note"
+        rows="2"
+        class="w-full"
+      ></textarea>
+    </div>
+
+    <div class="flex items-center justify-end gap-2">
+      <p-button
+        type="button"
+        label="Cancelar"
+        severity="secondary"
+        [text]="true"
+        (onClick)="registerOpen.set(false)"
+      />
+      <p-button
+        type="submit"
+        label="Registrar"
+        [loading]="registering()"
+        [disabled]="form.invalid || registering()"
+      />
+    </div>
+  </form>
+</p-dialog>
+
+<!-- History dialog -->
+<p-dialog
+  [visible]="historyOpen()"
+  (visibleChange)="historyOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '40rem' }"
+  [header]="'Historial — ' + (historyProduct()?.name ?? '')"
+  [dismissableMask]="true"
+>
+  @let history = historyState();
+  @switch (history.status) {
+    @case ('loading') {
+      <div class="flex flex-col gap-2" aria-busy="true">
+        <span class="sr-only">Cargando historial…</span>
+        @for (row of skeletonRows; track row) {
+          <p-skeleton width="100%" height="2rem" />
+        }
+      </div>
+    }
+
+    @case ('error') {
+      <p role="alert" class="text-sm text-red-700">{{ history.message }}</p>
+    }
+
+    @case ('success') {
+      <div class="overflow-x-auto">
+        <p-table [value]="history.movements" [tableStyle]="{ 'min-width': '32rem' }">
+          <ng-template #header>
+            <tr>
+              <th scope="col">Tipo</th>
+              <th scope="col">Cantidad</th>
+              <th scope="col">Nota</th>
+              <th scope="col">Fecha</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-m>
+            <tr>
+              <td>{{ movementLabel(m.type) }}</td>
+              <td>
+                <span
+                  class="font-semibold"
+                  [class.text-green-600]="m.quantity > 0"
+                  [class.text-red-600]="m.quantity < 0"
+                >
+                  {{ m.quantity > 0 ? '+' : '' }}{{ m.quantity }}
+                </span>
+              </td>
+              <td>
+                <span class="text-sm text-ink-soft">{{ m.note ?? '—' }}</span>
+              </td>
+              <td>
+                <span class="whitespace-nowrap text-sm text-ink-soft">
+                  {{ m.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                </span>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="4">
+                <p class="py-6 text-center text-sm text-ink-soft">
+                  Sin movimientos registrados.
+                </p>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+  }
+</p-dialog>

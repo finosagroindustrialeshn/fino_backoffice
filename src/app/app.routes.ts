@@ -84,6 +84,14 @@ export const routes: Routes = [
         data: { title: 'Editar producto' },
       },
       {
+        path: 'inventario',
+        loadComponent: () =>
+          import(
+            './features/inventory/pages/inventory-list/inventory-list'
+          ).then((m) => m.InventoryList),
+        data: { title: 'Inventario' },
+      },
+      {
         path: 'contabilidad',
         loadComponent: placeholder,
         data: { title: 'Contabilidad' },
