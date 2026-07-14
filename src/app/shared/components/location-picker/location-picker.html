@@ -1,0 +1,51 @@
+@switch (status()) {
+  @case ('ready') {
+    <div class="overflow-hidden rounded-xl border border-ink/10">
+      <google-map
+        height="300px"
+        width="100%"
+        [center]="center()"
+        [zoom]="zoom()"
+        [options]="mapOptions"
+        (mapClick)="onMapClick($event)"
+      >
+        @if (markerPosition(); as position) {
+          <map-advanced-marker
+            [position]="position"
+            [gmpDraggable]="true"
+            (mapDragend)="onMarkerDragEnd($event)"
+          />
+        }
+      </google-map>
+    </div>
+    <p class="mt-1.5 text-xs text-ink-soft">
+      Toca el mapa para marcar el local o arrastra el pin.
+    </p>
+  }
+
+  @case ('loading') {
+    <div
+      class="flex h-[300px] items-center justify-center rounded-xl border border-ink/10 bg-ink/5 text-sm text-ink-soft"
+      aria-live="polite"
+    >
+      Cargando mapa…
+    </div>
+  }
+
+  @case ('error') {
+    <div
+      class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
+      role="alert"
+    >
+      No se pudo cargar el mapa. Ingresa las coordenadas manualmente.
+    </div>
+  }
+
+  @case ('no-key') {
+    <div
+      class="rounded-xl border border-ink/10 bg-ink/5 p-3 text-sm text-ink-soft"
+    >
+      Mapa no disponible. Ingresa las coordenadas manualmente.
+    </div>
+  }
+}
