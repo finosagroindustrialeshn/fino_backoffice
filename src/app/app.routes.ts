@@ -35,7 +35,54 @@ export const routes: Routes = [
         loadComponent: placeholder,
         data: { title: 'Mapa de rutas' },
       },
-      { path: 'clientes', loadComponent: placeholder, data: { title: 'Clientes' } },
+      {
+        path: 'clientes',
+        loadComponent: () =>
+          import('./features/clients/pages/client-list/client-list').then(
+            (m) => m.ClientList,
+          ),
+        data: { title: 'Clientes' },
+      },
+      {
+        path: 'clientes/nuevo',
+        loadComponent: () =>
+          import('./features/clients/pages/client-form/client-form').then(
+            (m) => m.ClientForm,
+          ),
+        data: { title: 'Nuevo cliente' },
+      },
+      {
+        path: 'clientes/:id/editar',
+        loadComponent: () =>
+          import('./features/clients/pages/client-form/client-form').then(
+            (m) => m.ClientForm,
+          ),
+        data: { title: 'Editar cliente' },
+      },
+      {
+        path: 'productos',
+        loadComponent: () =>
+          import('./features/products/pages/product-list/product-list').then(
+            (m) => m.ProductList,
+          ),
+        data: { title: 'Productos' },
+      },
+      {
+        path: 'productos/nuevo',
+        loadComponent: () =>
+          import('./features/products/pages/product-form/product-form').then(
+            (m) => m.ProductForm,
+          ),
+        data: { title: 'Nuevo producto' },
+      },
+      {
+        path: 'productos/:id/editar',
+        loadComponent: () =>
+          import('./features/products/pages/product-form/product-form').then(
+            (m) => m.ProductForm,
+          ),
+        data: { title: 'Editar producto' },
+      },
       {
         path: 'contabilidad',
         loadComponent: placeholder,
