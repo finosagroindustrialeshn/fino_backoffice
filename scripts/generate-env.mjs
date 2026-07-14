@@ -26,6 +26,8 @@ export const environment = {
   apiUrl: '${env['API_URL']}',
   supabaseUrl: '${env['SUPABASE_URL']}',
   supabaseAnonKey: '${env['SUPABASE_ANON_KEY']}',
+  mapsApiKey: '${env['MAPS_API_KEY'] ?? ''}',
+  mapsMapId: '${env['MAPS_MAP_ID'] ?? ''}',
 } as const;
 `,
 );
