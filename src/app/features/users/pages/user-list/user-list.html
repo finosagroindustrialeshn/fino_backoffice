@@ -1,9 +1,18 @@
 <div class="flex flex-col gap-6">
-  <header class="flex flex-col gap-1">
-    <h2 class="font-heading text-2xl font-bold text-ink">Usuarios y roles</h2>
-    <p class="text-sm text-ink-soft">
-      Gestioná el acceso y los roles del equipo.
-    </p>
+  <header
+    class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+  >
+    <div class="flex flex-col gap-1">
+      <h2 class="font-heading text-2xl font-bold text-ink">Usuarios y roles</h2>
+      <p class="text-sm text-ink-soft">
+        Gestioná el acceso y los roles del equipo.
+      </p>
+    </div>
+    <p-button
+      label="Nuevo usuario"
+      icon="pi pi-plus"
+      routerLink="/usuarios/nuevo"
+    />
   </header>
 
   <!-- Filters -->
@@ -155,37 +164,14 @@
               </td>
 
               <td>
-                <div class="flex flex-col gap-2">
-                  <div class="flex items-center gap-2">
-                    <p-select
-                      [options]="roleOptions"
-                      optionLabel="label"
-                      optionValue="value"
-                      [ngModel]="user.role"
-                      (onChange)="changeRole(user, $event.value)"
-                      [disabled]="isPending(user.id)"
-                      [ariaLabel]="'Cambiar rol de ' + user.fullName"
-                      styleClass="w-40"
-                    />
-                    <p-button
-                      [icon]="user.isActive ? 'pi pi-ban' : 'pi pi-check-circle'"
-                      [severity]="user.isActive ? 'danger' : 'success'"
-                      [text]="true"
-                      [rounded]="true"
-                      [loading]="isPending(user.id)"
-                      [ariaLabel]="
-                        (user.isActive ? 'Desactivar a ' : 'Activar a ') +
-                        user.fullName
-                      "
-                      (onClick)="toggleActive(user)"
-                    />
-                  </div>
-                  @if (rowError(user.id); as message) {
-                    <span class="text-xs text-red-600" role="alert">
-                      {{ message }}
-                    </span>
-                  }
-                </div>
+                <p-button
+                  icon="pi pi-pencil"
+                  label="Editar"
+                  severity="secondary"
+                  [text]="true"
+                  [routerLink]="['/usuarios', user.id, 'editar']"
+                  [ariaLabel]="'Editar a ' + user.fullName"
+                />
               </td>
             </tr>
           </ng-template>

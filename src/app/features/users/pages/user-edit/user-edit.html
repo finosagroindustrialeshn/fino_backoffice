@@ -1,0 +1,127 @@
+<div class="flex flex-col gap-6">
+  <!-- Back -->
+  <a
+    routerLink="/usuarios"
+    class="inline-flex w-fit items-center gap-2 text-sm text-ink-soft hover:text-ink"
+  >
+    <i class="pi pi-arrow-left" aria-hidden="true"></i>
+    Volver a usuarios
+  </a>
+
+  @if (loadError(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+    </div>
+  } @else if (loading()) {
+    <div
+      class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-6"
+      aria-busy="true"
+    >
+      <span class="sr-only">Cargando usuario…</span>
+      <p-skeleton width="14rem" height="1.25rem" />
+      <p-skeleton width="100%" height="10rem" />
+    </div>
+  } @else if (user(); as u) {
+    <header class="flex flex-col gap-1">
+      <h2 class="font-heading text-2xl font-bold text-ink">Editar usuario</h2>
+      <p class="text-sm text-ink-soft">
+        Cambiá el rol o el estado de acceso del usuario.
+      </p>
+    </header>
+
+    @if (formError(); as message) {
+      <div
+        role="alert"
+        class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+      >
+        {{ message }}
+      </div>
+    }
+
+    <form
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      class="flex flex-col gap-6 rounded-2xl border border-ink/10 bg-white p-6"
+    >
+      <!-- Identity (read-only) -->
+      <div class="flex items-center gap-3">
+        <span
+          class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-mist text-base font-semibold text-brand"
+          aria-hidden="true"
+        >
+          {{ getInitials(u.fullName) }}
+        </span>
+        <div class="flex flex-col">
+          <span class="font-medium text-ink">{{ u.fullName }}</span>
+          <span class="text-sm text-ink-soft">{{ u.email }}</span>
+          @if (u.phone) {
+            <span class="text-sm text-ink-soft">{{ u.phone }}</span>
+          }
+        </div>
+      </div>
+
+      <p class="text-xs text-ink-soft">
+        El nombre, correo y teléfono no se editan desde acá.
+      </p>
+
+      <hr class="border-ink/10" />
+
+      <!-- Role -->
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="user-role"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Rol
+        </label>
+        <p-select
+          inputId="user-role"
+          formControlName="role"
+          [options]="roleOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccioná un rol"
+          styleClass="w-full sm:w-72"
+          [attr.aria-invalid]="
+            form.controls.role.invalid && form.controls.role.touched
+          "
+        />
+        @if (form.controls.role.touched && form.controls.role.invalid) {
+          <span class="text-xs text-red-600" role="alert">
+            Asigná un rol.
+          </span>
+        }
+      </div>
+
+      <!-- Active state -->
+      <label class="flex items-center gap-2 text-sm text-ink">
+        <p-checkbox
+          formControlName="isActive"
+          [binary]="true"
+          inputId="user-active"
+        />
+        <span>Usuario activo</span>
+      </label>
+
+      <!-- Actions -->
+      <div class="flex items-center justify-end gap-2">
+        <p-button
+          type="button"
+          label="Cancelar"
+          severity="secondary"
+          [text]="true"
+          routerLink="/usuarios"
+        />
+        <p-button
+          type="submit"
+          label="Guardar cambios"
+          [loading]="saving()"
+          [disabled]="form.invalid || saving()"
+        />
+      </div>
+    </form>
+  }
+</div>

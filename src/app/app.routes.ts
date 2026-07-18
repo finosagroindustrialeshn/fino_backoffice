@@ -155,6 +155,22 @@ export const routes: Routes = [
           ),
         data: { title: 'Usuarios y roles' },
       },
+      {
+        path: 'usuarios/nuevo',
+        loadComponent: () =>
+          import('./features/users/pages/user-form/user-form').then(
+            (m) => m.UserForm,
+          ),
+        data: { title: 'Nuevo usuario' },
+      },
+      {
+        path: 'usuarios/:id/editar',
+        loadComponent: () =>
+          import('./features/users/pages/user-edit/user-edit').then(
+            (m) => m.UserEdit,
+          ),
+        data: { title: 'Editar usuario' },
+      },
       { path: '**', redirectTo: 'dashboard' },
     ],
   },

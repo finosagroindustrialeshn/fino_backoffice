@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -46,6 +47,7 @@ const ROLE_SEVERITY: Record<Role, 'danger' | 'warn' | 'info' | 'success'> = {
   imports: [
     DatePipe,
     FormsModule,
+    RouterLink,
     ButtonModule,
     CheckboxModule,
     SelectModule,
@@ -70,16 +72,9 @@ export class UserList implements OnInit {
     })),
   ];
 
-  protected readonly roleOptions: RoleOption[] = (
-    Object.keys(ROLE_LABELS) as Role[]
-  ).map((value) => ({ label: ROLE_LABELS[value], value }));
-
   protected readonly roleFilter = signal<Role | null>(null);
   protected readonly includeInactive = signal(false);
   protected readonly state = signal<UsersState>({ status: 'idle' });
-
-  private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
-  private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
 
   ngOnInit(): void {
     void this.load();
@@ -91,14 +86,6 @@ export class UserList implements OnInit {
 
   protected roleSeverity(role: Role): 'danger' | 'warn' | 'info' | 'success' {
     return ROLE_SEVERITY[role];
-  }
-
-  protected isPending(id: string): boolean {
-    return this.pendingIds().has(id);
-  }
-
-  protected rowError(id: string): string | undefined {
-    return this.rowErrors()[id];
   }
 
   protected onRoleFilterChange(role: Role | null): void {
@@ -127,84 +114,6 @@ export class UserList implements OnInit {
         message: this.toMessage(error, 'No se pudieron cargar los usuarios.'),
       });
     }
-  }
-
-  protected async toggleActive(user: UserProfile): Promise<void> {
-    this.startPending(user.id);
-    this.clearRowError(user.id);
-    try {
-      const updated = await firstValueFrom(
-        user.isActive
-          ? this.users.deactivate(user.id)
-          : this.users.activate(user.id),
-      );
-      this.patchRow(updated);
-    } catch (error) {
-      this.setRowError(
-        user.id,
-        this.toMessage(error, 'No se pudo actualizar el estado.'),
-      );
-    } finally {
-      this.stopPending(user.id);
-    }
-  }
-
-  protected async changeRole(user: UserProfile, role: Role): Promise<void> {
-    if (role === user.role) {
-      return;
-    }
-    this.startPending(user.id);
-    this.clearRowError(user.id);
-    try {
-      const updated = await firstValueFrom(
-        this.users.updateRole(user.id, role),
-      );
-      this.patchRow(updated);
-    } catch (error) {
-      this.setRowError(
-        user.id,
-        this.toMessage(error, 'No se pudo actualizar el rol.'),
-      );
-    } finally {
-      this.stopPending(user.id);
-    }
-  }
-
-  private patchRow(updated: UserProfile): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        users: current.users.map((user) =>
-          user.id === updated.id ? updated : user,
-        ),
-      };
-    });
-  }
-
-  private startPending(id: string): void {
-    this.pendingIds.update((ids) => new Set(ids).add(id));
-  }
-
-  private stopPending(id: string): void {
-    this.pendingIds.update((ids) => {
-      const next = new Set(ids);
-      next.delete(id);
-      return next;
-    });
-  }
-
-  private setRowError(id: string, message: string): void {
-    this.rowErrors.update((errors) => ({ ...errors, [id]: message }));
-  }
-
-  private clearRowError(id: string): void {
-    this.rowErrors.update((errors) => {
-      const { [id]: _removed, ...rest } = errors;
-      return rest;
-    });
   }
 
   private toMessage(error: unknown, fallback: string): string {

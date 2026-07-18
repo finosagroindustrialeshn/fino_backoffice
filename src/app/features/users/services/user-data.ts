@@ -3,6 +3,7 @@ import type { Observable } from 'rxjs';
 
 import { ApiClient, type QueryParams } from '../../../core/http/api-client';
 import type { Role, UserProfile } from '../../../core/auth/user-profile.model';
+import type { CreateUserPayload } from '../models/user-payload.model';
 
 export interface UserListFilters {
   readonly role?: Role;
@@ -22,6 +23,14 @@ export class UserDataClient {
       params['includeInactive'] = true;
     }
     return this.api.get<UserProfile[]>('/users', params as QueryParams);
+  }
+
+  get(id: string): Observable<UserProfile> {
+    return this.api.get<UserProfile>(`/users/${id}`);
+  }
+
+  create(payload: CreateUserPayload): Observable<UserProfile> {
+    return this.api.post<UserProfile>('/users', payload);
   }
 
   activate(id: string): Observable<UserProfile> {
