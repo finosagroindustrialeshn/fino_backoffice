@@ -6,15 +6,18 @@ const envPath = resolve('.env');
 const outPath = resolve('src/environments/environment.ts');
 const required = ['API_URL', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'];
 
-if (!existsSync(envPath)) {
-  console.error('Missing .env file. Copy .env.example to .env and fill in the values.');
-  process.exit(1);
-}
+// Local dev reads from a .env file; CI/hosting (e.g. Vercel) injects the same
+// keys as real environment variables. A local .env, when present, takes
+// precedence over process.env.
+const fileEnv = existsSync(envPath) ? parseEnvFile(readFileSync(envPath, 'utf8')) : {};
+const env = { ...process.env, ...fileEnv };
 
-const env = parseEnvFile(readFileSync(envPath, 'utf8'));
 const missing = required.filter((key) => !env[key]);
 if (missing.length > 0) {
-  console.error(`Missing required env vars in .env: ${missing.join(', ')}`);
+  console.error(
+    `Missing required env vars: ${missing.join(', ')}. ` +
+      'Set them in .env for local dev or as environment variables in your host.',
+  );
   process.exit(1);
 }
 
