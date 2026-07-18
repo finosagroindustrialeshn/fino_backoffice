@@ -56,3 +56,6 @@ claude-rules.lock.json
 CLAUDE.md
 skills-lock.json
 .atl
+
+# CodeGraph local index
+.codegraph/
