@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 const isProduction = process.argv.includes('--production');
 const envPath = resolve('.env');
@@ -20,6 +20,10 @@ if (missing.length > 0) {
   );
   process.exit(1);
 }
+
+// The environments dir holds only generated files (gitignored), so it may not
+// exist in a clean checkout (e.g. CI/Vercel). Create it before writing.
+mkdirSync(dirname(outPath), { recursive: true });
 
 writeFileSync(
   outPath,
