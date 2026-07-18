@@ -15,6 +15,11 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
     providePrimeNG({
       ripple: true,
+      // Mount overlays (select panels, paginator dropdown, popovers) on the
+      // body so they escape ancestors with overflow (e.g. the table's
+      // overflow-x-auto wrapper) instead of being clipped. z-index is still
+      // managed by PrimeNG.
+      overlayAppendTo: 'body',
       theme: {
         preset: FinoPreset,
         options: {
