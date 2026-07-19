@@ -28,7 +28,22 @@ export const routes: Routes = [
           ),
         data: { title: 'Dashboard' },
       },
-      { path: 'despacho', loadComponent: placeholder, data: { title: 'Despacho' } },
+      {
+        path: 'despacho',
+        loadComponent: () =>
+          import(
+            './features/dispatches/pages/dispatch-list/dispatch-list'
+          ).then((m) => m.DispatchList),
+        data: { title: 'Despacho' },
+      },
+      {
+        path: 'despacho/nuevo',
+        loadComponent: () =>
+          import(
+            './features/dispatches/pages/dispatch-form/dispatch-form'
+          ).then((m) => m.DispatchForm),
+        data: { title: 'Nuevo despacho' },
+      },
       { path: 'retorno', loadComponent: placeholder, data: { title: 'Retorno' } },
       {
         path: 'mapa',

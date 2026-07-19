@@ -1,0 +1,236 @@
+<div class="flex flex-col gap-6">
+  <!-- Toolbar -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+    aria-label="Acciones de despacho"
+  >
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="status-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Estado
+      </label>
+      <p-select
+        inputId="status-filter"
+        [options]="statusFilterOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="statusFilter()"
+        (ngModelChange)="onStatusFilterChange($event)"
+        appendTo="body"
+        styleClass="w-full sm:w-56"
+      />
+    </div>
+
+    @if (canManage()) {
+      <p-button
+        label="Nuevo despacho"
+        icon="pi pi-plus"
+        routerLink="/despacho/nuevo"
+      />
+    }
+  </section>
+
+  @if (list.error(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+      <p-button
+        label="Reintentar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="list.reload()"
+      />
+    </div>
+  }
+
+  <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+    <p-table
+      #dt
+      [value]="list.items()"
+      [lazy]="true"
+      (onLazyLoad)="list.onLazyLoad($event)"
+      [loading]="list.loading()"
+      [paginator]="true"
+      [rows]="10"
+      [totalRecords]="list.total()"
+      [rowsPerPageOptions]="rowsPerPageOptions"
+      [tableStyle]="{ 'min-width': '48rem' }"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+      [showCurrentPageReport]="true"
+    >
+      <ng-template #header>
+        <tr>
+          <th scope="col">Fecha</th>
+          <th scope="col">Vendedor</th>
+          <th scope="col">Líneas</th>
+          <th scope="col">Unidades</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-dispatch>
+        <tr>
+          <td>
+            <span class="whitespace-nowrap text-sm text-ink">
+              {{ dispatch.date | date: 'dd/MM/yyyy' }}
+            </span>
+          </td>
+          <td>
+            <span class="font-medium text-ink">
+              {{ sellerName(dispatch.sellerId) }}
+            </span>
+          </td>
+          <td>
+            <span class="text-sm text-ink-soft">{{ dispatch.items.length }}</span>
+          </td>
+          <td>
+            <span class="text-base font-semibold text-ink">
+              {{ totalUnits(dispatch) }}
+            </span>
+          </td>
+          <td>
+            <p-tag
+              [value]="statusLabel(dispatch.status)"
+              [severity]="statusSeverity(dispatch.status)"
+            />
+          </td>
+          <td>
+            <p-button
+              label="Ver detalle"
+              icon="pi pi-eye"
+              size="small"
+              severity="secondary"
+              [text]="true"
+              (onClick)="openDetail(dispatch)"
+            />
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="6">
+            <p class="py-8 text-center text-sm text-ink-soft">
+              @if (list.loading()) {
+                Cargando despachos…
+              } @else {
+                No hay despachos registrados.
+              }
+            </p>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- Detail dialog -->
+<p-dialog
+  [visible]="detailOpen()"
+  (visibleChange)="detailOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '42rem' }"
+  header="Detalle del despacho"
+  [dismissableMask]="true"
+>
+  @let current = detail();
+  @if (current) {
+    <div class="flex flex-col gap-5">
+      @if (actionError(); as message) {
+        <div
+          role="alert"
+          class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          {{ message }}
+        </div>
+      }
+
+      <!-- Summary -->
+      <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div class="flex flex-col gap-0.5">
+          <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            Vendedor
+          </dt>
+          <dd class="text-sm font-medium text-ink">
+            {{ sellerName(current.sellerId) }}
+          </dd>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            Fecha
+          </dt>
+          <dd class="text-sm text-ink">{{ current.date | date: 'dd/MM/yyyy' }}</dd>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            Estado
+          </dt>
+          <dd>
+            <p-tag
+              [value]="statusLabel(current.status)"
+              [severity]="statusSeverity(current.status)"
+            />
+          </dd>
+        </div>
+      </dl>
+
+      @if (current.notes) {
+        <p class="rounded-xl bg-ink/5 px-4 py-3 text-sm text-ink-soft">
+          {{ current.notes }}
+        </p>
+      }
+
+      <!-- Line items -->
+      <div class="overflow-x-auto rounded-xl border border-ink/10">
+        <p-table [value]="detailItems()" [tableStyle]="{ 'min-width': '28rem' }">
+          <ng-template #header>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col" class="text-right">Cantidad</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-item>
+            <tr>
+              <td>{{ productName(item.productId) }}</td>
+              <td class="text-right font-semibold text-ink">{{ item.quantity }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <!-- Actions (DRAFT only) -->
+      @if (canManage() && current.status === 'DRAFT') {
+        <div class="flex items-center justify-end gap-2">
+          <p-button
+            type="button"
+            label="Cancelar despacho"
+            icon="pi pi-times"
+            severity="danger"
+            [outlined]="true"
+            [disabled]="acting()"
+            (onClick)="cancel()"
+          />
+          <p-button
+            type="button"
+            label="Confirmar despacho"
+            icon="pi pi-check"
+            [loading]="acting()"
+            [disabled]="acting()"
+            (onClick)="confirm()"
+          />
+        </div>
+        <p class="text-xs text-ink-soft">
+          Confirmar mueve el stock de bodega al vendedor. No se puede deshacer.
+        </p>
+      }
+    </div>
+  }
+</p-dialog>
