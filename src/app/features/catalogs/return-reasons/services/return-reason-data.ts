@@ -2,6 +2,10 @@ import { inject, Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
 
 import { ApiClient, type QueryParams } from '../../../../core/http/api-client';
+import type {
+  Paginated,
+  PaginationQuery,
+} from '../../../../core/http/pagination.model';
 import type { ReturnReason } from '../models/return-reason.model';
 
 export interface ReturnReasonInput {
@@ -14,12 +18,20 @@ export interface ReturnReasonInput {
 export class ReturnReasonDataClient {
   private readonly api = inject(ApiClient);
 
-  list(includeInactive?: boolean): Observable<ReturnReason[]> {
-    const params: Record<string, boolean> = {};
-    if (includeInactive) {
+  list(
+    query: PaginationQuery & { readonly includeInactive?: boolean },
+  ): Observable<Paginated<ReturnReason>> {
+    const params: Record<string, string | number | boolean> = {};
+    if (query.page) {
+      params['page'] = query.page;
+    }
+    if (query.pageSize) {
+      params['pageSize'] = query.pageSize;
+    }
+    if (query.includeInactive) {
       params['includeInactive'] = true;
     }
-    return this.api.get<ReturnReason[]>(
+    return this.api.get<Paginated<ReturnReason>>(
       '/return-reasons',
       params as QueryParams,
     );

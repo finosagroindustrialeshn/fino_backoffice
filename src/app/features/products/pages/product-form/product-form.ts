@@ -92,11 +92,11 @@ export class ProductForm implements OnInit {
     this.loadError.set(null);
     try {
       const [categories, presentations] = await Promise.all([
-        firstValueFrom(this.categories.list(true)),
-        firstValueFrom(this.presentations.list(true)),
+        firstValueFrom(this.categories.list({ pageSize: 100, includeInactive: true })),
+        firstValueFrom(this.presentations.list({ pageSize: 100, includeInactive: true })),
       ]);
-      this.categoryOptions.set(categories);
-      this.presentationOptions.set(presentations);
+      this.categoryOptions.set([...categories.items]);
+      this.presentationOptions.set([...presentations.items]);
 
       const id = this.route.snapshot.paramMap.get('id');
       if (id) {

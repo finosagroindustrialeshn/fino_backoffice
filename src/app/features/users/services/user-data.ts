@@ -2,10 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
 
 import { ApiClient, type QueryParams } from '../../../core/http/api-client';
+import type {
+  Paginated,
+  PaginationQuery,
+} from '../../../core/http/pagination.model';
 import type { Role, UserProfile } from '../../../core/auth/user-profile.model';
 import type { CreateUserPayload } from '../models/user-payload.model';
 
-export interface UserListFilters {
+export interface UserListQuery extends PaginationQuery {
   readonly role?: Role;
   readonly includeInactive?: boolean;
 }
@@ -14,15 +18,21 @@ export interface UserListFilters {
 export class UserDataClient {
   private readonly api = inject(ApiClient);
 
-  list(filters?: UserListFilters): Observable<UserProfile[]> {
-    const params: Record<string, string | boolean> = {};
-    if (filters?.role) {
-      params['role'] = filters.role;
+  list(query?: UserListQuery): Observable<Paginated<UserProfile>> {
+    const params: Record<string, string | number | boolean> = {};
+    if (query?.page) {
+      params['page'] = query.page;
     }
-    if (filters?.includeInactive) {
+    if (query?.pageSize) {
+      params['pageSize'] = query.pageSize;
+    }
+    if (query?.role) {
+      params['role'] = query.role;
+    }
+    if (query?.includeInactive) {
       params['includeInactive'] = true;
     }
-    return this.api.get<UserProfile[]>('/users', params as QueryParams);
+    return this.api.get<Paginated<UserProfile>>('/users', params as QueryParams);
   }
 
   get(id: string): Observable<UserProfile> {

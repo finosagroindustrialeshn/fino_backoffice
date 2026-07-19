@@ -3,17 +3,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
-import { SkeletonModule } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import {
@@ -22,18 +20,15 @@ import {
   type Role,
   type UserProfile,
 } from '../../../../core/auth/user-profile.model';
+import { LazyList } from '../../../../core/http/lazy-list';
 import { UserDataClient } from '../../services/user-data';
-
-type UsersState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly users: UserProfile[] }
-  | { readonly status: 'error'; readonly message: string };
 
 interface RoleOption {
   readonly label: string;
   readonly value: Role | null;
 }
+
+const DEFAULT_ROWS = 10;
 
 const ROLE_SEVERITY: Record<Role, 'danger' | 'warn' | 'info' | 'success'> = {
   ADMIN: 'danger',
@@ -51,18 +46,19 @@ const ROLE_SEVERITY: Record<Role, 'danger' | 'warn' | 'info' | 'success'> = {
     ButtonModule,
     CheckboxModule,
     SelectModule,
-    SkeletonModule,
     TableModule,
     TagModule,
   ],
   templateUrl: './user-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UserList implements OnInit {
+export class UserList {
   private readonly users = inject(UserDataClient);
+  private readonly table = viewChild.required<Table>('dt');
 
   protected readonly getInitials = getInitials;
-  protected readonly skeletonRows = [0, 1, 2, 3, 4];
+  protected readonly defaultRows = DEFAULT_ROWS;
+  protected readonly rowsPerPageOptions = [5, 10, 20, 50];
 
   protected readonly roleFilterOptions: RoleOption[] = [
     { label: 'Todos los roles', value: null },
@@ -74,10 +70,27 @@ export class UserList implements OnInit {
 
   protected readonly roleFilter = signal<Role | null>(null);
   protected readonly includeInactive = signal(false);
-  protected readonly state = signal<UsersState>({ status: 'idle' });
 
-  ngOnInit(): void {
-    void this.load();
+  protected readonly list = new LazyList<UserProfile>(
+    (page, pageSize) =>
+      this.users.list({
+        page,
+        pageSize,
+        role: this.roleFilter() ?? undefined,
+        includeInactive: this.includeInactive(),
+      }),
+    'No se pudieron cargar los usuarios.',
+  );
+
+  protected onRoleFilterChange(role: Role | null): void {
+    this.roleFilter.set(role);
+    // reset() jumps to page 1 and re-fires onLazyLoad with the new filter.
+    this.table().reset();
+  }
+
+  protected onIncludeInactiveChange(includeInactive: boolean): void {
+    this.includeInactive.set(includeInactive);
+    this.table().reset();
   }
 
   protected roleLabel(role: Role): string {
@@ -86,45 +99,5 @@ export class UserList implements OnInit {
 
   protected roleSeverity(role: Role): 'danger' | 'warn' | 'info' | 'success' {
     return ROLE_SEVERITY[role];
-  }
-
-  protected onRoleFilterChange(role: Role | null): void {
-    this.roleFilter.set(role);
-    void this.load();
-  }
-
-  protected onIncludeInactiveChange(includeInactive: boolean): void {
-    this.includeInactive.set(includeInactive);
-    void this.load();
-  }
-
-  protected async load(): Promise<void> {
-    this.state.set({ status: 'loading' });
-    try {
-      const users = await firstValueFrom(
-        this.users.list({
-          role: this.roleFilter() ?? undefined,
-          includeInactive: this.includeInactive(),
-        }),
-      );
-      this.state.set({ status: 'success', users });
-    } catch (error) {
-      this.state.set({
-        status: 'error',
-        message: this.toMessage(error, 'No se pudieron cargar los usuarios.'),
-      });
-    }
-  }
-
-  private toMessage(error: unknown, fallback: string): string {
-    if (
-      error &&
-      typeof error === 'object' &&
-      'message' in error &&
-      typeof (error as { message: unknown }).message === 'string'
-    ) {
-      return (error as { message: string }).message;
-    }
-    return fallback;
   }
 }

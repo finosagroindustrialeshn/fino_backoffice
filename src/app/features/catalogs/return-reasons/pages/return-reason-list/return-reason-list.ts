@@ -2,8 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FormsModule,
@@ -19,20 +19,14 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { SkeletonModule } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
 import { AuthSession } from '../../../../../core/auth/auth-session';
+import { LazyList } from '../../../../../core/http/lazy-list';
 import type { ReturnReason } from '../../models/return-reason.model';
 import { ReturnReasonDataClient } from '../../services/return-reason-data';
-
-type ReturnReasonsState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly reasons: ReturnReason[] }
-  | { readonly status: 'error'; readonly message: string };
 
 @Component({
   selector: 'app-return-reason-list',
@@ -45,7 +39,6 @@ type ReturnReasonsState =
     DialogModule,
     InputNumberModule,
     InputTextModule,
-    SkeletonModule,
     TableModule,
     TagModule,
     TextareaModule,
@@ -54,17 +47,26 @@ type ReturnReasonsState =
   templateUrl: './return-reason-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ReturnReasonList implements OnInit {
+export class ReturnReasonList {
   private readonly reasons = inject(ReturnReasonDataClient);
   private readonly auth = inject(AuthSession);
   private readonly confirm = inject(ConfirmationService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly table = viewChild.required<Table>('dt');
 
   protected readonly role = this.auth.role;
-  protected readonly skeletonRows = [0, 1, 2, 3, 4];
 
   protected readonly includeInactive = signal(false);
-  protected readonly state = signal<ReturnReasonsState>({ status: 'idle' });
+
+  protected readonly list = new LazyList<ReturnReason>(
+    (page, pageSize) =>
+      this.reasons.list({
+        page,
+        pageSize,
+        includeInactive: this.includeInactive(),
+      }),
+    'No se pudieron cargar los motivos de retorno.',
+  );
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
@@ -80,10 +82,6 @@ export class ReturnReasonList implements OnInit {
     sortOrder: this.fb.control(0, [Validators.required]),
   });
 
-  ngOnInit(): void {
-    void this.load();
-  }
-
   protected canDelete(): boolean {
     return this.role() === 'ADMIN';
   }
@@ -98,25 +96,7 @@ export class ReturnReasonList implements OnInit {
 
   protected onIncludeInactiveChange(includeInactive: boolean): void {
     this.includeInactive.set(includeInactive);
-    void this.load();
-  }
-
-  protected async load(): Promise<void> {
-    this.state.set({ status: 'loading' });
-    try {
-      const reasons = await firstValueFrom(
-        this.reasons.list(this.includeInactive()),
-      );
-      this.state.set({ status: 'success', reasons });
-    } catch (error) {
-      this.state.set({
-        status: 'error',
-        message: this.toMessage(
-          error,
-          'No se pudieron cargar los motivos de retorno.',
-        ),
-      });
-    }
+    this.table().reset();
   }
 
   protected openCreate(): void {
@@ -151,17 +131,11 @@ export class ReturnReasonList implements OnInit {
     const target = this.editing();
 
     try {
-      const saved = await firstValueFrom(
-        target
-          ? this.reasons.update(target.id, dto)
-          : this.reasons.create(dto),
+      await firstValueFrom(
+        target ? this.reasons.update(target.id, dto) : this.reasons.create(dto),
       );
-      if (target) {
-        this.patchRow(saved);
-      } else {
-        this.appendRow(saved);
-      }
       this.dialogOpen.set(false);
+      this.list.reload();
     } catch (error) {
       this.formError.set(
         this.toMessage(error, 'No se pudo guardar el motivo de retorno.'),
@@ -175,12 +149,12 @@ export class ReturnReasonList implements OnInit {
     this.startPending(reason.id);
     this.clearRowError(reason.id);
     try {
-      const updated = await firstValueFrom(
+      await firstValueFrom(
         reason.isActive
           ? this.reasons.deactivate(reason.id)
           : this.reasons.activate(reason.id),
       );
-      this.patchRow(updated);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         reason.id,
@@ -208,7 +182,7 @@ export class ReturnReasonList implements OnInit {
     this.clearRowError(reason.id);
     try {
       await firstValueFrom(this.reasons.remove(reason.id));
-      this.removeRow(reason.id);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         reason.id,
@@ -217,41 +191,6 @@ export class ReturnReasonList implements OnInit {
     } finally {
       this.stopPending(reason.id);
     }
-  }
-
-  private patchRow(updated: ReturnReason): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        reasons: current.reasons.map((reason) =>
-          reason.id === updated.id ? updated : reason,
-        ),
-      };
-    });
-  }
-
-  private appendRow(created: ReturnReason): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return { status: 'success', reasons: [...current.reasons, created] };
-    });
-  }
-
-  private removeRow(id: string): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        reasons: current.reasons.filter((reason) => reason.id !== id),
-      };
-    });
   }
 
   private startPending(id: string): void {

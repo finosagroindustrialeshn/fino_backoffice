@@ -2,8 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FormsModule,
@@ -19,20 +19,14 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { SkeletonModule } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
 import { AuthSession } from '../../../../../core/auth/auth-session';
+import { LazyList } from '../../../../../core/http/lazy-list';
 import type { ProductPresentation } from '../../models/product-presentation.model';
 import { ProductPresentationDataClient } from '../../services/product-presentation-data';
-
-type PresentationsState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly items: ProductPresentation[] }
-  | { readonly status: 'error'; readonly message: string };
 
 @Component({
   selector: 'app-product-presentation-list',
@@ -45,7 +39,6 @@ type PresentationsState =
     DialogModule,
     InputNumberModule,
     InputTextModule,
-    SkeletonModule,
     TableModule,
     TagModule,
     TextareaModule,
@@ -54,16 +47,24 @@ type PresentationsState =
   templateUrl: './product-presentation-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProductPresentationList implements OnInit {
+export class ProductPresentationList {
   private readonly data = inject(ProductPresentationDataClient);
   private readonly auth = inject(AuthSession);
   private readonly confirm = inject(ConfirmationService);
   private readonly fb = inject(NonNullableFormBuilder);
-
-  protected readonly skeletonRows = [0, 1, 2, 3, 4];
+  private readonly table = viewChild.required<Table>('dt');
 
   protected readonly includeInactive = signal(false);
-  protected readonly state = signal<PresentationsState>({ status: 'idle' });
+
+  protected readonly list = new LazyList<ProductPresentation>(
+    (page, pageSize) =>
+      this.data.list({
+        page,
+        pageSize,
+        includeInactive: this.includeInactive(),
+      }),
+    'No se pudieron cargar las presentaciones.',
+  );
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
@@ -79,10 +80,6 @@ export class ProductPresentationList implements OnInit {
     sortOrder: this.fb.control(0, [Validators.required]),
   });
 
-  ngOnInit(): void {
-    void this.load();
-  }
-
   protected canDelete(): boolean {
     return this.auth.role() === 'ADMIN';
   }
@@ -97,37 +94,20 @@ export class ProductPresentationList implements OnInit {
 
   protected onIncludeInactiveChange(includeInactive: boolean): void {
     this.includeInactive.set(includeInactive);
-    void this.load();
-  }
-
-  protected async load(): Promise<void> {
-    this.state.set({ status: 'loading' });
-    try {
-      const items = await firstValueFrom(
-        this.data.list(this.includeInactive()),
-      );
-      this.state.set({ status: 'success', items });
-    } catch (error) {
-      this.state.set({
-        status: 'error',
-        message: this.toMessage(
-          error,
-          'No se pudieron cargar las presentaciones.',
-        ),
-      });
-    }
+    // reset() jumps to page 1 and re-fires onLazyLoad with the new filter.
+    this.table().reset();
   }
 
   protected async toggleActive(item: ProductPresentation): Promise<void> {
     this.startPending(item.id);
     this.clearRowError(item.id);
     try {
-      const updated = await firstValueFrom(
+      await firstValueFrom(
         item.isActive
           ? this.data.deactivate(item.id)
           : this.data.activate(item.id),
       );
-      this.patchRow(updated);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         item.id,
@@ -157,7 +137,7 @@ export class ProductPresentationList implements OnInit {
     this.clearRowError(item.id);
     try {
       await firstValueFrom(this.data.remove(item.id));
-      this.removeRow(item.id);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         item.id,
@@ -201,13 +181,12 @@ export class ProductPresentationList implements OnInit {
 
     try {
       if (id) {
-        const updated = await firstValueFrom(this.data.update(id, payload));
-        this.patchRow(updated);
+        await firstValueFrom(this.data.update(id, payload));
       } else {
-        const created = await firstValueFrom(this.data.create(payload));
-        this.appendRow(created);
+        await firstValueFrom(this.data.create(payload));
       }
       this.dialogVisible.set(false);
+      this.list.reload();
     } catch (error) {
       this.formError.set(
         this.toMessage(error, 'No se pudo guardar la presentación.'),
@@ -215,41 +194,6 @@ export class ProductPresentationList implements OnInit {
     } finally {
       this.submitting.set(false);
     }
-  }
-
-  private patchRow(updated: ProductPresentation): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        items: current.items.map((item) =>
-          item.id === updated.id ? updated : item,
-        ),
-      };
-    });
-  }
-
-  private appendRow(created: ProductPresentation): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return { status: 'success', items: [...current.items, created] };
-    });
-  }
-
-  private removeRow(id: string): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        items: current.items.filter((item) => item.id !== id),
-      };
-    });
   }
 
   private startPending(id: string): void {

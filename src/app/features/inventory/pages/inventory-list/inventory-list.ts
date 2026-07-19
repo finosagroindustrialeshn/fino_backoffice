@@ -23,31 +23,21 @@ import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
+import { LazyList } from '../../../../core/http/lazy-list';
 import type { Product } from '../../../products/models/product.model';
 import { ProductDataClient } from '../../../products/services/product-data';
 import type {
   InventoryMovement,
   MovementType,
+  WarehouseStock,
 } from '../../models/inventory.model';
 import { InventoryDataClient } from '../../services/inventory-data';
-
-interface InventoryRow {
-  readonly product: Product;
-  readonly quantity: number;
-  readonly updatedAt: string | null;
-}
 
 interface MovementOption {
   readonly label: string;
   readonly type: MovementType;
   readonly sign: 1 | -1;
 }
-
-type InventoryState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly rows: InventoryRow[] }
-  | { readonly status: 'error'; readonly message: string };
 
 type HistoryState =
   | { readonly status: 'loading' }
@@ -62,6 +52,8 @@ const MOVEMENT_LABELS: Record<MovementType, string> = {
 };
 
 const LOW_STOCK_THRESHOLD = 10;
+/** Stock balances are a bounded lookup joined to the paginated products. */
+const STOCK_LOOKUP_SIZE = 100;
 
 @Component({
   selector: 'app-inventory-list',
@@ -92,7 +84,14 @@ export class InventoryList implements OnInit {
     return role === 'ADMIN' || role === 'SUPERVISOR';
   });
 
-  protected readonly state = signal<InventoryState>({ status: 'idle' });
+  protected readonly list = new LazyList<Product>(
+    (page, pageSize) => this.products.list({ page, pageSize }),
+    'No se pudo cargar el inventario.',
+  );
+
+  private readonly stockByProduct = signal<ReadonlyMap<string, WarehouseStock>>(
+    new Map(),
+  );
 
   protected readonly typeOptions: MovementOption[] = [
     { label: 'Compra (entrada)', type: 'PURCHASE', sign: 1 },
@@ -119,11 +118,19 @@ export class InventoryList implements OnInit {
   protected readonly historyState = signal<HistoryState>({ status: 'loading' });
 
   ngOnInit(): void {
-    void this.load();
+    void this.loadStock();
   }
 
   protected movementLabel(type: MovementType): string {
     return MOVEMENT_LABELS[type];
+  }
+
+  protected quantityFor(product: Product): number {
+    return this.stockByProduct().get(product.id)?.quantity ?? 0;
+  }
+
+  protected updatedAtFor(product: Product): string | null {
+    return this.stockByProduct().get(product.id)?.updatedAt ?? null;
   }
 
   protected stockSeverity(quantity: number): 'danger' | 'warn' | 'success' {
@@ -140,28 +147,16 @@ export class InventoryList implements OnInit {
     return quantity <= LOW_STOCK_THRESHOLD ? 'Bajo' : 'OK';
   }
 
-  protected async load(): Promise<void> {
-    this.state.set({ status: 'loading' });
+  private async loadStock(): Promise<void> {
     try {
-      const [stock, products] = await Promise.all([
-        firstValueFrom(this.inventory.listStock()),
-        firstValueFrom(this.products.list()),
-      ]);
-      const stockByProduct = new Map(stock.map((s) => [s.productId, s]));
-      const rows = products.map<InventoryRow>((product) => {
-        const balance = stockByProduct.get(product.id);
-        return {
-          product,
-          quantity: balance?.quantity ?? 0,
-          updatedAt: balance?.updatedAt ?? null,
-        };
-      });
-      this.state.set({ status: 'success', rows });
-    } catch (error) {
-      this.state.set({
-        status: 'error',
-        message: this.toMessage(error, 'No se pudo cargar el inventario.'),
-      });
+      const result = await firstValueFrom(
+        this.inventory.listStock({ pageSize: STOCK_LOOKUP_SIZE }),
+      );
+      this.stockByProduct.set(
+        new Map(result.items.map((stock) => [stock.productId, stock])),
+      );
+    } catch {
+      // Balances fall back to 0 if the stock lookup fails.
     }
   }
 
@@ -191,7 +186,9 @@ export class InventoryList implements OnInit {
           note: note.trim() || null,
         }),
       );
-      this.patchQuantity(product.id, updated.quantity, updated.updatedAt);
+      this.stockByProduct.update((current) =>
+        new Map(current).set(product.id, updated),
+      );
       this.registerOpen.set(false);
     } catch (error) {
       this.registerError.set(
@@ -221,24 +218,6 @@ export class InventoryList implements OnInit {
         message: this.toMessage(error, 'No se pudo cargar el historial.'),
       });
     }
-  }
-
-  private patchQuantity(
-    productId: string,
-    quantity: number,
-    updatedAt: string,
-  ): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        rows: current.rows.map((row) =>
-          row.product.id === productId ? { ...row, quantity, updatedAt } : row,
-        ),
-      };
-    });
   }
 
   private toMessage(error: unknown, fallback: string): string {

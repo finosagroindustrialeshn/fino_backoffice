@@ -12,20 +12,17 @@ import { firstValueFrom } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { SkeletonModule } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
+import { LazyList } from '../../../../core/http/lazy-list';
 import { ProductCategoryDataClient } from '../../../catalogs/product-categories/services/product-category-data';
 import type { Product } from '../../models/product.model';
 import { ProductDataClient } from '../../services/product-data';
 
-type ProductsState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly products: Product[] }
-  | { readonly status: 'error'; readonly message: string };
+/** Categories are bounded reference data — fetch enough for the name lookup. */
+const CATEGORY_LOOKUP_SIZE = 100;
 
 @Component({
   selector: 'app-product-list',
@@ -34,7 +31,6 @@ type ProductsState =
     RouterLink,
     ButtonModule,
     ConfirmDialogModule,
-    SkeletonModule,
     TableModule,
     TagModule,
   ],
@@ -48,21 +44,26 @@ export class ProductList implements OnInit {
   private readonly auth = inject(AuthSession);
   private readonly confirmation = inject(ConfirmationService);
 
-  protected readonly skeletonRows = [0, 1, 2, 3, 4];
   protected readonly canManage = computed(() => {
     const role = this.auth.role();
     return role === 'ADMIN' || role === 'SUPERVISOR';
   });
   protected readonly canDelete = computed(() => this.auth.role() === 'ADMIN');
 
-  protected readonly state = signal<ProductsState>({ status: 'idle' });
-  private readonly categoryNames = signal<ReadonlyMap<string, string>>(new Map());
+  protected readonly list = new LazyList<Product>(
+    (page, pageSize) => this.products.list({ page, pageSize }),
+    'No se pudieron cargar los productos.',
+  );
+
+  private readonly categoryNames = signal<ReadonlyMap<string, string>>(
+    new Map(),
+  );
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
 
   ngOnInit(): void {
-    void this.load();
+    void this.loadCategories();
   }
 
   protected isPending(id: string): boolean {
@@ -80,22 +81,19 @@ export class ProductList implements OnInit {
     return this.categoryNames().get(id) ?? '—';
   }
 
-  protected async load(): Promise<void> {
-    this.state.set({ status: 'loading' });
+  private async loadCategories(): Promise<void> {
     try {
-      const [products, categories] = await Promise.all([
-        firstValueFrom(this.products.list()),
-        firstValueFrom(this.categories.list(true)),
-      ]);
-      this.categoryNames.set(
-        new Map(categories.map((category) => [category.id, category.name])),
+      const result = await firstValueFrom(
+        this.categories.list({
+          pageSize: CATEGORY_LOOKUP_SIZE,
+          includeInactive: true,
+        }),
       );
-      this.state.set({ status: 'success', products });
-    } catch (error) {
-      this.state.set({
-        status: 'error',
-        message: this.toMessage(error, 'No se pudieron cargar los productos.'),
-      });
+      this.categoryNames.set(
+        new Map(result.items.map((category) => [category.id, category.name])),
+      );
+    } catch {
+      // Category names simply fall back to '—' if the lookup fails.
     }
   }
 
@@ -103,10 +101,10 @@ export class ProductList implements OnInit {
     this.startPending(product.id);
     this.clearRowError(product.id);
     try {
-      const updated = await firstValueFrom(
+      await firstValueFrom(
         this.products.setActive(product.id, !product.isActive),
       );
-      this.patchRow(updated);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         product.id,
@@ -136,7 +134,7 @@ export class ProductList implements OnInit {
     this.clearRowError(product.id);
     try {
       await firstValueFrom(this.products.remove(product.id));
-      this.removeRow(product.id);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         product.id,
@@ -145,32 +143,6 @@ export class ProductList implements OnInit {
     } finally {
       this.stopPending(product.id);
     }
-  }
-
-  private patchRow(updated: Product): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        products: current.products.map((product) =>
-          product.id === updated.id ? updated : product,
-        ),
-      };
-    });
-  }
-
-  private removeRow(id: string): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        products: current.products.filter((product) => product.id !== id),
-      };
-    });
   }
 
   private startPending(id: string): void {

@@ -1,144 +1,114 @@
 <div class="flex flex-col gap-6">
-  @let view = state();
-  @switch (view.status) {
-    @case ('loading') {
-      <div
-        class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-4"
-        aria-live="polite"
-        aria-busy="true"
-      >
-        <span class="sr-only">Cargando inventario…</span>
-        @for (row of skeletonRows; track row) {
-          <div class="flex items-center gap-4">
-            <div class="flex flex-1 flex-col gap-2">
-              <p-skeleton width="12rem" height="1rem" />
-              <p-skeleton width="16rem" height="0.75rem" />
-            </div>
-            <p-skeleton width="6rem" height="1.5rem" />
-          </div>
-        }
-      </div>
-    }
+  @if (list.error(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+      <p-button
+        label="Reintentar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="list.reload()"
+      />
+    </div>
+  }
 
-    @case ('error') {
-      <div
-        role="alert"
-        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
-      >
-        <p class="text-sm">{{ view.message }}</p>
-        <p-button
-          label="Reintentar"
-          icon="pi pi-refresh"
-          severity="secondary"
-          [outlined]="true"
-          (onClick)="load()"
-        />
-      </div>
-    }
+  <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+    <p-table
+      #dt
+      [value]="list.items()"
+      [lazy]="true"
+      (onLazyLoad)="list.onLazyLoad($event)"
+      [loading]="list.loading()"
+      [paginator]="true"
+      [rows]="10"
+      [totalRecords]="list.total()"
+      [rowsPerPageOptions]="[5, 10, 20, 50]"
+      [tableStyle]="{ 'min-width': '48rem' }"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+      [showCurrentPageReport]="true"
+    >
+      <ng-template #header>
+        <tr>
+          <th scope="col">Producto</th>
+          <th scope="col">Existencia</th>
+          <th scope="col">Última actualización</th>
+          <th scope="col">Acciones</th>
+        </tr>
+      </ng-template>
 
-    @case ('success') {
-      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
-        <p-table
-          #dt
-          [value]="view.rows"
-          [tableStyle]="{ 'min-width': '48rem' }"
-          [paginator]="true"
-          [rows]="5"
-          [rowsPerPageOptions]="[5, 10, 15, 20]"
-          [globalFilterFields]="['product.name', 'product.sku']"
-        >
-          <ng-template #caption>
-            <div class="relative w-full sm:max-w-xs">
-              <i
-                class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft"
-                aria-hidden="true"
-              ></i>
-              <input
-                #searchInput
-                type="search"
-                (input)="dt.filterGlobal(searchInput.value, 'contains')"
-                placeholder="Buscar…"
-                aria-label="Buscar en la tabla"
-                class="w-full rounded-lg border border-ink/15 bg-white py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+      <ng-template #body let-product>
+        <tr>
+          <td>
+            <span class="font-medium text-ink">{{ product.name }}</span>
+            <span class="block text-xs text-ink-soft">
+              SKU: {{ product.sku }}
+            </span>
+          </td>
+
+          <td>
+            <div class="flex items-center gap-2">
+              <span class="text-base font-semibold text-ink">
+                {{ quantityFor(product) }}
+              </span>
+              <p-tag
+                [value]="stockLabel(quantityFor(product))"
+                [severity]="stockSeverity(quantityFor(product))"
               />
             </div>
-          </ng-template>
+          </td>
 
-          <ng-template #header>
-            <tr>
-              <th scope="col">Producto</th>
-              <th scope="col">Existencia</th>
-              <th scope="col">Última actualización</th>
-              <th scope="col">Acciones</th>
-            </tr>
-          </ng-template>
+          <td>
+            <span class="text-sm text-ink-soft">
+              {{
+                updatedAtFor(product)
+                  ? (updatedAtFor(product) | date: 'dd/MM/yyyy HH:mm')
+                  : '—'
+              }}
+            </span>
+          </td>
 
-          <ng-template #body let-row>
-            <tr>
-              <td>
-                <span class="font-medium text-ink">{{ row.product.name }}</span>
-                <span class="block text-xs text-ink-soft">
-                  SKU: {{ row.product.sku }}
-                </span>
-              </td>
+          <td>
+            <div class="flex items-center gap-2">
+              @if (canManage()) {
+                <p-button
+                  label="Movimiento"
+                  icon="pi pi-plus"
+                  size="small"
+                  [outlined]="true"
+                  (onClick)="openRegister(product)"
+                />
+              }
+              <p-button
+                label="Historial"
+                icon="pi pi-history"
+                size="small"
+                severity="secondary"
+                [text]="true"
+                (onClick)="openHistory(product)"
+              />
+            </div>
+          </td>
+        </tr>
+      </ng-template>
 
-              <td>
-                <div class="flex items-center gap-2">
-                  <span class="text-base font-semibold text-ink">
-                    {{ row.quantity }}
-                  </span>
-                  <p-tag
-                    [value]="stockLabel(row.quantity)"
-                    [severity]="stockSeverity(row.quantity)"
-                  />
-                </div>
-              </td>
-
-              <td>
-                <span class="text-sm text-ink-soft">
-                  {{
-                    row.updatedAt ? (row.updatedAt | date: 'dd/MM/yyyy HH:mm') : '—'
-                  }}
-                </span>
-              </td>
-
-              <td>
-                <div class="flex items-center gap-2">
-                  @if (canManage()) {
-                    <p-button
-                      label="Movimiento"
-                      icon="pi pi-plus"
-                      size="small"
-                      [outlined]="true"
-                      (onClick)="openRegister(row.product)"
-                    />
-                  }
-                  <p-button
-                    label="Historial"
-                    icon="pi pi-history"
-                    size="small"
-                    severity="secondary"
-                    [text]="true"
-                    (onClick)="openHistory(row.product)"
-                  />
-                </div>
-              </td>
-            </tr>
-          </ng-template>
-
-          <ng-template #emptymessage>
-            <tr>
-              <td colspan="4">
-                <p class="py-8 text-center text-sm text-ink-soft">
-                  No hay productos en inventario.
-                </p>
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
-    }
-  }
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="4">
+            <p class="py-8 text-center text-sm text-ink-soft">
+              @if (list.loading()) {
+                Cargando inventario…
+              } @else {
+                No hay productos en inventario.
+              }
+            </p>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
 </div>
 
 <!-- Register movement dialog -->

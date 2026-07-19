@@ -3,8 +3,8 @@ import {
   Component,
   computed,
   inject,
-  OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FormsModule,
@@ -19,21 +19,15 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { SkeletonModule } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { ConfirmationService } from 'primeng/api';
 
 import { AuthSession } from '../../../../../core/auth/auth-session';
+import { LazyList } from '../../../../../core/http/lazy-list';
 import { ExpenseCategoryDataClient } from '../../services/expense-category-data';
 import type { ExpenseCategory } from '../../models/expense-category.model';
-
-type CatalogState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly categories: ExpenseCategory[] }
-  | { readonly status: 'error'; readonly message: string };
 
 @Component({
   selector: 'app-expense-category-list',
@@ -46,7 +40,6 @@ type CatalogState =
     DialogModule,
     InputNumberModule,
     InputTextModule,
-    SkeletonModule,
     TableModule,
     TagModule,
     TextareaModule,
@@ -55,17 +48,26 @@ type CatalogState =
   templateUrl: './expense-category-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ExpenseCategoryList implements OnInit {
+export class ExpenseCategoryList {
   private readonly categories = inject(ExpenseCategoryDataClient);
   private readonly auth = inject(AuthSession);
   private readonly confirm = inject(ConfirmationService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly table = viewChild.required<Table>('dt');
 
-  protected readonly skeletonRows = [0, 1, 2, 3, 4];
   protected readonly canDelete = computed(() => this.auth.role() === 'ADMIN');
 
   protected readonly includeInactive = signal(false);
-  protected readonly state = signal<CatalogState>({ status: 'idle' });
+
+  protected readonly list = new LazyList<ExpenseCategory>(
+    (page, pageSize) =>
+      this.categories.list({
+        page,
+        pageSize,
+        includeInactive: this.includeInactive(),
+      }),
+    'No se pudieron cargar las categorías de gasto.',
+  );
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
@@ -81,10 +83,6 @@ export class ExpenseCategoryList implements OnInit {
     sortOrder: this.fb.control(0, [Validators.required]),
   });
 
-  ngOnInit(): void {
-    void this.load();
-  }
-
   protected isPending(id: string): boolean {
     return this.pendingIds().has(id);
   }
@@ -95,25 +93,7 @@ export class ExpenseCategoryList implements OnInit {
 
   protected onIncludeInactiveChange(includeInactive: boolean): void {
     this.includeInactive.set(includeInactive);
-    void this.load();
-  }
-
-  protected async load(): Promise<void> {
-    this.state.set({ status: 'loading' });
-    try {
-      const categories = await firstValueFrom(
-        this.categories.list(this.includeInactive()),
-      );
-      this.state.set({ status: 'success', categories });
-    } catch (error) {
-      this.state.set({
-        status: 'error',
-        message: this.toMessage(
-          error,
-          'No se pudieron cargar las categorías de gasto.',
-        ),
-      });
-    }
+    this.table().reset();
   }
 
   protected openCreate(): void {
@@ -148,17 +128,11 @@ export class ExpenseCategoryList implements OnInit {
     const id = this.editingId();
 
     try {
-      const saved = await firstValueFrom(
-        id
-          ? this.categories.update(id, dto)
-          : this.categories.create(dto),
+      await firstValueFrom(
+        id ? this.categories.update(id, dto) : this.categories.create(dto),
       );
-      if (id) {
-        this.patchRow(saved);
-      } else {
-        this.appendRow(saved);
-      }
       this.dialogOpen.set(false);
+      this.list.reload();
     } catch (error) {
       this.formError.set(
         this.toMessage(error, 'No se pudo guardar la categoría.'),
@@ -172,12 +146,12 @@ export class ExpenseCategoryList implements OnInit {
     this.startPending(category.id);
     this.clearRowError(category.id);
     try {
-      const updated = await firstValueFrom(
+      await firstValueFrom(
         category.isActive
           ? this.categories.deactivate(category.id)
           : this.categories.activate(category.id),
       );
-      this.patchRow(updated);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         category.id,
@@ -205,7 +179,7 @@ export class ExpenseCategoryList implements OnInit {
     this.clearRowError(category.id);
     try {
       await firstValueFrom(this.categories.remove(category.id));
-      this.removeRow(category.id);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         category.id,
@@ -214,41 +188,6 @@ export class ExpenseCategoryList implements OnInit {
     } finally {
       this.stopPending(category.id);
     }
-  }
-
-  private patchRow(updated: ExpenseCategory): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        categories: current.categories.map((category) =>
-          category.id === updated.id ? updated : category,
-        ),
-      };
-    });
-  }
-
-  private appendRow(created: ExpenseCategory): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return { status: 'success', categories: [...current.categories, created] };
-    });
-  }
-
-  private removeRow(id: string): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        categories: current.categories.filter((category) => category.id !== id),
-      };
-    });
   }
 
   private startPending(id: string): void {

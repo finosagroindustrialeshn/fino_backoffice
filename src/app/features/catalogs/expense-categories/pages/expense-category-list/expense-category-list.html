@@ -21,174 +21,141 @@
     />
   </section>
 
-  @let view = state();
-  @switch (view.status) {
-    @case ('loading') {
-      <div
-        class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-4"
-        aria-live="polite"
-        aria-busy="true"
-      >
-        <span class="sr-only">Cargando categorías de gasto…</span>
-        @for (row of skeletonRows; track row) {
-          <div class="flex items-center gap-4">
-            <p-skeleton width="8rem" height="1rem" />
-            <div class="flex flex-1 flex-col gap-2">
-              <p-skeleton width="12rem" height="1rem" />
-              <p-skeleton width="16rem" height="0.75rem" />
-            </div>
-            <p-skeleton width="6rem" height="1.5rem" />
-          </div>
-        }
-      </div>
-    }
-
-    @case ('error') {
-      <div
-        role="alert"
-        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
-      >
-        <p class="text-sm">{{ view.message }}</p>
-        <p-button
-          label="Reintentar"
-          icon="pi pi-refresh"
-          severity="secondary"
-          [outlined]="true"
-          (onClick)="load()"
-        />
-      </div>
-    }
-
-    @case ('success') {
-      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
-        <p-table
-          #dt
-          [value]="view.categories"
-          [tableStyle]="{ 'min-width': '52rem' }"
-          [paginator]="true"
-          [rows]="5"
-          [rowsPerPageOptions]="[5, 10, 15, 20]"
-          [globalFilterFields]="['code', 'name', 'description']"
-        >
-          <ng-template #caption>
-            <div class="relative w-full sm:max-w-xs">
-              <i
-                class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft"
-                aria-hidden="true"
-              ></i>
-              <input
-                #searchInput
-                type="search"
-                (input)="dt.filterGlobal(searchInput.value, 'contains')"
-                placeholder="Buscar…"
-                aria-label="Buscar en la tabla"
-                class="w-full rounded-lg border border-ink/15 bg-white py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-            </div>
-          </ng-template>
-
-          <ng-template #header>
-            <tr>
-              <th scope="col">Código</th>
-              <th scope="col">Nombre</th>
-              <th scope="col">Descripción</th>
-              <th scope="col">Orden</th>
-              <th scope="col">Estado</th>
-              <th scope="col">Acciones</th>
-            </tr>
-          </ng-template>
-
-          <ng-template #body let-category>
-            <tr>
-              <td>
-                <span class="font-medium text-ink">{{ category.code }}</span>
-              </td>
-
-              <td>
-                <span class="text-ink">{{ category.name }}</span>
-              </td>
-
-              <td>
-                <span
-                  class="block max-w-xs truncate text-sm text-ink-soft"
-                  [title]="category.description"
-                >
-                  {{ category.description || '—' }}
-                </span>
-              </td>
-
-              <td>
-                <span class="text-sm text-ink-soft">{{ category.sortOrder }}</span>
-              </td>
-
-              <td>
-                <p-tag
-                  [value]="category.isActive ? 'Activa' : 'Inactiva'"
-                  [severity]="category.isActive ? 'success' : 'secondary'"
-                />
-              </td>
-
-              <td>
-                <div class="flex flex-col gap-2">
-                  <div class="flex items-center gap-1">
-                    <p-button
-                      icon="pi pi-pencil"
-                      severity="secondary"
-                      [text]="true"
-                      [rounded]="true"
-                      [disabled]="isPending(category.id)"
-                      [ariaLabel]="'Editar ' + category.name"
-                      (onClick)="openEdit(category)"
-                    />
-                    <p-button
-                      [icon]="
-                        category.isActive ? 'pi pi-ban' : 'pi pi-check-circle'
-                      "
-                      [severity]="category.isActive ? 'danger' : 'success'"
-                      [text]="true"
-                      [rounded]="true"
-                      [loading]="isPending(category.id)"
-                      [ariaLabel]="
-                        (category.isActive ? 'Desactivar ' : 'Activar ') +
-                        category.name
-                      "
-                      (onClick)="toggleActive(category)"
-                    />
-                    @if (canDelete()) {
-                      <p-button
-                        icon="pi pi-trash"
-                        severity="danger"
-                        [text]="true"
-                        [rounded]="true"
-                        [disabled]="isPending(category.id)"
-                        [ariaLabel]="'Eliminar ' + category.name"
-                        (onClick)="confirmDelete(category)"
-                      />
-                    }
-                  </div>
-                  @if (rowError(category.id); as message) {
-                    <span class="text-xs text-red-600" role="alert">
-                      {{ message }}
-                    </span>
-                  }
-                </div>
-              </td>
-            </tr>
-          </ng-template>
-
-          <ng-template #emptymessage>
-            <tr>
-              <td colspan="6">
-                <p class="py-8 text-center text-sm text-ink-soft">
-                  No hay categorías de gasto.
-                </p>
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
-    }
+  @if (list.error(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+      <p-button
+        label="Reintentar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="list.reload()"
+      />
+    </div>
   }
+
+  <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+    <p-table
+      #dt
+      [value]="list.items()"
+      [lazy]="true"
+      (onLazyLoad)="list.onLazyLoad($event)"
+      [loading]="list.loading()"
+      [paginator]="true"
+      [rows]="10"
+      [totalRecords]="list.total()"
+      [rowsPerPageOptions]="[5, 10, 20, 50]"
+      [tableStyle]="{ 'min-width': '52rem' }"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+      [showCurrentPageReport]="true"
+    >
+      <ng-template #header>
+        <tr>
+          <th scope="col">Código</th>
+          <th scope="col">Nombre</th>
+          <th scope="col">Descripción</th>
+          <th scope="col">Orden</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-category>
+        <tr>
+          <td>
+            <span class="font-medium text-ink">{{ category.code }}</span>
+          </td>
+
+          <td>
+            <span class="text-ink">{{ category.name }}</span>
+          </td>
+
+          <td>
+            <span
+              class="block max-w-xs truncate text-sm text-ink-soft"
+              [title]="category.description"
+            >
+              {{ category.description || '—' }}
+            </span>
+          </td>
+
+          <td>
+            <span class="text-sm text-ink-soft">{{ category.sortOrder }}</span>
+          </td>
+
+          <td>
+            <p-tag
+              [value]="category.isActive ? 'Activa' : 'Inactiva'"
+              [severity]="category.isActive ? 'success' : 'secondary'"
+            />
+          </td>
+
+          <td>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-1">
+                <p-button
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  [disabled]="isPending(category.id)"
+                  [ariaLabel]="'Editar ' + category.name"
+                  (onClick)="openEdit(category)"
+                />
+                <p-button
+                  [icon]="
+                    category.isActive ? 'pi pi-ban' : 'pi pi-check-circle'
+                  "
+                  [severity]="category.isActive ? 'danger' : 'success'"
+                  [text]="true"
+                  [rounded]="true"
+                  [loading]="isPending(category.id)"
+                  [ariaLabel]="
+                    (category.isActive ? 'Desactivar ' : 'Activar ') +
+                    category.name
+                  "
+                  (onClick)="toggleActive(category)"
+                />
+                @if (canDelete()) {
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(category.id)"
+                    [ariaLabel]="'Eliminar ' + category.name"
+                    (onClick)="confirmDelete(category)"
+                  />
+                }
+              </div>
+              @if (rowError(category.id); as message) {
+                <span class="text-xs text-red-600" role="alert">
+                  {{ message }}
+                </span>
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="6">
+            <p class="py-8 text-center text-sm text-ink-soft">
+              @if (list.loading()) {
+                Cargando categorías de gasto…
+              } @else {
+                No hay categorías de gasto.
+              }
+            </p>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
 </div>
 
 <!-- Create / Edit dialog -->

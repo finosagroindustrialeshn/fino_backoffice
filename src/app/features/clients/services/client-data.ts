@@ -1,15 +1,26 @@
 import { inject, Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
 
-import { ApiClient } from '../../../core/http/api-client';
+import { ApiClient, type QueryParams } from '../../../core/http/api-client';
+import type {
+  Paginated,
+  PaginationQuery,
+} from '../../../core/http/pagination.model';
 import type { Client, ClientPayload } from '../models/client.model';
 
 @Injectable({ providedIn: 'root' })
 export class ClientDataClient {
   private readonly api = inject(ApiClient);
 
-  list(): Observable<Client[]> {
-    return this.api.get<Client[]>('/clients');
+  list(query: PaginationQuery): Observable<Paginated<Client>> {
+    const params: Record<string, string | number | boolean> = {};
+    if (query.page) {
+      params['page'] = query.page;
+    }
+    if (query.pageSize) {
+      params['pageSize'] = query.pageSize;
+    }
+    return this.api.get<Paginated<Client>>('/clients', params as QueryParams);
   }
 
   get(id: string): Observable<Client> {

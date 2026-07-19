@@ -3,8 +3,8 @@ import {
   Component,
   computed,
   inject,
-  OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FormsModule,
@@ -19,21 +19,15 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { SkeletonModule } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { ConfirmationService } from 'primeng/api';
 
 import { AuthSession } from '../../../../../core/auth/auth-session';
+import { LazyList } from '../../../../../core/http/lazy-list';
 import { ProductCategoryDataClient } from '../../services/product-category-data';
 import type { ProductCategory } from '../../models/product-category.model';
-
-type CategoriesState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly categories: ProductCategory[] }
-  | { readonly status: 'error'; readonly message: string };
 
 @Component({
   selector: 'app-product-category-list',
@@ -46,7 +40,6 @@ type CategoriesState =
     DialogModule,
     InputNumberModule,
     InputTextModule,
-    SkeletonModule,
     TableModule,
     TagModule,
     TextareaModule,
@@ -55,18 +48,26 @@ type CategoriesState =
   templateUrl: './product-category-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProductCategoryList implements OnInit {
+export class ProductCategoryList {
   private readonly categories = inject(ProductCategoryDataClient);
   private readonly auth = inject(AuthSession);
   private readonly confirmation = inject(ConfirmationService);
   private readonly fb = inject(NonNullableFormBuilder);
-
-  protected readonly skeletonRows = [0, 1, 2, 3, 4];
+  private readonly table = viewChild.required<Table>('dt');
 
   protected readonly canDelete = computed(() => this.auth.role() === 'ADMIN');
 
   protected readonly includeInactive = signal(false);
-  protected readonly state = signal<CategoriesState>({ status: 'idle' });
+
+  protected readonly list = new LazyList<ProductCategory>(
+    (page, pageSize) =>
+      this.categories.list({
+        page,
+        pageSize,
+        includeInactive: this.includeInactive(),
+      }),
+    'No se pudieron cargar las categorías.',
+  );
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
@@ -82,10 +83,6 @@ export class ProductCategoryList implements OnInit {
     sortOrder: this.fb.control(0, [Validators.required]),
   });
 
-  ngOnInit(): void {
-    void this.load();
-  }
-
   protected isPending(id: string): boolean {
     return this.pendingIds().has(id);
   }
@@ -96,22 +93,7 @@ export class ProductCategoryList implements OnInit {
 
   protected onIncludeInactiveChange(includeInactive: boolean): void {
     this.includeInactive.set(includeInactive);
-    void this.load();
-  }
-
-  protected async load(): Promise<void> {
-    this.state.set({ status: 'loading' });
-    try {
-      const categories = await firstValueFrom(
-        this.categories.list(this.includeInactive()),
-      );
-      this.state.set({ status: 'success', categories });
-    } catch (error) {
-      this.state.set({
-        status: 'error',
-        message: this.toMessage(error, 'No se pudieron cargar las categorías.'),
-      });
-    }
+    this.table().reset();
   }
 
   protected openCreate(): void {
@@ -144,15 +126,11 @@ export class ProductCategoryList implements OnInit {
     const dto = this.form.getRawValue();
     const id = this.editingId();
     try {
-      const saved = await firstValueFrom(
+      await firstValueFrom(
         id ? this.categories.update(id, dto) : this.categories.create(dto),
       );
-      if (id) {
-        this.patchRow(saved);
-      } else {
-        this.appendRow(saved);
-      }
       this.dialogOpen.set(false);
+      this.list.reload();
     } catch (error) {
       this.formError.set(
         this.toMessage(error, 'No se pudo guardar la categoría.'),
@@ -166,12 +144,12 @@ export class ProductCategoryList implements OnInit {
     this.startPending(category.id);
     this.clearRowError(category.id);
     try {
-      const updated = await firstValueFrom(
+      await firstValueFrom(
         category.isActive
           ? this.categories.deactivate(category.id)
           : this.categories.activate(category.id),
       );
-      this.patchRow(updated);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         category.id,
@@ -200,7 +178,7 @@ export class ProductCategoryList implements OnInit {
     this.clearRowError(category.id);
     try {
       await firstValueFrom(this.categories.remove(category.id));
-      this.removeRow(category.id);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         category.id,
@@ -209,41 +187,6 @@ export class ProductCategoryList implements OnInit {
     } finally {
       this.stopPending(category.id);
     }
-  }
-
-  private patchRow(updated: ProductCategory): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        categories: current.categories.map((category) =>
-          category.id === updated.id ? updated : category,
-        ),
-      };
-    });
-  }
-
-  private appendRow(created: ProductCategory): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return { status: 'success', categories: [...current.categories, created] };
-    });
-  }
-
-  private removeRow(id: string): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        categories: current.categories.filter((category) => category.id !== id),
-      };
-    });
   }
 
   private startPending(id: string): void {

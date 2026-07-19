@@ -3,6 +3,10 @@ import type { Observable } from 'rxjs';
 
 import { ApiClient, type QueryParams } from '../../../../core/http/api-client';
 import type {
+  Paginated,
+  PaginationQuery,
+} from '../../../../core/http/pagination.model';
+import type {
   ProductCategory,
   ProductCategoryInput,
 } from '../models/product-category.model';
@@ -11,12 +15,20 @@ import type {
 export class ProductCategoryDataClient {
   private readonly api = inject(ApiClient);
 
-  list(includeInactive?: boolean): Observable<ProductCategory[]> {
-    const params: Record<string, boolean> = {};
-    if (includeInactive) {
+  list(
+    query: PaginationQuery & { readonly includeInactive?: boolean },
+  ): Observable<Paginated<ProductCategory>> {
+    const params: Record<string, string | number | boolean> = {};
+    if (query.page) {
+      params['page'] = query.page;
+    }
+    if (query.pageSize) {
+      params['pageSize'] = query.pageSize;
+    }
+    if (query.includeInactive) {
       params['includeInactive'] = true;
     }
-    return this.api.get<ProductCategory[]>(
+    return this.api.get<Paginated<ProductCategory>>(
       '/product-categories',
       params as QueryParams,
     );

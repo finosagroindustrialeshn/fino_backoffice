@@ -1,7 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
 
-import { ApiClient } from '../../../core/http/api-client';
+import { ApiClient, type QueryParams } from '../../../core/http/api-client';
+import type {
+  Paginated,
+  PaginationQuery,
+} from '../../../core/http/pagination.model';
 import type {
   InventoryMovement,
   MovementPayload,
@@ -12,8 +16,18 @@ import type {
 export class InventoryDataClient {
   private readonly api = inject(ApiClient);
 
-  listStock(): Observable<WarehouseStock[]> {
-    return this.api.get<WarehouseStock[]>('/inventory');
+  listStock(query: PaginationQuery): Observable<Paginated<WarehouseStock>> {
+    const params: Record<string, string | number | boolean> = {};
+    if (query.page) {
+      params['page'] = query.page;
+    }
+    if (query.pageSize) {
+      params['pageSize'] = query.pageSize;
+    }
+    return this.api.get<Paginated<WarehouseStock>>(
+      '/inventory',
+      params as QueryParams,
+    );
   }
 
   listMovements(productId: string): Observable<InventoryMovement[]> {

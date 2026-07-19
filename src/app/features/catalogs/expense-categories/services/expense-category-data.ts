@@ -3,6 +3,10 @@ import type { Observable } from 'rxjs';
 
 import { ApiClient, type QueryParams } from '../../../../core/http/api-client';
 import type {
+  Paginated,
+  PaginationQuery,
+} from '../../../../core/http/pagination.model';
+import type {
   ExpenseCategory,
   ExpenseCategoryInput,
 } from '../models/expense-category.model';
@@ -11,12 +15,20 @@ import type {
 export class ExpenseCategoryDataClient {
   private readonly api = inject(ApiClient);
 
-  list(includeInactive?: boolean): Observable<ExpenseCategory[]> {
-    const params: Record<string, boolean> = {};
-    if (includeInactive) {
+  list(
+    query: PaginationQuery & { readonly includeInactive?: boolean },
+  ): Observable<Paginated<ExpenseCategory>> {
+    const params: Record<string, string | number | boolean> = {};
+    if (query.page) {
+      params['page'] = query.page;
+    }
+    if (query.pageSize) {
+      params['pageSize'] = query.pageSize;
+    }
+    if (query.includeInactive) {
       params['includeInactive'] = true;
     }
-    return this.api.get<ExpenseCategory[]>(
+    return this.api.get<Paginated<ExpenseCategory>>(
       '/expense-categories',
       params as QueryParams,
     );

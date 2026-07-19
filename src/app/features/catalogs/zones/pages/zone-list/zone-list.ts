@@ -2,8 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FormsModule,
@@ -19,20 +19,14 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { SkeletonModule } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
 import { AuthSession } from '../../../../../core/auth/auth-session';
+import { LazyList } from '../../../../../core/http/lazy-list';
 import type { Zone, ZonePayload } from '../../models/zone.model';
 import { ZoneDataClient } from '../../services/zone-data';
-
-type ZonesState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly zones: Zone[] }
-  | { readonly status: 'error'; readonly message: string };
 
 @Component({
   selector: 'app-zone-list',
@@ -45,7 +39,6 @@ type ZonesState =
     DialogModule,
     InputNumberModule,
     InputTextModule,
-    SkeletonModule,
     TableModule,
     TagModule,
     TextareaModule,
@@ -54,17 +47,26 @@ type ZonesState =
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [ConfirmationService],
 })
-export class ZoneList implements OnInit {
+export class ZoneList {
   private readonly zones = inject(ZoneDataClient);
   private readonly auth = inject(AuthSession);
   private readonly confirmation = inject(ConfirmationService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly table = viewChild.required<Table>('dt');
 
-  protected readonly skeletonRows = [0, 1, 2, 3, 4];
   protected readonly canDelete = this.auth.role;
 
   protected readonly includeInactive = signal(false);
-  protected readonly state = signal<ZonesState>({ status: 'idle' });
+
+  protected readonly list = new LazyList<Zone>(
+    (page, pageSize) =>
+      this.zones.list({
+        page,
+        pageSize,
+        includeInactive: this.includeInactive(),
+      }),
+    'No se pudieron cargar las zonas.',
+  );
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
@@ -80,10 +82,6 @@ export class ZoneList implements OnInit {
     sortOrder: this.fb.control(0, [Validators.required]),
   });
 
-  ngOnInit(): void {
-    void this.load();
-  }
-
   protected isPending(id: string): boolean {
     return this.pendingIds().has(id);
   }
@@ -94,34 +92,19 @@ export class ZoneList implements OnInit {
 
   protected onIncludeInactiveChange(includeInactive: boolean): void {
     this.includeInactive.set(includeInactive);
-    void this.load();
-  }
-
-  protected async load(): Promise<void> {
-    this.state.set({ status: 'loading' });
-    try {
-      const zones = await firstValueFrom(
-        this.zones.list(this.includeInactive()),
-      );
-      this.state.set({ status: 'success', zones });
-    } catch (error) {
-      this.state.set({
-        status: 'error',
-        message: this.toMessage(error, 'No se pudieron cargar las zonas.'),
-      });
-    }
+    this.table().reset();
   }
 
   protected async toggleActive(zone: Zone): Promise<void> {
     this.startPending(zone.id);
     this.clearRowError(zone.id);
     try {
-      const updated = await firstValueFrom(
+      await firstValueFrom(
         zone.isActive
           ? this.zones.deactivate(zone.id)
           : this.zones.activate(zone.id),
       );
-      this.patchRow(updated);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         zone.id,
@@ -151,7 +134,7 @@ export class ZoneList implements OnInit {
     this.clearRowError(zone.id);
     try {
       await firstValueFrom(this.zones.remove(zone.id));
-      this.removeRow(zone.id);
+      this.list.reload();
     } catch (error) {
       this.setRowError(
         zone.id,
@@ -203,55 +186,17 @@ export class ZoneList implements OnInit {
 
     try {
       if (id) {
-        const updated = await firstValueFrom(this.zones.update(id, payload));
-        this.patchRow(updated);
+        await firstValueFrom(this.zones.update(id, payload));
       } else {
-        const created = await firstValueFrom(this.zones.create(payload));
-        this.appendRow(created);
+        await firstValueFrom(this.zones.create(payload));
       }
       this.dialogOpen.set(false);
+      this.list.reload();
     } catch (error) {
-      this.formError.set(
-        this.toMessage(error, 'No se pudo guardar la zona.'),
-      );
+      this.formError.set(this.toMessage(error, 'No se pudo guardar la zona.'));
     } finally {
       this.submitting.set(false);
     }
-  }
-
-  private patchRow(updated: Zone): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        zones: current.zones.map((zone) =>
-          zone.id === updated.id ? updated : zone,
-        ),
-      };
-    });
-  }
-
-  private appendRow(created: Zone): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return { status: 'success', zones: [...current.zones, created] };
-    });
-  }
-
-  private removeRow(id: string): void {
-    this.state.update((current) => {
-      if (current.status !== 'success') {
-        return current;
-      }
-      return {
-        status: 'success',
-        zones: current.zones.filter((zone) => zone.id !== id),
-      };
-    });
   }
 
   private startPending(id: string): void {
