@@ -17,7 +17,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     route: '/despacho',
     roles: ['ADMIN', 'SUPERVISOR'],
   },
-  { label: 'Retorno', icon: 'pi pi-replay', route: '/retorno' },
+  {
+    label: 'Retorno',
+    icon: 'pi pi-replay',
+    route: '/retorno',
+    roles: ['ADMIN', 'SUPERVISOR'],
+  },
   { label: 'Mapa de rutas', icon: 'pi pi-map', route: '/mapa' },
   { label: 'Clientes', icon: 'pi pi-users', route: '/clientes' },
   { label: 'Contabilidad', icon: 'pi pi-calculator', route: '/contabilidad' },

@@ -44,7 +44,22 @@ export const routes: Routes = [
           ).then((m) => m.DispatchForm),
         data: { title: 'Nuevo despacho' },
       },
-      { path: 'retorno', loadComponent: placeholder, data: { title: 'Retorno' } },
+      {
+        path: 'retorno',
+        loadComponent: () =>
+          import('./features/returns/pages/return-list/return-list').then(
+            (m) => m.ReturnList,
+          ),
+        data: { title: 'Retorno' },
+      },
+      {
+        path: 'retorno/nuevo',
+        loadComponent: () =>
+          import('./features/returns/pages/return-form/return-form').then(
+            (m) => m.ReturnForm,
+          ),
+        data: { title: 'Nuevo retorno' },
+      },
       {
         path: 'mapa',
         loadComponent: placeholder,
