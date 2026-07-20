@@ -1,9 +1,67 @@
 <div class="flex flex-col gap-6">
   <!-- Toolbar -->
   <section
-    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end"
-    aria-label="Acciones de clientes"
+    class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+    aria-label="Filtros y acciones de clientes"
   >
+    <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="client-search"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Buscar
+        </label>
+        <input
+          id="client-search"
+          pInputText
+          type="search"
+          [ngModel]="searchTerm()"
+          (input)="onSearchInput($any($event.target).value)"
+          placeholder="Nombre, contacto, teléfono o dirección"
+          class="w-full sm:w-72"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="seller-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Registrado por
+        </label>
+        <p-select
+          inputId="seller-filter"
+          [options]="sellerFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="sellerFilter()"
+          (onChange)="onSellerFilterChange($event.value)"
+          placeholder="Todos los vendedores"
+          styleClass="w-full sm:w-56"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="client-active-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Estado
+        </label>
+        <p-select
+          inputId="client-active-filter"
+          [options]="activeFilterOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="activeFilter()"
+          (onChange)="onActiveFilterChange($event.value)"
+          placeholder="Todos los estados"
+          styleClass="w-full sm:w-44"
+        />
+      </div>
+    </div>
+
     <p-button
       label="Nuevo cliente"
       icon="pi pi-plus"
@@ -45,7 +103,9 @@
       <ng-template #header>
         <tr>
           <th scope="col">Foto</th>
-          <th scope="col">Nombre</th>
+          <th scope="col" pSortableColumn="name">
+            Nombre <p-sortIcon field="name" />
+          </th>
           <th scope="col">Contacto</th>
           <th scope="col">Teléfono</th>
           <th scope="col">Estado</th>

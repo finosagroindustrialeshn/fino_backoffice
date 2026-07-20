@@ -1,23 +1,52 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, type Observable } from 'rxjs';
+
+import type { Paginated } from '../../../../core/http/pagination.model';
 import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { TableModule } from 'primeng/table';
+import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
 import { LazyList } from '../../../../core/http/lazy-list';
+import { UserDataClient } from '../../../users/services/user-data';
 import type { Client } from '../../models/client.model';
-import { ClientDataClient } from '../../services/client-data';
+import {
+  ClientDataClient,
+  type ClientSortBy,
+} from '../../services/client-data';
+
+/** Sellers are a bounded lookup for the "registered by" filter. */
+const LOOKUP_SIZE = 100;
+/** Delay before a keystroke turns into a search request. */
+const SEARCH_DEBOUNCE_MS = 350;
+
+interface SelectOption<T> {
+  readonly label: string;
+  readonly value: T;
+}
 
 @Component({
   selector: 'app-client-list',
   imports: [
+    FormsModule,
     RouterLink,
     ButtonModule,
     ConfirmDialogModule,
+    InputTextModule,
+    SelectModule,
     TableModule,
     TagModule,
   ],
@@ -25,20 +54,90 @@ import { ClientDataClient } from '../../services/client-data';
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [ConfirmationService],
 })
-export class ClientList {
+export class ClientList implements OnInit {
   private readonly clients = inject(ClientDataClient);
+  private readonly users = inject(UserDataClient);
   private readonly auth = inject(AuthSession);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly table = viewChild.required<Table>('dt');
 
   protected readonly canDelete = this.auth.role;
 
+  // Filters — read inside the fetcher closure so reload() uses the latest values.
+  /** Bound to the search box for instant feedback; debounced into `appliedSearch`. */
+  protected readonly searchTerm = signal('');
+  private readonly appliedSearch = signal('');
+  protected readonly sellerFilter = signal<string | null>(null);
+  protected readonly activeFilter = signal<boolean | null>(null);
+  private searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  protected readonly sellerFilterOptions = signal<SelectOption<string | null>[]>(
+    [{ label: 'Todos los vendedores', value: null }],
+  );
+  protected readonly activeFilterOptions: SelectOption<boolean | null>[] = [
+    { label: 'Todos los estados', value: null },
+    { label: 'Activos', value: true },
+    { label: 'Inactivos', value: false },
+  ];
+
   protected readonly list = new LazyList<Client>(
-    (page, pageSize) => this.clients.list({ page, pageSize }),
+    (page, pageSize): Observable<Paginated<Client>> =>
+      this.clients.list({
+        page,
+        pageSize,
+        search: this.appliedSearch() || undefined,
+        createdById: this.sellerFilter() ?? undefined,
+        isActive: this.activeFilter() ?? undefined,
+        sortBy: (this.list.sortField() as ClientSortBy | null) ?? undefined,
+        sortOrder: this.list.sortOrder() ?? undefined,
+      }),
     'No se pudieron cargar los clientes.',
   );
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
+
+  ngOnInit(): void {
+    void this.loadSellers();
+  }
+
+  protected onSearchInput(value: string): void {
+    this.searchTerm.set(value);
+    if (this.searchDebounce) {
+      clearTimeout(this.searchDebounce);
+    }
+    this.searchDebounce = setTimeout(() => {
+      this.appliedSearch.set(value.trim());
+      this.table().reset();
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  protected onSellerFilterChange(sellerId: string | null): void {
+    this.sellerFilter.set(sellerId);
+    this.table().reset();
+  }
+
+  protected onActiveFilterChange(isActive: boolean | null): void {
+    this.activeFilter.set(isActive);
+    this.table().reset();
+  }
+
+  private async loadSellers(): Promise<void> {
+    try {
+      const result = await firstValueFrom(
+        this.users.list({ role: 'SELLER', pageSize: LOOKUP_SIZE }),
+      );
+      this.sellerFilterOptions.set([
+        { label: 'Todos los vendedores', value: null },
+        ...result.items.map((user) => ({
+          label: user.fullName,
+          value: user.id,
+        })),
+      ]);
+    } catch {
+      // Filter simply keeps only the "all sellers" option if the lookup fails.
+    }
+  }
 
   protected isPending(id: string): boolean {
     return this.pendingIds().has(id);
