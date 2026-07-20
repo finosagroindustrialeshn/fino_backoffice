@@ -15,8 +15,12 @@ import type {
 export interface ReturnListQuery extends PaginationQuery {
   readonly sellerId?: string;
   readonly status?: ReturnStatus;
-  /** Filter by day, YYYY-MM-DD. */
+  /** Filter by a single day, YYYY-MM-DD. */
   readonly date?: string;
+  /** Range start (inclusive), YYYY-MM-DD. Takes precedence over `date`. */
+  readonly dateFrom?: string;
+  /** Range end (inclusive), YYYY-MM-DD. Takes precedence over `date`. */
+  readonly dateTo?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -39,6 +43,12 @@ export class ReturnDataClient {
     }
     if (query?.date) {
       params['date'] = query.date;
+    }
+    if (query?.dateFrom) {
+      params['dateFrom'] = query.dateFrom;
+    }
+    if (query?.dateTo) {
+      params['dateTo'] = query.dateTo;
     }
     return this.api.get<Paginated<Return>>('/returns', params as QueryParams);
   }

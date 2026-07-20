@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
+import { DatePickerModule } from 'primeng/datepicker';
 import { DialogModule } from 'primeng/dialog';
 import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
@@ -47,6 +48,7 @@ const LOOKUP_SIZE = 100;
     FormsModule,
     RouterLink,
     ButtonModule,
+    DatePickerModule,
     DialogModule,
     SelectModule,
     SkeletonModule,
@@ -81,20 +83,33 @@ export class ReturnList implements OnInit {
   ];
 
   protected readonly statusFilter = signal<ReturnStatus | null>(null);
-
-  protected readonly list = new LazyList<Return>(
-    (page, pageSize) =>
-      this.returns.list({
-        page,
-        pageSize,
-        status: this.statusFilter() ?? undefined,
-      }),
-    'No se pudieron cargar los retornos.',
-  );
+  protected readonly sellerFilter = signal<string | null>(null);
+  /** [start, end] from the range datepicker; either end may be null mid-select. */
+  protected readonly dateRange = signal<Date[] | null>(null);
 
   private readonly sellerNames = signal<ReadonlyMap<string, string>>(new Map());
   private readonly productNames = signal<ReadonlyMap<string, string>>(new Map());
   private readonly reasonNames = signal<ReadonlyMap<string, string>>(new Map());
+
+  protected readonly sellerFilterOptions = computed(() => [
+    { label: 'Todos los vendedores', value: null as string | null },
+    ...[...this.sellerNames()].map(([id, name]) => ({ label: name, value: id })),
+  ]);
+
+  protected readonly list = new LazyList<Return>(
+    (page, pageSize) => {
+      const range = this.dateRange();
+      return this.returns.list({
+        page,
+        pageSize,
+        status: this.statusFilter() ?? undefined,
+        sellerId: this.sellerFilter() ?? undefined,
+        dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
+        dateTo: range?.[1] ? formatDay(range[1]) : undefined,
+      });
+    },
+    'No se pudieron cargar los retornos.',
+  );
 
   // Detail dialog
   protected readonly detailOpen = signal(false);
@@ -114,6 +129,19 @@ export class ReturnList implements OnInit {
     this.statusFilter.set(status);
     // reset() jumps to page 1 and re-fires onLazyLoad with the new filter.
     this.table().reset();
+  }
+
+  protected onSellerFilterChange(sellerId: string | null): void {
+    this.sellerFilter.set(sellerId);
+    this.table().reset();
+  }
+
+  protected onDateRangeChange(range: Date[] | null): void {
+    this.dateRange.set(range);
+    // Refetch once the range is complete (both ends) or cleared.
+    if (!range || range.length === 0 || (range[0] && range[1])) {
+      this.table().reset();
+    }
   }
 
   protected statusLabel(status: ReturnStatus): string {
@@ -220,4 +248,12 @@ function toMessage(error: unknown, fallback: string): string {
     return (error as { message: string }).message;
   }
   return fallback;
+}
+
+/** Formats a Date as YYYY-MM-DD using its local calendar day (no UTC shift). */
+function formatDay(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

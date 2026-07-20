@@ -1,26 +1,69 @@
 <div class="flex flex-col gap-6">
   <!-- Toolbar -->
   <section
-    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-    aria-label="Acciones de retorno"
+    class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+    aria-label="Filtros y acciones de retorno"
   >
-    <div class="flex flex-col gap-1.5">
-      <label
-        for="status-filter"
-        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-      >
-        Estado
-      </label>
-      <p-select
-        inputId="status-filter"
-        [options]="statusFilterOptions"
-        optionLabel="label"
-        optionValue="value"
-        [ngModel]="statusFilter()"
-        (ngModelChange)="onStatusFilterChange($event)"
-        appendTo="body"
-        styleClass="w-full sm:w-56"
-      />
+    <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="status-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Estado
+        </label>
+        <p-select
+          inputId="status-filter"
+          [options]="statusFilterOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="statusFilter()"
+          (ngModelChange)="onStatusFilterChange($event)"
+          appendTo="body"
+          styleClass="w-full sm:w-48"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="seller-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Vendedor
+        </label>
+        <p-select
+          inputId="seller-filter"
+          [options]="sellerFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="sellerFilter()"
+          (onChange)="onSellerFilterChange($event.value)"
+          appendTo="body"
+          placeholder="Todos los vendedores"
+          styleClass="w-full sm:w-52"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="date-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Rango de fechas
+        </label>
+        <p-datepicker
+          inputId="date-filter"
+          selectionMode="range"
+          [ngModel]="dateRange()"
+          (ngModelChange)="onDateRangeChange($event)"
+          [readonlyInput]="true"
+          [showClear]="true"
+          dateFormat="dd/mm/yy"
+          appendTo="body"
+          placeholder="Todas las fechas"
+          styleClass="w-full sm:w-60"
+        />
+      </div>
     </div>
 
     @if (canManage()) {
