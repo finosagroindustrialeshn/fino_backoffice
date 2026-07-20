@@ -1,17 +1,94 @@
 <div class="flex flex-col gap-6">
   <!-- Toolbar -->
-  @if (canManage()) {
-    <section
-      class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end"
-      aria-label="Acciones de productos"
-    >
+  <section
+    class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+    aria-label="Filtros y acciones de productos"
+  >
+    <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="product-search"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Buscar
+        </label>
+        <input
+          id="product-search"
+          pInputText
+          type="search"
+          [ngModel]="searchTerm()"
+          (input)="onSearchInput($any($event.target).value)"
+          placeholder="SKU, nombre o descripción"
+          class="w-full sm:w-64"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="category-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Categoría
+        </label>
+        <p-select
+          inputId="category-filter"
+          [options]="categoryFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="categoryFilter()"
+          (onChange)="onCategoryFilterChange($event.value)"
+          placeholder="Todas las categorías"
+          styleClass="w-full sm:w-52"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="presentation-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Presentación
+        </label>
+        <p-select
+          inputId="presentation-filter"
+          [options]="presentationFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="presentationFilter()"
+          (onChange)="onPresentationFilterChange($event.value)"
+          placeholder="Todas las presentaciones"
+          styleClass="w-full sm:w-52"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="active-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Estado
+        </label>
+        <p-select
+          inputId="active-filter"
+          [options]="activeFilterOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="activeFilter()"
+          (onChange)="onActiveFilterChange($event.value)"
+          placeholder="Todos los estados"
+          styleClass="w-full sm:w-44"
+        />
+      </div>
+    </div>
+
+    @if (canManage()) {
       <p-button
         label="Nuevo producto"
         icon="pi pi-plus"
         routerLink="/productos/nuevo"
       />
-    </section>
-  }
+    }
+  </section>
 
   @if (list.error(); as message) {
     <div
@@ -47,9 +124,13 @@
       <ng-template #header>
         <tr>
           <th scope="col">Foto</th>
-          <th scope="col">Producto</th>
+          <th scope="col" pSortableColumn="name">
+            Producto <p-sortIcon field="name" />
+          </th>
           <th scope="col">Categoría</th>
-          <th scope="col">Precio</th>
+          <th scope="col" pSortableColumn="price">
+            Precio <p-sortIcon field="price" />
+          </th>
           <th scope="col">Estado</th>
           <th scope="col">Acciones</th>
         </tr>

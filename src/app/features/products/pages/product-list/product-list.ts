@@ -5,32 +5,54 @@ import {
   inject,
   OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, type Observable } from 'rxjs';
+
+import type { Paginated } from '../../../../core/http/pagination.model';
 import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { TableModule } from 'primeng/table';
+import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
 import { LazyList } from '../../../../core/http/lazy-list';
+import type { ProductCategory } from '../../../catalogs/product-categories/models/product-category.model';
 import { ProductCategoryDataClient } from '../../../catalogs/product-categories/services/product-category-data';
+import type { ProductPresentation } from '../../../catalogs/product-presentations/models/product-presentation.model';
+import { ProductPresentationDataClient } from '../../../catalogs/product-presentations/services/product-presentation-data';
 import type { Product } from '../../models/product.model';
-import { ProductDataClient } from '../../services/product-data';
+import {
+  ProductDataClient,
+  type ProductSortBy,
+} from '../../services/product-data';
 
-/** Categories are bounded reference data — fetch enough for the name lookup. */
-const CATEGORY_LOOKUP_SIZE = 100;
+/** Categories/presentations are bounded reference data — fetch enough for the lookups. */
+const LOOKUP_SIZE = 100;
+/** Delay before a keystroke turns into a search request. */
+const SEARCH_DEBOUNCE_MS = 350;
+
+interface SelectOption<T> {
+  readonly label: string;
+  readonly value: T;
+}
 
 @Component({
   selector: 'app-product-list',
   imports: [
     DecimalPipe,
+    FormsModule,
     RouterLink,
     ButtonModule,
     ConfirmDialogModule,
+    InputTextModule,
+    SelectModule,
     TableModule,
     TagModule,
   ],
@@ -41,8 +63,10 @@ const CATEGORY_LOOKUP_SIZE = 100;
 export class ProductList implements OnInit {
   private readonly products = inject(ProductDataClient);
   private readonly categories = inject(ProductCategoryDataClient);
+  private readonly presentations = inject(ProductPresentationDataClient);
   private readonly auth = inject(AuthSession);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly table = viewChild.required<Table>('dt');
 
   protected readonly canManage = computed(() => {
     const role = this.auth.role();
@@ -50,20 +74,86 @@ export class ProductList implements OnInit {
   });
   protected readonly canDelete = computed(() => this.auth.role() === 'ADMIN');
 
-  protected readonly list = new LazyList<Product>(
-    (page, pageSize) => this.products.list({ page, pageSize }),
-    'No se pudieron cargar los productos.',
+  // Filters — read inside the fetcher closure so reload() uses the latest values.
+  /** Bound to the search box for instant feedback; debounced into `appliedSearch`. */
+  protected readonly searchTerm = signal('');
+  private readonly appliedSearch = signal('');
+  protected readonly categoryFilter = signal<string | null>(null);
+  protected readonly presentationFilter = signal<string | null>(null);
+  protected readonly activeFilter = signal<boolean | null>(null);
+  private searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  private readonly categoryList = signal<readonly ProductCategory[]>([]);
+  private readonly presentationList = signal<readonly ProductPresentation[]>([]);
+
+  protected readonly categoryNames = computed(
+    () => new Map(this.categoryList().map((c) => [c.id, c.name])),
   );
 
-  private readonly categoryNames = signal<ReadonlyMap<string, string>>(
-    new Map(),
+  protected readonly categoryFilterOptions = computed<SelectOption<string | null>[]>(
+    () => [
+      { label: 'Todas las categorías', value: null },
+      ...this.categoryList().map((c) => ({ label: c.name, value: c.id })),
+    ],
   );
+  protected readonly presentationFilterOptions = computed<
+    SelectOption<string | null>[]
+  >(() => [
+    { label: 'Todas las presentaciones', value: null },
+    ...this.presentationList().map((p) => ({ label: p.name, value: p.id })),
+  ]);
+  protected readonly activeFilterOptions: SelectOption<boolean | null>[] = [
+    { label: 'Todos los estados', value: null },
+    { label: 'Activos', value: true },
+    { label: 'Inactivos', value: false },
+  ];
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
 
+  protected readonly list = new LazyList<Product>(
+    (page, pageSize): Observable<Paginated<Product>> =>
+      this.products.list({
+        page,
+        pageSize,
+        search: this.appliedSearch() || undefined,
+        categoryId: this.categoryFilter() ?? undefined,
+        presentationId: this.presentationFilter() ?? undefined,
+        isActive: this.activeFilter() ?? undefined,
+        sortBy: (this.list.sortField() as ProductSortBy | null) ?? undefined,
+        sortOrder: this.list.sortOrder() ?? undefined,
+      }),
+    'No se pudieron cargar los productos.',
+  );
+
   ngOnInit(): void {
-    void this.loadCategories();
+    void this.loadLookups();
+  }
+
+  protected onSearchInput(value: string): void {
+    this.searchTerm.set(value);
+    if (this.searchDebounce) {
+      clearTimeout(this.searchDebounce);
+    }
+    this.searchDebounce = setTimeout(() => {
+      this.appliedSearch.set(value.trim());
+      this.table().reset();
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  protected onCategoryFilterChange(categoryId: string | null): void {
+    this.categoryFilter.set(categoryId);
+    this.table().reset();
+  }
+
+  protected onPresentationFilterChange(presentationId: string | null): void {
+    this.presentationFilter.set(presentationId);
+    this.table().reset();
+  }
+
+  protected onActiveFilterChange(isActive: boolean | null): void {
+    this.activeFilter.set(isActive);
+    this.table().reset();
   }
 
   protected isPending(id: string): boolean {
@@ -81,19 +171,26 @@ export class ProductList implements OnInit {
     return this.categoryNames().get(id) ?? '—';
   }
 
-  private async loadCategories(): Promise<void> {
+  private async loadLookups(): Promise<void> {
     try {
-      const result = await firstValueFrom(
-        this.categories.list({
-          pageSize: CATEGORY_LOOKUP_SIZE,
-          includeInactive: true,
-        }),
-      );
-      this.categoryNames.set(
-        new Map(result.items.map((category) => [category.id, category.name])),
-      );
+      const [categories, presentations] = await Promise.all([
+        firstValueFrom(
+          this.categories.list({
+            pageSize: LOOKUP_SIZE,
+            includeInactive: true,
+          }),
+        ),
+        firstValueFrom(
+          this.presentations.list({
+            pageSize: LOOKUP_SIZE,
+            includeInactive: true,
+          }),
+        ),
+      ]);
+      this.categoryList.set(categories.items);
+      this.presentationList.set(presentations.items);
     } catch {
-      // Category names simply fall back to '—' if the lookup fails.
+      // Filters simply stay empty and names fall back to '—' if the lookup fails.
     }
   }
 
