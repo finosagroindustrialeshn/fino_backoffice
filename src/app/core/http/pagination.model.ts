@@ -26,3 +26,6 @@ export interface PaginationQuery {
   readonly page?: number;
   readonly pageSize?: number;
 }
+
+/** Sort direction accepted by list endpoints that support sorting. */
+export type SortOrder = 'asc' | 'desc';
