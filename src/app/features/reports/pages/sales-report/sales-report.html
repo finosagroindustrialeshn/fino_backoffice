@@ -1,0 +1,396 @@
+<div class="flex flex-col gap-8">
+  <!-- Filters -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+    aria-label="Filtros del reporte de ventas"
+  >
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="sales-date-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Rango de fechas
+      </label>
+      <p-datepicker
+        inputId="sales-date-filter"
+        selectionMode="range"
+        [ngModel]="dateRange()"
+        (ngModelChange)="onDateRangeChange($event)"
+        [readonlyInput]="true"
+        [showClear]="true"
+        dateFormat="dd/mm/yy"
+        appendTo="body"
+        placeholder="Todas las fechas"
+        styleClass="w-full sm:w-60"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="sales-seller-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Vendedor
+      </label>
+      <p-select
+        inputId="sales-seller-filter"
+        [options]="sellerFilterOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="sellerFilter()"
+        (onChange)="onSellerFilterChange($event.value)"
+        appendTo="body"
+        placeholder="Todos los vendedores"
+        styleClass="w-full sm:w-52"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="sales-channel-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Canal
+      </label>
+      <p-select
+        inputId="sales-channel-filter"
+        [options]="channelFilterOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="channelFilter()"
+        (onChange)="onChannelFilterChange($event.value)"
+        appendTo="body"
+        styleClass="w-full sm:w-44"
+      />
+    </div>
+
+    <p-button
+      label="Actualizar"
+      icon="pi pi-refresh"
+      severity="secondary"
+      [outlined]="true"
+      (onClick)="refreshAll()"
+    />
+  </section>
+
+  <!-- Summary -->
+  <section class="flex flex-col gap-4" aria-labelledby="sales-summary-heading">
+    <div class="flex flex-col gap-1">
+      <h3 id="sales-summary-heading" class="text-lg font-semibold text-ink">
+        Resumen del período
+      </h3>
+      <p class="text-xs text-ink-soft">
+        Los filtros de vendedor y canal aplican solo a este resumen; los
+        rankings de abajo se calculan sobre todo el rango.
+      </p>
+    </div>
+
+    @let summary = summaryState();
+    @switch (summary.status) {
+      @case ('loading') {
+        <div
+          class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+          aria-busy="true"
+        >
+          <span class="sr-only">Cargando resumen de ventas…</span>
+          @for (row of skeletonRows; track row) {
+            <p-skeleton width="100%" height="6.5rem" borderRadius="1rem" />
+          }
+        </div>
+      }
+
+      @case ('error') {
+        <div
+          role="alert"
+          class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+        >
+          <p class="text-sm">{{ summary.message }}</p>
+          <p-button
+            label="Reintentar"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="loadSummary()"
+          />
+        </div>
+      }
+
+      @case ('success') {
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              Total vendido
+            </p>
+            <p class="mt-1 text-2xl font-bold text-ink">
+              {{ summary.summary.totalAmount | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">
+              {{ summary.summary.saleCount | number }} ventas
+            </p>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              Ticket promedio
+            </p>
+            <p class="mt-1 text-2xl font-bold text-ink">
+              {{ summary.summary.averageTicket | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">Por venta en el período</p>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              Cobrado
+            </p>
+            <p class="mt-1 text-2xl font-bold text-green-700">
+              {{ summary.summary.totalCollected | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">
+              {{
+                share(summary.summary.totalCollected, summary.summary.totalAmount)
+                  | number: '1.0-1'
+              }}% del total
+            </p>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              Por cobrar
+            </p>
+            <p
+              class="mt-1 text-2xl font-bold"
+              [class.text-red-700]="summary.summary.totalOutstanding > 0"
+              [class.text-ink]="summary.summary.totalOutstanding === 0"
+            >
+              {{ summary.summary.totalOutstanding | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">Saldo pendiente de crédito</p>
+          </article>
+        </div>
+
+        <!-- Splits -->
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <h4 class="text-sm font-semibold text-ink">Contado vs. crédito</h4>
+            <dl class="mt-4 flex flex-col gap-3">
+              <div class="flex items-baseline justify-between gap-4">
+                <dt class="text-sm text-ink-soft">
+                  Contado
+                  <span class="text-xs">
+                    ({{ summary.summary.cash.count | number }})
+                  </span>
+                </dt>
+                <dd class="font-semibold text-ink">
+                  {{ summary.summary.cash.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+              <div class="flex items-baseline justify-between gap-4">
+                <dt class="text-sm text-ink-soft">
+                  Crédito
+                  <span class="text-xs">
+                    ({{ summary.summary.credit.count | number }})
+                  </span>
+                </dt>
+                <dd class="font-semibold text-ink">
+                  {{ summary.summary.credit.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+            </dl>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <h4 class="text-sm font-semibold text-ink">Campo vs. tienda</h4>
+            <dl class="mt-4 flex flex-col gap-3">
+              <div class="flex items-baseline justify-between gap-4">
+                <dt class="text-sm text-ink-soft">
+                  Campo
+                  <span class="text-xs">
+                    ({{ summary.summary.field.count | number }})
+                  </span>
+                </dt>
+                <dd class="font-semibold text-ink">
+                  {{ summary.summary.field.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+              <div class="flex items-baseline justify-between gap-4">
+                <dt class="text-sm text-ink-soft">
+                  Tienda
+                  <span class="text-xs">
+                    ({{ summary.summary.store.count | number }})
+                  </span>
+                </dt>
+                <dd class="font-semibold text-ink">
+                  {{ summary.summary.store.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+      }
+    }
+  </section>
+
+  <!-- By product -->
+  <section class="flex flex-col gap-4" aria-labelledby="sales-by-product-heading">
+    <h3 id="sales-by-product-heading" class="text-lg font-semibold text-ink">
+      Ranking por producto
+    </h3>
+
+    @if (productList.error(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="productList.reload()"
+        />
+      </div>
+    }
+
+    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+      <p-table
+        #productTable
+        [value]="productList.items()"
+        [lazy]="true"
+        (onLazyLoad)="productList.onLazyLoad($event)"
+        [loading]="productList.loading()"
+        [paginator]="true"
+        [rows]="10"
+        [totalRecords]="productList.total()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
+        [tableStyle]="{ 'min-width': '36rem' }"
+        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+        [showCurrentPageReport]="true"
+      >
+        <ng-template #header>
+          <tr>
+            <th scope="col">Producto</th>
+            <th scope="col" pSortableColumn="unitsSold">
+              Unidades
+              <p-sortIcon field="unitsSold" />
+            </th>
+            <th scope="col" pSortableColumn="revenue">
+              Ingresos
+              <p-sortIcon field="revenue" />
+            </th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-row>
+          <tr>
+            <td>
+              <span class="font-medium text-ink">{{ row.productName }}</span>
+            </td>
+            <td>{{ row.unitsSold | number }}</td>
+            <td class="font-semibold text-ink">
+              {{ row.revenue | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="3">
+              <p class="py-8 text-center text-sm text-ink-soft">
+                @if (productList.loading()) {
+                  Cargando ranking…
+                } @else {
+                  No hubo ventas en el rango seleccionado.
+                }
+              </p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </section>
+
+  <!-- By seller -->
+  <section class="flex flex-col gap-4" aria-labelledby="sales-by-seller-heading">
+    <h3 id="sales-by-seller-heading" class="text-lg font-semibold text-ink">
+      Ranking por vendedor
+    </h3>
+
+    @if (sellerList.error(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="sellerList.reload()"
+        />
+      </div>
+    }
+
+    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+      <p-table
+        #sellerTable
+        [value]="sellerList.items()"
+        [lazy]="true"
+        (onLazyLoad)="sellerList.onLazyLoad($event)"
+        [loading]="sellerList.loading()"
+        [paginator]="true"
+        [rows]="10"
+        [totalRecords]="sellerList.total()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
+        [tableStyle]="{ 'min-width': '44rem' }"
+        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+        [showCurrentPageReport]="true"
+      >
+        <ng-template #header>
+          <tr>
+            <th scope="col">Vendedor</th>
+            <th scope="col">Ventas</th>
+            <th scope="col">Contado</th>
+            <th scope="col">Crédito</th>
+            <th scope="col" pSortableColumn="total">
+              Total
+              <p-sortIcon field="total" />
+            </th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-row>
+          <tr>
+            <td>
+              <span class="font-medium text-ink">
+                {{ row.sellerName || sellerName(row.sellerId) }}
+              </span>
+            </td>
+            <td>{{ row.saleCount | number }}</td>
+            <td>{{ row.cash.amount | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+            <td>{{ row.credit.amount | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+            <td class="font-semibold text-ink">
+              {{ row.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="5">
+              <p class="py-8 text-center text-sm text-ink-soft">
+                @if (sellerList.loading()) {
+                  Cargando ranking…
+                } @else {
+                  No hubo ventas en el rango seleccionado.
+                }
+              </p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </section>
+</div>

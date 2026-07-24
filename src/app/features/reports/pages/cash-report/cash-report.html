@@ -1,0 +1,275 @@
+<div class="flex flex-col gap-8">
+  <!-- Filters -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+    aria-label="Filtros del cierre de caja"
+  >
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="cash-date-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Rango de fechas <span aria-hidden="true">*</span>
+      </label>
+      <p-datepicker
+        inputId="cash-date-filter"
+        selectionMode="range"
+        [ngModel]="dateRange()"
+        (ngModelChange)="onDateRangeChange($event)"
+        [readonlyInput]="true"
+        dateFormat="dd/mm/yy"
+        appendTo="body"
+        placeholder="Elegí un rango"
+        styleClass="w-full sm:w-60"
+        [attr.aria-describedby]="rangeError() ? 'cash-range-error' : null"
+      />
+      <p class="text-xs text-ink-soft">
+        Día civil de Honduras (UTC-6). Máximo 92 días.
+      </p>
+    </div>
+  </section>
+
+  @if (rangeError(); as message) {
+    <p
+      id="cash-range-error"
+      role="alert"
+      class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+    >
+      {{ message }}
+    </p>
+  } @else {
+    <!-- Daily close -->
+    <section class="flex flex-col gap-4" aria-labelledby="cash-daily-heading">
+      <h3 id="cash-daily-heading" class="text-lg font-semibold text-ink">
+        Cierre consolidado por día
+      </h3>
+
+      @if (dailyList.error(); as message) {
+        <div
+          role="alert"
+          class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+        >
+          <p class="text-sm">{{ message }}</p>
+          <p-button
+            label="Reintentar"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="dailyList.reload()"
+          />
+        </div>
+      }
+
+      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+        <p-table
+          #dailyTable
+          [value]="dailyList.items()"
+          [lazy]="true"
+          (onLazyLoad)="dailyList.onLazyLoad($event)"
+          [loading]="dailyList.loading()"
+          [paginator]="true"
+          [rows]="10"
+          [totalRecords]="dailyList.total()"
+          [rowsPerPageOptions]="rowsPerPageOptions"
+          [tableStyle]="{ 'min-width': '60rem' }"
+          currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+          [showCurrentPageReport]="true"
+        >
+          <ng-template #header>
+            <tr>
+              <th scope="col">Día</th>
+              <th scope="col">Jornadas</th>
+              <th scope="col">Cajas</th>
+              <th scope="col">Fondo inicial</th>
+              <th scope="col">Cobrado</th>
+              <th scope="col">Gastos</th>
+              <th scope="col">Esperado</th>
+              <th scope="col">Contado</th>
+              <th scope="col">Diferencia</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-row>
+            <tr>
+              <td class="whitespace-nowrap font-medium text-ink">
+                {{ row.date }}
+              </td>
+              <td>
+                {{ row.shiftsCount | number }}
+                @if (row.openShifts > 0) {
+                  <span class="block text-xs text-amber-700">
+                    {{ row.openShifts | number }} abierta(s)
+                  </span>
+                }
+              </td>
+              <td>
+                {{ row.sessionsCount | number }}
+                @if (row.openSessions > 0) {
+                  <span class="block text-xs text-amber-700">
+                    {{ row.openSessions | number }} abierta(s)
+                  </span>
+                }
+              </td>
+              <td>{{ row.openingFloat | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+              <td>{{ row.cashCollected | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+              <td>{{ row.expenses | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+              <td class="font-semibold text-ink">
+                {{ row.expectedCash | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </td>
+              <td>{{ row.closingCounted | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+              <td>
+                @if (row.difference === null) {
+                  <span class="text-sm text-ink-soft" title="Hay cajas abiertas">
+                    —
+                  </span>
+                } @else {
+                  <p-tag
+                    [value]="(row.difference | currency: 'HNL' : 'L ' : '1.2-2') ?? '-'"
+                    [severity]="differenceSeverity(row.difference)"
+                  />
+                }
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="9">
+                <p class="py-8 text-center text-sm text-ink-soft">
+                  @if (dailyList.loading()) {
+                    Cargando cierre diario…
+                  } @else {
+                    No hay movimientos de caja en el rango seleccionado.
+                  }
+                </p>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </section>
+
+    <!-- Per-session arqueo -->
+    <section class="flex flex-col gap-4" aria-labelledby="cash-sessions-heading">
+      <div class="flex flex-col gap-1">
+        <h3 id="cash-sessions-heading" class="text-lg font-semibold text-ink">
+          Arqueo por jornada y caja
+        </h3>
+        <p class="text-xs text-ink-soft">
+          Cada línea es una jornada de campo o una caja de tienda del rango.
+        </p>
+      </div>
+
+      @if (sessionsList.error(); as message) {
+        <div
+          role="alert"
+          class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+        >
+          <p class="text-sm">{{ message }}</p>
+          <p-button
+            label="Reintentar"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="sessionsList.reload()"
+          />
+        </div>
+      }
+
+      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+        <p-table
+          #sessionsTable
+          [value]="sessionsList.items()"
+          [lazy]="true"
+          (onLazyLoad)="sessionsList.onLazyLoad($event)"
+          [loading]="sessionsList.loading()"
+          [paginator]="true"
+          [rows]="10"
+          [totalRecords]="sessionsList.total()"
+          [rowsPerPageOptions]="rowsPerPageOptions"
+          [tableStyle]="{ 'min-width': '64rem' }"
+          currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+          [showCurrentPageReport]="true"
+        >
+          <ng-template #header>
+            <tr>
+              <th scope="col">Tipo</th>
+              <th scope="col">Responsable</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Apertura</th>
+              <th scope="col">Cierre</th>
+              <th scope="col">Fondo</th>
+              <th scope="col">Cobrado</th>
+              <th scope="col">Gastos</th>
+              <th scope="col">Esperado</th>
+              <th scope="col">Contado</th>
+              <th scope="col">Diferencia</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-row>
+            <tr>
+              <td>{{ kindLabel(row.kind) }}</td>
+              <td>
+                <span class="font-medium text-ink">
+                  {{ ownerName(row.ownerId) }}
+                </span>
+              </td>
+              <td>
+                <p-tag
+                  [value]="statusLabel(row.status)"
+                  [severity]="statusSeverity(row.status)"
+                />
+              </td>
+              <td class="whitespace-nowrap text-sm text-ink-soft">
+                {{ row.openedAt | date: 'dd/MM/yyyy HH:mm' }}
+              </td>
+              <td class="whitespace-nowrap text-sm text-ink-soft">
+                {{
+                  row.closedAt ? (row.closedAt | date: 'dd/MM/yyyy HH:mm') : '—'
+                }}
+              </td>
+              <td>{{ row.openingCash | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+              <td>{{ row.cashCollected | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+              <td>{{ row.expenses | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+              <td class="font-semibold text-ink">
+                {{ row.expectedCash | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </td>
+              <td>
+                {{
+                  row.closingCash === null
+                    ? '—'
+                    : (row.closingCash | currency: 'HNL' : 'L ' : '1.2-2')
+                }}
+              </td>
+              <td>
+                @if (row.difference === null) {
+                  <span class="text-sm text-ink-soft">—</span>
+                } @else {
+                  <p-tag
+                    [value]="(row.difference | currency: 'HNL' : 'L ' : '1.2-2') ?? '-'"
+                    [severity]="differenceSeverity(row.difference)"
+                  />
+                }
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="11">
+                <p class="py-8 text-center text-sm text-ink-soft">
+                  @if (sessionsList.loading()) {
+                    Cargando arqueos…
+                  } @else {
+                    No hay jornadas ni cajas en el rango seleccionado.
+                  }
+                </p>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </section>
+  }
+</div>

@@ -1,0 +1,348 @@
+<div class="flex flex-col gap-8">
+  <!-- Warehouse stock -->
+  <section class="flex flex-col gap-4" aria-labelledby="stock-heading">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex flex-col gap-1">
+        <h3 id="stock-heading" class="text-lg font-semibold text-ink">
+          Existencias de bodega
+        </h3>
+        <p class="text-xs text-ink-soft">
+          Disponible es lo que se puede despachar; comprometido ya está
+          reservado por un despacho asignado.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <p-toggleswitch
+          inputId="low-stock-only"
+          [ngModel]="lowStockOnly()"
+          (ngModelChange)="onLowStockChange($event)"
+        />
+        <label for="low-stock-only" class="text-sm text-ink">
+          Solo bajo stock (menos de {{ lowStockThreshold }})
+        </label>
+      </div>
+    </div>
+
+    @if (stockList.error(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="stockList.reload()"
+        />
+      </div>
+    }
+
+    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+      <p-table
+        #stockTable
+        [value]="stockList.items()"
+        [lazy]="true"
+        (onLazyLoad)="stockList.onLazyLoad($event)"
+        [loading]="stockList.loading()"
+        [paginator]="true"
+        [rows]="10"
+        [totalRecords]="stockList.total()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
+        [tableStyle]="{ 'min-width': '44rem' }"
+        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+        [showCurrentPageReport]="true"
+      >
+        <ng-template #header>
+          <tr>
+            <th scope="col">Producto</th>
+            <th scope="col">Disponible</th>
+            <th scope="col">Comprometido</th>
+            <th scope="col">Total</th>
+            <th scope="col">Estado</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-row>
+          <tr>
+            <td>
+              <span class="font-medium text-ink">{{ row.name }}</span>
+              <span class="block text-xs text-ink-soft">SKU: {{ row.sku }}</span>
+            </td>
+            <td class="font-semibold text-ink">{{ row.available | number }}</td>
+            <td>{{ row.committed | number }}</td>
+            <td>{{ row.total | number }}</td>
+            <td>
+              <p-tag
+                [value]="stockLabel(row.available)"
+                [severity]="stockSeverity(row.available)"
+              />
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="5">
+              <p class="py-8 text-center text-sm text-ink-soft">
+                @if (stockList.loading()) {
+                  Cargando existencias…
+                } @else if (lowStockOnly()) {
+                  Ningún producto está por debajo del umbral.
+                } @else {
+                  No hay productos en bodega.
+                }
+              </p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </section>
+
+  <!-- Kardex -->
+  <section class="flex flex-col gap-4" aria-labelledby="kardex-heading">
+    <div class="flex flex-col gap-1">
+      <h3 id="kardex-heading" class="text-lg font-semibold text-ink">
+        Kardex por producto
+      </h3>
+      <p class="text-xs text-ink-soft">
+        Cada movimiento con el saldo acumulado después de aplicarlo.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="kardex-product"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Producto <span aria-hidden="true">*</span>
+        </label>
+        <p-select
+          inputId="kardex-product"
+          [options]="productFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="kardexProduct()"
+          (onChange)="onKardexProductChange($event.value)"
+          [filter]="true"
+          filterBy="label"
+          appendTo="body"
+          placeholder="Elegí un producto"
+          styleClass="w-full sm:w-72"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="kardex-date"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Rango de fechas
+        </label>
+        <p-datepicker
+          inputId="kardex-date"
+          selectionMode="range"
+          [ngModel]="kardexRange()"
+          (ngModelChange)="onKardexRangeChange($event)"
+          [readonlyInput]="true"
+          [showClear]="true"
+          dateFormat="dd/mm/yy"
+          appendTo="body"
+          placeholder="Todo el historial"
+          styleClass="w-full sm:w-60"
+        />
+      </div>
+    </div>
+
+    @if (!kardexProduct()) {
+      <p class="rounded-2xl border border-ink/10 bg-white px-4 py-8 text-center text-sm text-ink-soft">
+        Elegí un producto para ver su kardex.
+      </p>
+    } @else {
+      @if (kardexList.error(); as message) {
+        <div
+          role="alert"
+          class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+        >
+          <p class="text-sm">{{ message }}</p>
+          <p-button
+            label="Reintentar"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="kardexList.reload()"
+          />
+        </div>
+      }
+
+      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+        <p-table
+          #kardexTable
+          [value]="kardexList.items()"
+          [lazy]="true"
+          (onLazyLoad)="kardexList.onLazyLoad($event)"
+          [loading]="kardexList.loading()"
+          [paginator]="true"
+          [rows]="10"
+          [totalRecords]="kardexList.total()"
+          [rowsPerPageOptions]="rowsPerPageOptions"
+          [tableStyle]="{ 'min-width': '40rem' }"
+          currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+          [showCurrentPageReport]="true"
+        >
+          <ng-template #header>
+            <tr>
+              <th scope="col">Fecha</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Cantidad</th>
+              <th scope="col">Saldo</th>
+              <th scope="col">Nota</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-row>
+            <tr>
+              <td class="whitespace-nowrap text-sm text-ink-soft">
+                {{ row.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+              </td>
+              <td>{{ movementLabel(row.type) }}</td>
+              <td>
+                <span
+                  class="font-semibold"
+                  [class.text-green-600]="row.quantity > 0"
+                  [class.text-red-600]="row.quantity < 0"
+                >
+                  {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity | number }}
+                </span>
+              </td>
+              <td class="font-semibold text-ink">{{ row.balance | number }}</td>
+              <td>
+                <span class="text-sm text-ink-soft">{{ row.note ?? '—' }}</span>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="5">
+                <p class="py-8 text-center text-sm text-ink-soft">
+                  @if (kardexList.loading()) {
+                    Cargando kardex…
+                  } @else {
+                    Este producto no tuvo movimientos en el rango.
+                  }
+                </p>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+  </section>
+
+  <!-- Seller stock -->
+  <section class="flex flex-col gap-4" aria-labelledby="seller-stock-heading">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div class="flex flex-col gap-1">
+        <h3 id="seller-stock-heading" class="text-lg font-semibold text-ink">
+          Stock en poder de vendedores
+        </h3>
+        <p class="text-xs text-ink-soft">
+          Producto ya despachado que el vendedor todavía carga.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="seller-stock-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Vendedor
+        </label>
+        <p-select
+          inputId="seller-stock-filter"
+          [options]="sellerFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="sellerFilter()"
+          (onChange)="onSellerFilterChange($event.value)"
+          appendTo="body"
+          placeholder="Todos los vendedores"
+          styleClass="w-full sm:w-52"
+        />
+      </div>
+    </div>
+
+    @if (sellerStockList.error(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="sellerStockList.reload()"
+        />
+      </div>
+    }
+
+    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+      <p-table
+        #sellerStockTable
+        [value]="sellerStockList.items()"
+        [lazy]="true"
+        (onLazyLoad)="sellerStockList.onLazyLoad($event)"
+        [loading]="sellerStockList.loading()"
+        [paginator]="true"
+        [rows]="10"
+        [totalRecords]="sellerStockList.total()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
+        [tableStyle]="{ 'min-width': '40rem' }"
+        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+        [showCurrentPageReport]="true"
+      >
+        <ng-template #header>
+          <tr>
+            <th scope="col">Vendedor</th>
+            <th scope="col">Producto</th>
+            <th scope="col">Cantidad</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-row>
+          <tr>
+            <td>
+              <span class="font-medium text-ink">{{ row.sellerName }}</span>
+            </td>
+            <td>
+              <span class="text-ink">{{ row.name }}</span>
+              <span class="block text-xs text-ink-soft">SKU: {{ row.sku }}</span>
+            </td>
+            <td class="font-semibold text-ink">{{ row.quantity | number }}</td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="3">
+              <p class="py-8 text-center text-sm text-ink-soft">
+                @if (sellerStockList.loading()) {
+                  Cargando stock de vendedores…
+                } @else {
+                  Ningún vendedor carga producto ahora mismo.
+                }
+              </p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </section>
+</div>
