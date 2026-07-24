@@ -1,0 +1,177 @@
+<div class="flex flex-col gap-4">
+  <!-- Toolbar -->
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="picker-search"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Buscar producto
+      </label>
+      <input
+        id="picker-search"
+        type="search"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+        placeholder="Nombre o SKU"
+        class="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm text-ink placeholder:text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:w-64"
+      />
+    </div>
+
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <p-toggleswitch
+          inputId="picker-only-selected"
+          [ngModel]="onlySelected()"
+          (ngModelChange)="onlySelected.set($event)"
+        />
+        <label for="picker-only-selected" class="text-sm text-ink">
+          Solo seleccionados
+        </label>
+      </div>
+
+      @if (selectedCount() > 0) {
+        <p-button
+          type="button"
+          label="Limpiar"
+          icon="pi pi-times"
+          severity="secondary"
+          [text]="true"
+          size="small"
+          (onClick)="clearAll()"
+        />
+      }
+    </div>
+  </div>
+
+  <!-- Product list -->
+  <div class="max-h-[26rem] overflow-y-auto rounded-2xl border border-ink/10 bg-white">
+    <table class="w-full border-collapse text-sm">
+      <caption class="sr-only">
+        Productos disponibles: escribí una cantidad para incluir el producto
+      </caption>
+      <thead class="sticky top-0 z-10 bg-white">
+        <tr class="border-b border-ink/10 text-left">
+          <th scope="col" class="px-4 py-3 font-semibold text-ink">Producto</th>
+          @if (stock()) {
+            <th scope="col" class="px-4 py-3 font-semibold text-ink">
+              Disponible
+            </th>
+          }
+          <th scope="col" class="px-4 py-3 text-right font-semibold text-ink">
+            Cantidad
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (product of visibleProducts(); track product.id) {
+          <tr
+            class="border-b border-ink/5 last:border-b-0"
+            [class.bg-brand/5]="quantityOf(product.id) > 0"
+          >
+            <td class="px-4 py-2.5">
+              <span class="font-medium text-ink">{{ product.name }}</span>
+              <span class="block text-xs text-ink-soft">
+                SKU: {{ product.sku }}
+              </span>
+            </td>
+
+            @if (stock()) {
+              <td class="px-4 py-2.5">
+                @if (isOutOfStock(product.id)) {
+                  <span class="text-xs font-semibold text-red-700">
+                    Sin stock
+                  </span>
+                } @else {
+                  <span class="text-ink">{{ availableOf(product.id) }}</span>
+                }
+              </td>
+            }
+
+            <td class="px-4 py-2.5">
+              <div class="flex items-center justify-end gap-1.5">
+                <button
+                  type="button"
+                  class="flex size-8 items-center justify-center rounded-lg border border-ink/15 text-ink transition-colors hover:bg-ink/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  [disabled]="quantityOf(product.id) === 0"
+                  [attr.aria-label]="'Quitar una unidad de ' + product.name"
+                  (click)="bump(product.id, -1)"
+                >
+                  <i class="pi pi-minus text-xs" aria-hidden="true"></i>
+                </button>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputmode="numeric"
+                  [value]="quantityOf(product.id)"
+                  (input)="onQuantityInput(product.id, $event)"
+                  [attr.aria-label]="'Cantidad de ' + product.name"
+                  [attr.aria-invalid]="exceedsStock(product.id)"
+                  [attr.aria-describedby]="
+                    exceedsStock(product.id) ? 'stock-error-' + product.id : null
+                  "
+                  class="w-20 rounded-lg border px-2 py-1.5 text-center text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  [class.border-ink/15]="!exceedsStock(product.id)"
+                  [class.border-red-500]="exceedsStock(product.id)"
+                />
+
+                <button
+                  type="button"
+                  class="flex size-8 items-center justify-center rounded-lg border border-ink/15 text-ink transition-colors hover:bg-ink/5"
+                  [attr.aria-label]="'Agregar una unidad de ' + product.name"
+                  (click)="bump(product.id, 1)"
+                >
+                  <i class="pi pi-plus text-xs" aria-hidden="true"></i>
+                </button>
+              </div>
+
+              @if (exceedsStock(product.id)) {
+                <p
+                  [id]="'stock-error-' + product.id"
+                  role="alert"
+                  class="mt-1 text-right text-xs text-red-700"
+                >
+                  Supera el disponible ({{ availableOf(product.id) }})
+                </p>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="stock() ? 3 : 2">
+              <p class="py-8 text-center text-sm text-ink-soft">
+                @if (onlySelected()) {
+                  Todavía no seleccionaste ningún producto.
+                } @else {
+                  Ningún producto coincide con la búsqueda.
+                }
+              </p>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Summary -->
+  <div
+    class="flex flex-wrap items-center justify-between gap-2 text-sm"
+    aria-live="polite"
+  >
+    <p class="text-ink-soft">
+      <span class="font-semibold text-ink">{{ selectedCount() }}</span>
+      producto(s) ·
+      <span class="font-semibold text-ink">{{ totalUnits() }}</span>
+      unidad(es)
+    </p>
+
+    @if (hasStockIssue()) {
+      <p role="alert" class="text-xs font-semibold text-red-700">
+        Hay líneas que superan el stock disponible.
+      </p>
+    }
+  </div>
+</div>
