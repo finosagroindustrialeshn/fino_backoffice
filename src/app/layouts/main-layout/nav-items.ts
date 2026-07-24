@@ -31,7 +31,24 @@ export const NAV_ITEMS: readonly NavItem[] = [
     route: '/caja',
     roles: ['ADMIN', 'SUPERVISOR'],
   },
-  { label: 'Contabilidad', icon: 'pi pi-calculator', route: '/contabilidad' },
+  {
+    label: 'Contabilidad',
+    icon: 'pi pi-calculator',
+    route: '/contabilidad',
+    roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
+  },
+  {
+    label: 'Empleados',
+    icon: 'pi pi-id-card',
+    route: '/empleados',
+    roles: ['ADMIN', 'SUPERVISOR'],
+  },
+  {
+    label: 'Reportes',
+    icon: 'pi pi-chart-bar',
+    route: '/reportes',
+    roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
+  },
   {
     label: 'Productos',
     icon: 'pi pi-shopping-bag',

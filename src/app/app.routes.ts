@@ -131,8 +131,100 @@ export const routes: Routes = [
       },
       {
         path: 'contabilidad',
-        loadComponent: placeholder,
+        loadComponent: () =>
+          import(
+            './features/accounts-receivable/pages/accounts-receivable/accounts-receivable'
+          ).then((m) => m.AccountsReceivable),
         data: { title: 'Contabilidad' },
+      },
+      {
+        path: 'contabilidad/clientes/:clientId',
+        loadComponent: () =>
+          import(
+            './features/accounts-receivable/pages/client-statement/client-statement'
+          ).then((m) => m.ClientAccountStatement),
+        data: { title: 'Estado de cuenta' },
+      },
+      // The form routes are declared BEFORE the tabbed shell: `empleados` has
+      // children, so leaving them after would rely on the router backtracking
+      // out of a parent that matched but had no matching child.
+      {
+        path: 'empleados/nuevo',
+        loadComponent: () =>
+          import('./features/employees/pages/employee-form/employee-form').then(
+            (m) => m.EmployeeForm,
+          ),
+        data: { title: 'Nuevo empleado' },
+      },
+      {
+        path: 'empleados/:id/editar',
+        loadComponent: () =>
+          import('./features/employees/pages/employee-form/employee-form').then(
+            (m) => m.EmployeeForm,
+          ),
+        data: { title: 'Editar empleado' },
+      },
+      {
+        path: 'empleados',
+        loadComponent: () =>
+          import('./features/employees/pages/empleados/empleados').then(
+            (m) => m.EmployeesShell,
+          ),
+        data: { title: 'Empleados' },
+        children: [
+          { path: '', redirectTo: 'lista', pathMatch: 'full' },
+          {
+            path: 'lista',
+            loadComponent: () =>
+              import(
+                './features/employees/pages/employee-list/employee-list'
+              ).then((m) => m.EmployeeList),
+            data: { title: 'Empleados' },
+          },
+          {
+            path: 'puestos',
+            loadComponent: () =>
+              import(
+                './features/employees/pages/job-position-list/job-position-list'
+              ).then((m) => m.JobPositionList),
+            data: { title: 'Empleados' },
+          },
+        ],
+      },
+      {
+        path: 'reportes',
+        loadComponent: () =>
+          import('./features/reports/pages/reportes/reportes').then(
+            (m) => m.ReportesShell,
+          ),
+        data: { title: 'Reportes' },
+        children: [
+          { path: '', redirectTo: 'ventas', pathMatch: 'full' },
+          {
+            path: 'ventas',
+            loadComponent: () =>
+              import(
+                './features/reports/pages/sales-report/sales-report'
+              ).then((m) => m.SalesReport),
+            data: { title: 'Reportes' },
+          },
+          {
+            path: 'caja',
+            loadComponent: () =>
+              import('./features/reports/pages/cash-report/cash-report').then(
+                (m) => m.CashReport,
+              ),
+            data: { title: 'Reportes' },
+          },
+          {
+            path: 'inventario',
+            loadComponent: () =>
+              import(
+                './features/reports/pages/inventory-report/inventory-report'
+              ).then((m) => m.InventoryReport),
+            data: { title: 'Reportes' },
+          },
+        ],
       },
       {
         path: 'catalogos',
