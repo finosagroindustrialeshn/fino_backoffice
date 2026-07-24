@@ -10,6 +10,7 @@ import type {
   CreateDispatchPayload,
   Dispatch,
   DispatchStatus,
+  DispatchSummary,
   SellerStock,
 } from '../models/dispatch.model';
 
@@ -28,7 +29,8 @@ export interface DispatchListQuery extends PaginationQuery {
 export class DispatchDataClient {
   private readonly api = inject(ApiClient);
 
-  list(query?: DispatchListQuery): Observable<Paginated<Dispatch>> {
+  /** Note: list rows carry no `items` — fetch one with `get()` for those. */
+  list(query?: DispatchListQuery): Observable<Paginated<DispatchSummary>> {
     const params: Record<string, string | number | boolean> = {};
     if (query?.page) {
       params['page'] = query.page;
@@ -51,7 +53,7 @@ export class DispatchDataClient {
     if (query?.dateTo) {
       params['dateTo'] = query.dateTo;
     }
-    return this.api.get<Paginated<Dispatch>>(
+    return this.api.get<Paginated<DispatchSummary>>(
       '/dispatches',
       params as QueryParams,
     );
@@ -63,6 +65,16 @@ export class DispatchDataClient {
 
   create(payload: CreateDispatchPayload): Observable<Dispatch> {
     return this.api.post<Dispatch>('/dispatches', payload);
+  }
+
+  /** Reserves warehouse stock for the load (available -> committed). */
+  assign(id: string): Observable<Dispatch> {
+    return this.api.post<Dispatch>(`/dispatches/${id}/assign`);
+  }
+
+  /** Hands the reserved load over to the seller (committed -> seller stock). */
+  receive(id: string): Observable<Dispatch> {
+    return this.api.post<Dispatch>(`/dispatches/${id}/receive`);
   }
 
   confirm(id: string): Observable<Dispatch> {

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   OnInit,
   signal,
@@ -14,14 +15,18 @@ import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
-import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TextareaModule } from 'primeng/textarea';
 
 import type { UserProfile } from '../../../../core/auth/user-profile.model';
+import {
+  ProductQuantityPicker,
+  type ProductQuantities,
+} from '../../../../shared/components/product-quantity-picker/product-quantity-picker';
 import type { Product } from '../../../products/models/product.model';
 import { ProductDataClient } from '../../../products/services/product-data';
+import { ReportsInventoryDataClient } from '../../../reports/services/reports-inventory-data';
 import { UserDataClient } from '../../../users/services/user-data';
 import type {
   CreateDispatchPayload,
@@ -37,9 +42,9 @@ const PICKER_SIZE = 100;
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    ProductQuantityPicker,
     ButtonModule,
     DatePickerModule,
-    InputNumberModule,
     SelectModule,
     SkeletonModule,
     TextareaModule,
@@ -52,6 +57,7 @@ export class DispatchForm implements OnInit {
   private readonly dispatches = inject(DispatchDataClient);
   private readonly users = inject(UserDataClient);
   private readonly products = inject(ProductDataClient);
+  private readonly inventory = inject(ReportsInventoryDataClient);
   private readonly fb = inject(NonNullableFormBuilder);
 
   protected readonly loading = signal(true);
@@ -61,37 +67,42 @@ export class DispatchForm implements OnInit {
 
   protected readonly sellerOptions = signal<UserProfile[]>([]);
   protected readonly productOptions = signal<Product[]>([]);
+  /** Available units per product id — drives the picker's stock column. */
+  protected readonly stockByProduct = signal<ProductQuantities | null>(null);
+
+  /** Selected products and their quantities, owned by the picker. */
+  protected readonly quantities = signal<ProductQuantities>({});
+
+  protected readonly selectedCount = computed(
+    () => Object.keys(this.quantities()).length,
+  );
+
+  /** A dispatch needs at least one line — mirrors the API's own rule. */
+  protected readonly hasItems = computed(() => this.selectedCount() > 0);
+
+  /**
+   * Blocks the submit when a line asks for more than the warehouse holds, so
+   * the user is not told about it only later, when assigning 400s.
+   */
+  protected readonly hasStockIssue = computed(() => {
+    const stock = this.stockByProduct();
+    if (!stock) {
+      return false;
+    }
+    return Object.entries(this.quantities()).some(([productId, quantity]) => {
+      const available = stock[productId];
+      return available !== undefined && quantity > available;
+    });
+  });
 
   protected readonly form = this.fb.group({
     sellerId: this.fb.control('', [Validators.required]),
     date: this.fb.control<Date>(new Date(), [Validators.required]),
     notes: this.fb.control(''),
-    items: this.fb.array([this.newItem()]),
   });
-
-  protected get items() {
-    return this.form.controls.items;
-  }
 
   ngOnInit(): void {
     void this.init();
-  }
-
-  private newItem() {
-    return this.fb.group({
-      productId: this.fb.control('', [Validators.required]),
-      quantity: this.fb.control(1, [Validators.required, Validators.min(1)]),
-    });
-  }
-
-  protected addItem(): void {
-    this.items.push(this.newItem());
-  }
-
-  protected removeItem(index: number): void {
-    if (this.items.length > 1) {
-      this.items.removeAt(index);
-    }
   }
 
   private async init(): Promise<void> {
@@ -105,7 +116,11 @@ export class DispatchForm implements OnInit {
         firstValueFrom(this.products.list({ pageSize: PICKER_SIZE })),
       ]);
       this.sellerOptions.set([...sellers.items]);
-      this.productOptions.set([...products.items]);
+      // Inactive products are not dispatchable, so they never reach the picker.
+      this.productOptions.set(products.items.filter((p) => p.isActive));
+      // Stock is loaded separately and best-effort: it only enriches the
+      // picker, so losing it must not take the whole form down with it.
+      void this.loadStock();
     } catch (error) {
       this.loadError.set(
         toMessage(error, 'No se pudo cargar el formulario.'),
@@ -115,8 +130,28 @@ export class DispatchForm implements OnInit {
     }
   }
 
+  /**
+   * The stock column is an aid, not a requirement: an ACCOUNTANT-only report
+   * endpoint or a transient failure leaves `stockByProduct` null, and the
+   * picker simply hides the column instead of blocking the dispatch.
+   */
+  private async loadStock(): Promise<void> {
+    try {
+      const stock = await firstValueFrom(
+        this.inventory.stock({ pageSize: PICKER_SIZE }),
+      );
+      this.stockByProduct.set(
+        Object.fromEntries(
+          stock.items.map((row) => [row.productId, row.available]),
+        ),
+      );
+    } catch {
+      this.stockByProduct.set(null);
+    }
+  }
+
   protected async submit(): Promise<void> {
-    if (this.form.invalid) {
+    if (this.form.invalid || !this.hasItems() || this.hasStockIssue()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -125,10 +160,9 @@ export class DispatchForm implements OnInit {
     this.formError.set(null);
 
     const raw = this.form.getRawValue();
-    const items: DispatchItemInput[] = raw.items.map((item) => ({
-      productId: item.productId,
-      quantity: item.quantity,
-    }));
+    const items: DispatchItemInput[] = Object.entries(this.quantities()).map(
+      ([productId, quantity]) => ({ productId, quantity }),
+    );
     const notes = raw.notes.trim();
     const payload: CreateDispatchPayload = {
       sellerId: raw.sellerId,

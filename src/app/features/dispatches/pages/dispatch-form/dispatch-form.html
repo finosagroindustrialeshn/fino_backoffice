@@ -101,78 +101,27 @@
         </div>
       </div>
 
-      <!-- Line items -->
+      <!-- Products -->
       <div class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-1">
           <h2 class="text-sm font-semibold text-ink">Productos a despachar</h2>
-          <p-button
-            type="button"
-            label="Agregar línea"
-            icon="pi pi-plus"
-            size="small"
-            [outlined]="true"
-            (onClick)="addItem()"
-          />
+          <p class="text-xs text-ink-soft">
+            Escribí la cantidad de cada producto que va en la carga. Los que
+            queden en cero no se incluyen.
+          </p>
         </div>
 
-        <div class="flex flex-col gap-3" formArrayName="items">
-          @for (item of items.controls; track $index) {
-            <div
-              class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_10rem_auto] sm:items-end"
-              [formGroupName]="$index"
-            >
-              <div class="flex flex-col gap-1.5">
-                <label
-                  [for]="'item-product-' + $index"
-                  class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-                >
-                  Producto
-                </label>
-                <p-select
-                  [inputId]="'item-product-' + $index"
-                  formControlName="productId"
-                  [options]="productOptions()"
-                  optionLabel="name"
-                  optionValue="id"
-                  placeholder="Seleccioná un producto"
-                  appendTo="body"
-                  styleClass="w-full"
-                  [filter]="true"
-                  filterBy="name"
-                />
-              </div>
+        <app-product-quantity-picker
+          [products]="productOptions()"
+          [stock]="stockByProduct()"
+          [(quantities)]="quantities"
+        />
 
-              <div class="flex flex-col gap-1.5">
-                <label
-                  [for]="'item-qty-' + $index"
-                  class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-                >
-                  Cantidad
-                </label>
-                <p-inputnumber
-                  [inputId]="'item-qty-' + $index"
-                  formControlName="quantity"
-                  [min]="1"
-                  [step]="1"
-                  [showButtons]="true"
-                  [maxFractionDigits]="0"
-                  styleClass="w-full"
-                  inputStyleClass="w-full"
-                />
-              </div>
-
-              <p-button
-                type="button"
-                icon="pi pi-trash"
-                severity="danger"
-                [text]="true"
-                ariaLabel="Quitar línea"
-                [disabled]="items.length <= 1"
-                (onClick)="removeItem($index)"
-              />
-            </div>
-          }
-        </div>
+        @if (!hasItems()) {
+          <p class="text-xs text-ink-soft">
+            Agregá al menos un producto para poder crear el despacho.
+          </p>
+        }
       </div>
 
       <!-- Actions -->
@@ -188,7 +137,7 @@
           type="submit"
           label="Crear despacho"
           [loading]="saving()"
-          [disabled]="form.invalid || saving()"
+          [disabled]="form.invalid || !hasItems() || hasStockIssue() || saving()"
         />
       </div>
     </form>

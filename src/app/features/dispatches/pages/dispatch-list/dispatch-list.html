@@ -110,8 +110,6 @@
         <tr>
           <th scope="col">Fecha</th>
           <th scope="col">Vendedor</th>
-          <th scope="col">Líneas</th>
-          <th scope="col">Unidades</th>
           <th scope="col">Estado</th>
           <th scope="col">Acciones</th>
         </tr>
@@ -127,14 +125,6 @@
           <td>
             <span class="font-medium text-ink">
               {{ sellerName(dispatch.sellerId) }}
-            </span>
-          </td>
-          <td>
-            <span class="text-sm text-ink-soft">{{ dispatch.items.length }}</span>
-          </td>
-          <td>
-            <span class="text-base font-semibold text-ink">
-              {{ totalUnits(dispatch) }}
             </span>
           </td>
           <td>
@@ -158,7 +148,7 @@
 
       <ng-template #emptymessage>
         <tr>
-          <td colspan="6">
+          <td colspan="4">
             <p class="py-8 text-center text-sm text-ink-soft">
               @if (list.loading()) {
                 Cargando despachos…
@@ -185,6 +175,16 @@
   [dismissableMask]="true"
 >
   @let current = detail();
+  @if (detailLoading()) {
+    <div class="flex flex-col gap-3" aria-busy="true">
+      <span class="sr-only">Cargando detalle del despacho…</span>
+      @for (row of skeletonRows; track row) {
+        <p-skeleton width="100%" height="2rem" />
+      }
+    </div>
+  } @else if (!current && actionError(); as message) {
+    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+  }
   @if (current) {
     <div class="flex flex-col gap-5">
       @if (actionError(); as message) {
@@ -249,30 +249,58 @@
         </p-table>
       </div>
 
-      <!-- Actions (DRAFT only) -->
-      @if (canManage() && current.status === 'DRAFT') {
+      <p class="text-right text-sm text-ink-soft">
+        <span class="font-semibold text-ink">{{ current.items.length }}</span>
+        producto(s) ·
+        <span class="font-semibold text-ink">{{ totalUnits(current) }}</span>
+        unidad(es)
+      </p>
+
+      <!-- Actions (DRAFT and ASSIGNED only) -->
+      @if (canCancel() || canAssign() || canReceive()) {
         <div class="flex items-center justify-end gap-2">
-          <p-button
-            type="button"
-            label="Cancelar despacho"
-            icon="pi pi-times"
-            severity="danger"
-            [outlined]="true"
-            [disabled]="acting()"
-            (onClick)="cancel()"
-          />
-          <p-button
-            type="button"
-            label="Confirmar despacho"
-            icon="pi pi-check"
-            [loading]="acting()"
-            [disabled]="acting()"
-            (onClick)="confirm()"
-          />
+          @if (canCancel()) {
+            <p-button
+              type="button"
+              label="Cancelar despacho"
+              icon="pi pi-times"
+              severity="danger"
+              [outlined]="true"
+              [disabled]="acting()"
+              (onClick)="cancel()"
+            />
+          }
+          @if (canAssign()) {
+            <p-button
+              type="button"
+              label="Asignar despacho"
+              icon="pi pi-box"
+              [loading]="acting()"
+              [disabled]="acting()"
+              (onClick)="assign()"
+            />
+          }
+          @if (canReceive()) {
+            <p-button
+              type="button"
+              label="Marcar como recibido"
+              icon="pi pi-check"
+              [loading]="acting()"
+              [disabled]="acting()"
+              (onClick)="receive()"
+            />
+          }
         </div>
-        <p class="text-xs text-ink-soft">
-          Confirmar mueve el stock de bodega al vendedor. No se puede deshacer.
-        </p>
+        @if (canAssign()) {
+          <p class="text-xs text-ink-soft">
+            Asignar reserva el stock en bodega. Todavía no sale del almacén.
+          </p>
+        }
+        @if (canReceive()) {
+          <p class="text-xs text-ink-soft">
+            Recibir entrega el stock reservado al vendedor. No se puede deshacer.
+          </p>
+        }
       }
     </div>
   }

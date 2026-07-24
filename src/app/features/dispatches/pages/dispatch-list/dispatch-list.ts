@@ -29,6 +29,8 @@ import {
   DISPATCH_STATUS_SEVERITY,
   type Dispatch,
   type DispatchStatus,
+  type DispatchSummary,
+  type DispatchStatusSeverity,
 } from '../../models/dispatch.model';
 import { DispatchDataClient } from '../../services/dispatch-data';
 
@@ -92,7 +94,7 @@ export class DispatchList implements OnInit {
     ...[...this.sellerNames()].map(([id, name]) => ({ label: name, value: id })),
   ]);
 
-  protected readonly list = new LazyList<Dispatch>(
+  protected readonly list = new LazyList<DispatchSummary>(
     (page, pageSize) => {
       const range = this.dateRange();
       return this.dispatches.list({
@@ -114,8 +116,22 @@ export class DispatchList implements OnInit {
   protected readonly detailItems = computed(() => [
     ...(this.detail()?.items ?? []),
   ]);
+  protected readonly detailLoading = signal(false);
   protected readonly acting = signal(false);
   protected readonly actionError = signal<string | null>(null);
+
+  // Lifecycle: DRAFT -> ASSIGNED -> RECEIVED. Cancelling is possible until the
+  // load leaves the warehouse; once received there is nothing left to undo.
+  protected readonly canAssign = computed(
+    () => this.canManage() && this.detail()?.status === 'DRAFT',
+  );
+  protected readonly canReceive = computed(
+    () => this.canManage() && this.detail()?.status === 'ASSIGNED',
+  );
+  protected readonly canCancel = computed(() => {
+    const status = this.detail()?.status;
+    return this.canManage() && (status === 'DRAFT' || status === 'ASSIGNED');
+  });
 
   ngOnInit(): void {
     void this.loadLookups();
@@ -144,7 +160,7 @@ export class DispatchList implements OnInit {
     return DISPATCH_STATUS_LABELS[status];
   }
 
-  protected statusSeverity(status: DispatchStatus): 'secondary' | 'success' | 'danger' {
+  protected statusSeverity(status: DispatchStatus): DispatchStatusSeverity {
     return DISPATCH_STATUS_SEVERITY[status];
   }
 
@@ -160,14 +176,36 @@ export class DispatchList implements OnInit {
     return dispatch.items.reduce((sum, item) => sum + item.quantity, 0);
   }
 
-  protected openDetail(dispatch: Dispatch): void {
-    this.detail.set(dispatch);
+  /**
+   * List rows carry no line items, so the detail is fetched on open. Without
+   * this the dialog silently rendered an empty product table.
+   */
+  protected openDetail(dispatch: DispatchSummary): void {
+    this.detail.set(null);
     this.actionError.set(null);
     this.detailOpen.set(true);
+    void this.loadDetail(dispatch.id);
   }
 
-  protected async confirm(): Promise<void> {
-    await this.runAction((id) => this.dispatches.confirm(id));
+  private async loadDetail(id: string): Promise<void> {
+    this.detailLoading.set(true);
+    try {
+      this.detail.set(await firstValueFrom(this.dispatches.get(id)));
+    } catch (error) {
+      this.actionError.set(
+        toMessage(error, 'No se pudo cargar el detalle del despacho.'),
+      );
+    } finally {
+      this.detailLoading.set(false);
+    }
+  }
+
+  protected async assign(): Promise<void> {
+    await this.runAction((id) => this.dispatches.assign(id));
+  }
+
+  protected async receive(): Promise<void> {
+    await this.runAction((id) => this.dispatches.receive(id));
   }
 
   protected async cancel(): Promise<void> {
@@ -175,7 +213,7 @@ export class DispatchList implements OnInit {
   }
 
   private async runAction(
-    action: (id: string) => ReturnType<DispatchDataClient['confirm']>,
+    action: (id: string) => ReturnType<DispatchDataClient['assign']>,
   ): Promise<void> {
     const current = this.detail();
     if (!current || this.acting()) {
