@@ -1,0 +1,301 @@
+<div class="flex flex-col gap-8">
+  <!-- Header -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+    aria-labelledby="ar-heading"
+  >
+    <div class="flex flex-col gap-1">
+      <h2 id="ar-heading" class="text-xl font-semibold text-ink">
+        Cuentas por cobrar
+      </h2>
+      <p class="text-sm text-ink-soft">
+        Cartera de crédito vigente: cuánto se debe, quién lo debe y hace cuánto.
+      </p>
+    </div>
+
+    <p-button
+      label="Actualizar"
+      icon="pi pi-refresh"
+      severity="secondary"
+      [outlined]="true"
+      (onClick)="refreshAll()"
+    />
+  </section>
+
+  <!-- Portfolio summary -->
+  <section class="flex flex-col gap-4" aria-labelledby="ar-summary-heading">
+    <h3 id="ar-summary-heading" class="text-lg font-semibold text-ink">
+      Resumen de la cartera
+    </h3>
+
+    @let summary = summaryState();
+    @switch (summary.status) {
+      @case ('loading') {
+        <div
+          class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+          aria-busy="true"
+        >
+          <span class="sr-only">Cargando resumen de cuentas por cobrar…</span>
+          @for (card of skeletonCards; track card) {
+            <p-skeleton width="100%" height="6.5rem" borderRadius="1rem" />
+          }
+        </div>
+      }
+
+      @case ('error') {
+        <div
+          role="alert"
+          class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+        >
+          <p class="text-sm">{{ summary.message }}</p>
+          <p-button
+            label="Reintentar"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="loadSummary()"
+          />
+        </div>
+      }
+
+      @case ('success') {
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <article
+            class="rounded-2xl border border-ink/10 bg-white p-5 sm:col-span-2 xl:col-span-1"
+          >
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Total por cobrar
+            </p>
+            <p
+              class="mt-1 text-3xl font-bold"
+              [class.text-red-700]="summary.summary.totalOutstanding > 0"
+              [class.text-ink]="summary.summary.totalOutstanding === 0"
+            >
+              {{
+                summary.summary.totalOutstanding
+                  | currency: 'HNL' : 'L ' : '1.2-2'
+              }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">
+              Saldo abierto de toda la cartera
+            </p>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Clientes deudores
+            </p>
+            <p class="mt-1 text-2xl font-bold text-ink">
+              {{ summary.summary.debtorClients | number }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">Con saldo pendiente</p>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Ventas abiertas
+            </p>
+            <p class="mt-1 text-2xl font-bold text-ink">
+              {{ summary.summary.openSalesCount | number }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">
+              Créditos que aún cargan saldo
+            </p>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Deuda crítica
+            </p>
+            <p
+              class="mt-1 text-2xl font-bold"
+              [class.text-red-700]="criticalTotal() > 0"
+              [class.text-ink]="criticalTotal() === 0"
+            >
+              {{ criticalTotal() | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">Con 90 días o más</p>
+          </article>
+        </div>
+
+        <!-- Aging -->
+        <div class="flex flex-col gap-3">
+          <h4 id="ar-aging-heading" class="text-sm font-semibold text-ink">
+            Antigüedad de saldos
+          </h4>
+          <ul
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            aria-labelledby="ar-aging-heading"
+          >
+            @for (bucket of buckets(); track bucket.label) {
+              @let severity = severityOf(bucket);
+              <li class="rounded-2xl border border-ink/10 bg-white p-5">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-semibold text-ink">
+                    {{ rangeLabelOf(bucket) }}
+                  </p>
+                  <!-- The text badge, not the colour, is what states urgency. -->
+                  <span
+                    class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+                    [class.bg-green-100]="severity === 'current'"
+                    [class.text-green-800]="severity === 'current'"
+                    [class.bg-amber-100]="severity === 'due'"
+                    [class.text-amber-800]="severity === 'due'"
+                    [class.bg-orange-100]="severity === 'overdue'"
+                    [class.text-orange-900]="severity === 'overdue'"
+                    [class.bg-red-100]="severity === 'critical'"
+                    [class.text-red-800]="severity === 'critical'"
+                  >
+                    {{ severityLabels[severity] }}
+                  </span>
+                </div>
+
+                <p class="mt-2 text-xl font-bold text-ink">
+                  {{ bucket.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </p>
+                <p class="mt-1 text-xs text-ink-soft">
+                  {{ bucket.salesCount | number }} ventas ·
+                  {{
+                    share(bucket.total, summary.summary.totalOutstanding)
+                      | number: '1.0-1'
+                  }}% de la cartera
+                </p>
+
+                <div
+                  class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-ink/10"
+                  aria-hidden="true"
+                >
+                  <div
+                    class="h-full rounded-full"
+                    [class.bg-green-600]="severity === 'current'"
+                    [class.bg-amber-500]="severity === 'due'"
+                    [class.bg-orange-600]="severity === 'overdue'"
+                    [class.bg-red-600]="severity === 'critical'"
+                    [style.width.%]="
+                      share(bucket.total, summary.summary.totalOutstanding)
+                    "
+                  ></div>
+                </div>
+              </li>
+            } @empty {
+              <li
+                class="rounded-2xl border border-ink/10 bg-white p-5 text-sm text-ink-soft sm:col-span-2 xl:col-span-4"
+              >
+                No hay saldos pendientes en la cartera.
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    }
+  </section>
+
+  <!-- Debtors -->
+  <section class="flex flex-col gap-4" aria-labelledby="ar-debtors-heading">
+    <div class="flex flex-col gap-1">
+      <h3 id="ar-debtors-heading" class="text-lg font-semibold text-ink">
+        Deudores
+      </h3>
+      <p class="text-xs text-ink-soft">
+        Ordená por total adeudado o por antigüedad de la deuda más vieja.
+      </p>
+    </div>
+
+    @if (debtors.error(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="debtors.reload()"
+        />
+      </div>
+    }
+
+    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+      <p-table
+        [value]="debtors.items()"
+        [lazy]="true"
+        (onLazyLoad)="debtors.onLazyLoad($event)"
+        [loading]="debtors.loading()"
+        [paginator]="true"
+        [rows]="10"
+        [totalRecords]="debtors.total()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
+        sortField="totalOwed"
+        [sortOrder]="-1"
+        [tableStyle]="{ 'min-width': '44rem' }"
+        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+        [showCurrentPageReport]="true"
+      >
+        <ng-template #header>
+          <tr>
+            <th scope="col">Cliente</th>
+            <th scope="col">Ventas abiertas</th>
+            <th scope="col" pSortableColumn="oldestSaleDate">
+              Deuda más antigua
+              <p-sortIcon field="oldestSaleDate" />
+            </th>
+            <th scope="col" pSortableColumn="totalOwed">
+              Total adeudado
+              <p-sortIcon field="totalOwed" />
+            </th>
+            <th scope="col">
+              <span class="sr-only">Acciones</span>
+            </th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-row>
+          <tr>
+            <td>
+              <span class="font-medium text-ink">{{ row.clientName }}</span>
+            </td>
+            <td>{{ row.openSalesCount | number }}</td>
+            <td>{{ row.oldestSaleDate | date: 'dd/MM/yyyy' }}</td>
+            <td class="text-base font-bold text-ink">
+              {{ row.totalOwed | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </td>
+            <td>
+              <a
+                class="inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
+                [routerLink]="['/contabilidad', 'clientes', row.clientId]"
+                [attr.aria-label]="'Ver estado de cuenta de ' + row.clientName"
+              >
+                <i class="pi pi-file" aria-hidden="true"></i>
+                Estado de cuenta
+              </a>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="5">
+              <p class="py-8 text-center text-sm text-ink-soft">
+                @if (debtors.loading()) {
+                  Cargando deudores…
+                } @else {
+                  No hay clientes con saldo pendiente.
+                }
+              </p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </section>
+</div>

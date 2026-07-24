@@ -1,0 +1,416 @@
+<div class="flex flex-col gap-8">
+  <!-- Breadcrumb / back -->
+  <a
+    routerLink="/contabilidad"
+    class="inline-flex w-fit items-center gap-2 text-sm text-ink-soft hover:text-ink"
+  >
+    <i class="pi pi-arrow-left" aria-hidden="true"></i>
+    Volver a cuentas por cobrar
+  </a>
+
+  <!-- Header -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+    aria-labelledby="statement-heading"
+  >
+    <div class="flex flex-col gap-1">
+      <h2 id="statement-heading" class="text-xl font-semibold text-ink">
+        Estado de cuenta
+      </h2>
+      <p class="text-sm text-ink-soft">
+        @if (clientName()) {
+          {{ clientName() }}
+        } @else {
+          Cargando cliente…
+        }
+      </p>
+    </div>
+
+    <p-button
+      label="Actualizar"
+      icon="pi pi-refresh"
+      severity="secondary"
+      [outlined]="true"
+      (onClick)="refreshAll()"
+    />
+  </section>
+
+  <!-- Client position -->
+  <section class="flex flex-col gap-4" aria-labelledby="statement-position">
+    <h3 id="statement-position" class="text-lg font-semibold text-ink">
+      Posición actual
+    </h3>
+
+    @let account = accountState();
+    @switch (account.status) {
+      @case ('loading') {
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-busy="true">
+          <span class="sr-only">Cargando la cuenta del cliente…</span>
+          @for (card of skeletonCards; track card) {
+            <p-skeleton width="100%" height="6.5rem" borderRadius="1rem" />
+          }
+        </div>
+      }
+
+      @case ('error') {
+        <div
+          role="alert"
+          class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+        >
+          <p class="text-sm">{{ account.message }}</p>
+          <p-button
+            label="Reintentar"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="loadAccount()"
+          />
+        </div>
+      }
+
+      @case ('success') {
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Total adeudado
+            </p>
+            <p
+              class="mt-1 text-3xl font-bold"
+              [class.text-red-700]="account.account.receivable.totalOwed > 0"
+              [class.text-ink]="account.account.receivable.totalOwed === 0"
+            >
+              {{
+                account.account.receivable.totalOwed
+                  | currency: 'HNL' : 'L ' : '1.2-2'
+              }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">Saldo abierto del cliente</p>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Ventas abiertas
+            </p>
+            <p class="mt-1 text-2xl font-bold text-ink">
+              {{ account.account.receivable.openSalesCount | number }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">
+              Créditos que aún cargan saldo
+            </p>
+          </article>
+
+          <article class="rounded-2xl border border-ink/10 bg-white p-5">
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Saldo por antigüedad
+            </p>
+            <p class="mt-1 text-2xl font-bold text-ink">
+              {{
+                account.account.aging.totalOutstanding
+                  | currency: 'HNL' : 'L ' : '1.2-2'
+              }}
+            </p>
+            <p class="mt-1 text-xs text-ink-soft">
+              Distribuido en los tramos de abajo
+            </p>
+          </article>
+        </div>
+
+        <!-- Aging -->
+        <div class="flex flex-col gap-3">
+          <h4 id="statement-aging-heading" class="text-sm font-semibold text-ink">
+            Antigüedad de la deuda
+          </h4>
+          <ul
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            aria-labelledby="statement-aging-heading"
+          >
+            @for (bucket of buckets(); track bucket.label) {
+              @let severity = severityOf(bucket);
+              <li class="rounded-2xl border border-ink/10 bg-white p-5">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-semibold text-ink">
+                    {{ rangeLabelOf(bucket) }}
+                  </p>
+                  <!-- The text badge, not the colour, is what states urgency. -->
+                  <span
+                    class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+                    [class.bg-green-100]="severity === 'current'"
+                    [class.text-green-800]="severity === 'current'"
+                    [class.bg-amber-100]="severity === 'due'"
+                    [class.text-amber-800]="severity === 'due'"
+                    [class.bg-orange-100]="severity === 'overdue'"
+                    [class.text-orange-900]="severity === 'overdue'"
+                    [class.bg-red-100]="severity === 'critical'"
+                    [class.text-red-800]="severity === 'critical'"
+                  >
+                    {{ severityLabels[severity] }}
+                  </span>
+                </div>
+
+                <p class="mt-2 text-xl font-bold text-ink">
+                  {{ bucket.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </p>
+                <p class="mt-1 text-xs text-ink-soft">
+                  {{ bucket.salesCount | number }} ventas
+                </p>
+              </li>
+            } @empty {
+              <li
+                class="rounded-2xl border border-ink/10 bg-white p-5 text-sm text-ink-soft sm:col-span-2 xl:col-span-4"
+              >
+                Este cliente no tiene saldo pendiente.
+              </li>
+            }
+          </ul>
+        </div>
+
+        <!-- Open credit sales -->
+        <div class="flex flex-col gap-3">
+          <h4 id="statement-open-sales" class="text-sm font-semibold text-ink">
+            Ventas a crédito abiertas
+          </h4>
+
+          <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+            <p-table
+              [value]="openSales()"
+              [tableStyle]="{ 'min-width': '40rem' }"
+            >
+              <ng-template #header>
+                <tr>
+                  <th scope="col">Fecha</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Total</th>
+                  <th scope="col">Abonado</th>
+                  <th scope="col">Saldo</th>
+                </tr>
+              </ng-template>
+
+              <ng-template #body let-sale>
+                <tr>
+                  <td>{{ sale.createdAt | date: 'dd/MM/yyyy' }}</td>
+                  <td>
+                    <span class="text-sm text-ink-soft">
+                      {{ statusLabel(sale.status) }}
+                    </span>
+                  </td>
+                  <td>{{ sale.total | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+                  <td>
+                    {{ sale.amountPaid | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </td>
+                  <td class="font-semibold text-ink">
+                    {{ sale.balanceDue | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </td>
+                </tr>
+              </ng-template>
+
+              <ng-template #emptymessage>
+                <tr>
+                  <td colspan="5">
+                    <p class="py-8 text-center text-sm text-ink-soft">
+                      No hay ventas a crédito abiertas.
+                    </p>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </div>
+      }
+    }
+  </section>
+
+  <!-- Ledger -->
+  <section class="flex flex-col gap-4" aria-labelledby="statement-ledger">
+    <div class="flex flex-col gap-1">
+      <h3 id="statement-ledger" class="text-lg font-semibold text-ink">
+        Movimientos
+      </h3>
+      <p class="text-xs text-ink-soft">
+        Ventas a crédito y abonos en orden cronológico, con el saldo corrido
+        después de cada movimiento.
+      </p>
+    </div>
+
+    <div
+      class="flex flex-col gap-4 sm:flex-row sm:items-end"
+      role="group"
+      aria-label="Filtro de período del estado de cuenta"
+    >
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="statement-date-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Período
+        </label>
+        <p-datepicker
+          inputId="statement-date-filter"
+          selectionMode="range"
+          [ngModel]="dateRange()"
+          (ngModelChange)="onDateRangeChange($event)"
+          [readonlyInput]="true"
+          [showClear]="true"
+          dateFormat="dd/mm/yy"
+          appendTo="body"
+          placeholder="Todo el historial"
+          styleClass="w-full sm:w-60"
+        />
+      </div>
+    </div>
+
+    @let statement = statementState();
+    @switch (statement.status) {
+      @case ('loading') {
+        <div
+          class="rounded-2xl border border-ink/10 bg-white p-6"
+          aria-busy="true"
+        >
+          <span class="sr-only">Cargando movimientos…</span>
+          <p-skeleton width="100%" height="12rem" borderRadius="1rem" />
+        </div>
+      }
+
+      @case ('error') {
+        <div
+          role="alert"
+          class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+        >
+          <p class="text-sm">{{ statement.message }}</p>
+          <p-button
+            label="Reintentar"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="loadStatement()"
+          />
+        </div>
+      }
+
+      @case ('success') {
+        <dl
+          class="grid grid-cols-1 gap-4 rounded-2xl border border-ink/10 bg-white p-5 sm:grid-cols-2"
+        >
+          <div class="flex flex-col gap-1">
+            <dt
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Saldo inicial del período
+            </dt>
+            <dd class="text-xl font-bold text-ink">
+              {{
+                statement.statement.openingBalance
+                  | currency: 'HNL' : 'L ' : '1.2-2'
+              }}
+            </dd>
+            <p class="text-xs text-ink-soft">
+              @if (hasRange()) {
+                Arrastrado desde antes del período seleccionado
+              } @else {
+                Sin período seleccionado: el estado arranca en cero
+              }
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <dt
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Saldo actual
+            </dt>
+            <dd
+              class="text-xl font-bold"
+              [class.text-red-700]="statement.statement.totalOutstanding > 0"
+              [class.text-ink]="statement.statement.totalOutstanding === 0"
+            >
+              {{
+                statement.statement.totalOutstanding
+                  | currency: 'HNL' : 'L ' : '1.2-2'
+              }}
+            </dd>
+            <p class="text-xs text-ink-soft">
+              Sobre todo el historial del cliente
+            </p>
+          </div>
+        </dl>
+
+        <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+          <p-table
+            [value]="entries()"
+            [paginator]="true"
+            [rows]="20"
+            [rowsPerPageOptions]="rowsPerPageOptions"
+            [tableStyle]="{ 'min-width': '48rem' }"
+            currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+            [showCurrentPageReport]="true"
+          >
+            <ng-template #header>
+              <tr>
+                <th scope="col">Fecha</th>
+                <th scope="col">Concepto</th>
+                <th scope="col">Cargo</th>
+                <th scope="col">Abono</th>
+                <th scope="col">Saldo</th>
+              </tr>
+            </ng-template>
+
+            <ng-template #body let-entry>
+              <tr>
+                <td>{{ entry.date | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  <span class="font-medium text-ink">
+                    {{ entryLabel(entry.kind) }}
+                  </span>
+                  @if (entry.status) {
+                    <span class="ml-2 text-xs text-ink-soft">
+                      ({{ statusLabel(entry.status) }})
+                    </span>
+                  }
+                </td>
+                <td>
+                  <!-- Compared against null, not truthiness: a 0 is a real amount. -->
+                  @let charge = chargeOf(entry);
+                  @if (charge !== null) {
+                    {{ charge | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  } @else {
+                    <span class="text-ink-soft" aria-hidden="true">—</span>
+                    <span class="sr-only">Sin cargo</span>
+                  }
+                </td>
+                <td>
+                  @let credit = creditOf(entry);
+                  @if (credit !== null) {
+                    <span class="text-green-700">
+                      {{ credit | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </span>
+                  } @else {
+                    <span class="text-ink-soft" aria-hidden="true">—</span>
+                    <span class="sr-only">Sin abono</span>
+                  }
+                </td>
+                <td class="font-semibold text-ink">
+                  {{ entry.runningBalance | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </td>
+              </tr>
+            </ng-template>
+
+            <ng-template #emptymessage>
+              <tr>
+                <td colspan="5">
+                  <p class="py-8 text-center text-sm text-ink-soft">
+                    No hay movimientos en el período seleccionado.
+                  </p>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      }
+    }
+  </section>
+</div>
