@@ -20,6 +20,13 @@ import {
 export class ImageDropzone {
   /** Existing image URL to show initially (edit mode). */
   readonly previewUrl = input<string | null>(null);
+  /**
+   * Classes sizing the dropzone, applied to both the empty and filled states so
+   * the box keeps its shape when an image is picked. Empty keeps the default
+   * wide banner; pass an aspect ratio for portrait art
+   * (e.g. `aspect-[4/9] max-w-48 mx-auto`).
+   */
+  readonly shape = input<string>('');
   /** Returns an error message to reject a file, or null to accept it. */
   readonly validate = input<(file: File) => string | null>(() => null);
 
@@ -34,6 +41,10 @@ export class ImageDropzone {
   private readonly pastedUrl = signal<string | null>(null);
   private readonly removed = signal(false);
   private objectUrl: string | null = null;
+
+  /** Falls back to the original fixed height / padding when no shape is given. */
+  protected readonly filledShape = computed(() => this.shape() || 'h-48');
+  protected readonly emptyShape = computed(() => this.shape() || 'py-10');
 
   protected readonly preview = computed(() =>
     this.removed()

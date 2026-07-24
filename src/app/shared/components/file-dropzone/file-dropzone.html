@@ -1,34 +1,48 @@
 <input
   type="file"
-  id="image-dropzone-input"
-  accept="image/jpeg,image/png,image/webp"
-  aria-label="Imagen"
+  [id]="inputId"
+  [accept]="accept()"
+  [attr.aria-label]="label()"
   (change)="onFileInput($event)"
   class="peer sr-only"
 />
 
-@if (preview(); as src) {
+@if (selection(); as file) {
   <div
-    class="group relative overflow-hidden rounded-xl border border-ink/10"
+    class="flex flex-col items-center justify-center gap-3 rounded-xl border border-ink/10 bg-ink/[0.02] px-4 text-center"
     [class]="filledShape()"
   >
-    <img
-      [src]="src"
-      alt="Vista previa de la imagen"
-      class="h-full w-full object-cover"
-    />
-    <div
-      class="absolute inset-0 flex items-center justify-center gap-2 bg-ink/50 opacity-0 transition-opacity group-hover:opacity-100 peer-focus-visible:opacity-100"
-    >
+    <i class="pi pi-file text-3xl text-ink-soft" aria-hidden="true"></i>
+
+    @if (file.href; as href) {
+      <a
+        [href]="href"
+        target="_blank"
+        rel="noopener"
+        [title]="file.label"
+        class="line-clamp-2 max-w-full break-all text-sm font-medium text-ink underline-offset-2 hover:underline"
+      >
+        {{ file.label }}
+      </a>
+    } @else {
+      <span
+        [title]="file.label"
+        class="line-clamp-2 max-w-full break-all text-sm font-medium text-ink"
+      >
+        {{ file.label }}
+      </span>
+    }
+
+    <div class="flex flex-wrap items-center justify-center gap-2">
       <label
-        for="image-dropzone-input"
-        class="cursor-pointer rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-ink shadow-sm hover:bg-white/90"
+        [for]="inputId"
+        class="cursor-pointer rounded-lg border border-ink/15 px-3 py-1.5 text-sm font-medium text-ink hover:bg-ink/5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40"
       >
         Cambiar
       </label>
       <button
         type="button"
-        class="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm hover:bg-white/90"
+        class="rounded-lg border border-ink/15 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
         (click)="clear()"
       >
         Quitar
@@ -37,7 +51,7 @@
   </div>
 } @else {
   <label
-    for="image-dropzone-input"
+    [for]="inputId"
     class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink/25 bg-ink/[0.02] px-6 text-center transition-colors hover:border-primary hover:bg-primary/5 peer-focus-visible:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40"
     [class]="emptyShape()"
     [class.ring-2]="isDragging()"
@@ -49,9 +63,11 @@
   >
     <i class="pi pi-cloud-upload text-3xl text-ink-soft" aria-hidden="true"></i>
     <span class="text-sm font-medium text-ink">
-      Arrastrá una imagen o hacé clic para elegir
+      Arrastrá un archivo o hacé clic para elegir
     </span>
-    <span class="text-xs text-ink-soft">JPG, PNG o WEBP · máx 5 MB</span>
+    @if (hint(); as text) {
+      <span class="text-xs text-ink-soft">{{ text }}</span>
+    }
   </label>
 }
 
@@ -61,8 +77,8 @@
     #urlInput
     type="url"
     inputmode="url"
-    placeholder="o pegá el enlace de una imagen (https://…)"
-    aria-label="Enlace de una imagen"
+    placeholder="o pegá el enlace del archivo (https://…)"
+    [attr.aria-label]="label() + ' por enlace'"
     class="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm text-ink placeholder:text-ink-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
     (keydown.enter)="$event.preventDefault(); applyUrl(urlInput.value)"
   />
@@ -74,4 +90,3 @@
     Usar
   </button>
 </div>
-

@@ -122,6 +122,14 @@ export const routes: Routes = [
         data: { title: 'Inventario' },
       },
       {
+        path: 'caja',
+        loadComponent: () =>
+          import('./features/cash/pages/cash-register/cash-register').then(
+            (m) => m.CashRegister,
+          ),
+        data: { title: 'Caja' },
+      },
+      {
         path: 'contabilidad',
         loadComponent: placeholder,
         data: { title: 'Contabilidad' },

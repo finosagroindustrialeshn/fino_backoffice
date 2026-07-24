@@ -25,6 +25,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
   { label: 'Mapa de rutas', icon: 'pi pi-map', route: '/mapa' },
   { label: 'Clientes', icon: 'pi pi-users', route: '/clientes' },
+  {
+    label: 'Caja',
+    icon: 'pi pi-wallet',
+    route: '/caja',
+    roles: ['ADMIN', 'SUPERVISOR'],
+  },
   { label: 'Contabilidad', icon: 'pi pi-calculator', route: '/contabilidad' },
   {
     label: 'Productos',

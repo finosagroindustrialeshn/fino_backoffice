@@ -7,6 +7,8 @@ import {
   signal,
 } from '@angular/core';
 import {
+  type FormControl,
+  type FormGroup,
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
@@ -20,14 +22,31 @@ import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TextareaModule } from 'primeng/textarea';
 
+import { FileDropzone } from '../../../../shared/components/file-dropzone/file-dropzone';
 import { ImageDropzone } from '../../../../shared/components/image-dropzone/image-dropzone';
+import { FileSelection } from '../../../../shared/forms/file-selection';
 import type { ProductCategory } from '../../../catalogs/product-categories/models/product-category.model';
 import { ProductCategoryDataClient } from '../../../catalogs/product-categories/services/product-category-data';
 import type { ProductPresentation } from '../../../catalogs/product-presentations/models/product-presentation.model';
 import { ProductPresentationDataClient } from '../../../catalogs/product-presentations/services/product-presentation-data';
-import type { Product, ProductPayload } from '../../models/product.model';
+import type {
+  CompositionItem,
+  Product,
+  ProductPayload,
+} from '../../models/product.model';
 import { ProductDataClient } from '../../services/product-data';
 import { ProductImageStorage } from '../../services/product-image-storage';
+import {
+  ProductSheetStorage,
+  SHEET_ACCEPT,
+} from '../../services/product-sheet-storage';
+
+/** One editable row of the guaranteed-analysis table. */
+type CompositionRow = FormGroup<{
+  name: FormControl<string>;
+  value: FormControl<number>;
+  unit: FormControl<string>;
+}>;
 
 @Component({
   selector: 'app-product-form',
@@ -35,6 +54,7 @@ import { ProductImageStorage } from '../../services/product-image-storage';
     ReactiveFormsModule,
     RouterLink,
     ButtonModule,
+    FileDropzone,
     ImageDropzone,
     InputNumberModule,
     InputTextModule,
@@ -49,7 +69,8 @@ export class ProductForm implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly products = inject(ProductDataClient);
-  private readonly storage = inject(ProductImageStorage);
+  private readonly imageStorage = inject(ProductImageStorage);
+  private readonly sheetStorage = inject(ProductSheetStorage);
   private readonly categories = inject(ProductCategoryDataClient);
   private readonly presentations = inject(ProductPresentationDataClient);
   private readonly fb = inject(NonNullableFormBuilder);
@@ -65,13 +86,19 @@ export class ProductForm implements OnInit {
   protected readonly categoryOptions = signal<ProductCategory[]>([]);
   protected readonly presentationOptions = signal<ProductPresentation[]>([]);
 
-  private readonly selectedFile = signal<File | null>(null);
-  private readonly directUrl = signal<string | null>(null);
-  private readonly imageCleared = signal(false);
-  protected readonly existingImageUrl = signal<string | null>(null);
+  /** Photo and technical sheet each track their own pick/paste/clear state. */
+  protected readonly image = new FileSelection();
+  protected readonly sheet = new FileSelection();
+
+  protected readonly sheetAccept = SHEET_ACCEPT;
 
   protected readonly validateImage = (file: File): string | null =>
-    this.storage.validate(file);
+    this.imageStorage.validate(file);
+
+  protected readonly validateSheet = (file: File): string | null =>
+    this.sheetStorage.validate(file);
+
+  protected readonly composition = this.fb.array<CompositionRow>([]);
 
   protected readonly form = this.fb.group({
     name: this.fb.control('', [Validators.required]),
@@ -81,6 +108,7 @@ export class ProductForm implements OnInit {
     cost: this.fb.control(0, [Validators.required, Validators.min(0)]),
     price: this.fb.control(0, [Validators.required, Validators.min(0)]),
     description: this.fb.control(''),
+    composition: this.composition,
   });
 
   ngOnInit(): void {
@@ -123,30 +151,41 @@ export class ProductForm implements OnInit {
       price: product.price,
       description: product.description ?? '',
     });
-    this.selectedFile.set(null);
-    this.directUrl.set(null);
-    this.imageCleared.set(false);
-    this.existingImageUrl.set(product.imageUrl);
+
+    this.composition.clear();
+    for (const item of product.composition ?? []) {
+      this.composition.push(this.compositionRow(item));
+    }
+
+    this.image.reset(product.imageUrl);
+    this.sheet.reset(product.technicalSheetUrl);
   }
 
-  protected onImageSelected(file: File): void {
+  /** Picking or pasting clears any standing error from a previous attempt. */
+  protected pick(selection: FileSelection, file: File): void {
     this.formError.set(null);
-    this.selectedFile.set(file);
-    this.directUrl.set(null);
-    this.imageCleared.set(false);
+    selection.select(file);
   }
 
-  protected onImageUrl(url: string): void {
+  protected pickUrl(selection: FileSelection, url: string): void {
     this.formError.set(null);
-    this.directUrl.set(url);
-    this.selectedFile.set(null);
-    this.imageCleared.set(false);
+    selection.useUrl(url);
   }
 
-  protected onImageCleared(): void {
-    this.selectedFile.set(null);
-    this.directUrl.set(null);
-    this.imageCleared.set(true);
+  protected addComponent(): void {
+    this.composition.push(this.compositionRow());
+  }
+
+  protected removeComponent(index: number): void {
+    this.composition.removeAt(index);
+  }
+
+  private compositionRow(item?: CompositionItem): CompositionRow {
+    return this.fb.group({
+      name: this.fb.control(item?.name ?? '', [Validators.required]),
+      value: this.fb.control(item?.value ?? 0, [Validators.required]),
+      unit: this.fb.control(item?.unit ?? ''),
+    });
   }
 
   protected async submit(): Promise<void> {
@@ -159,17 +198,10 @@ export class ProductForm implements OnInit {
     this.formError.set(null);
 
     try {
-      const file = this.selectedFile();
-      let imageUrl: string | null;
-      if (file) {
-        imageUrl = await this.storage.upload(file);
-      } else if (this.directUrl()) {
-        imageUrl = this.directUrl();
-      } else if (this.imageCleared()) {
-        imageUrl = null;
-      } else {
-        imageUrl = this.existingImageUrl();
-      }
+      const [imageUrl, technicalSheetUrl] = await Promise.all([
+        this.image.resolve((file) => this.imageStorage.upload(file)),
+        this.sheet.resolve((file) => this.sheetStorage.upload(file)),
+      ]);
 
       const raw = this.form.getRawValue();
       const base = {
@@ -181,6 +213,8 @@ export class ProductForm implements OnInit {
         price: raw.price,
         description: this.emptyToNull(raw.description),
         imageUrl,
+        technicalSheetUrl,
+        composition: raw.composition.map((row) => this.toComponent(row)),
       };
 
       const id = this.productId();
@@ -199,6 +233,17 @@ export class ProductForm implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** Drops `unit` entirely when blank — the API expects it absent, not empty. */
+  private toComponent(row: {
+    name: string;
+    value: number;
+    unit: string;
+  }): CompositionItem {
+    const unit = row.unit.trim();
+    const item: CompositionItem = { name: row.name.trim(), value: row.value };
+    return unit ? { ...item, unit } : item;
   }
 
   private emptyToNull(value: string): string | null {
