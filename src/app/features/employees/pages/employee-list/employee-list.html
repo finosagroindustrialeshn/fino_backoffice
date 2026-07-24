@@ -1,0 +1,206 @@
+<div class="flex flex-col gap-6">
+  <!-- Filters + actions -->
+  <section
+    class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+    aria-label="Filtros de empleados"
+  >
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="employee-search"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Buscar
+        </label>
+        <input
+          pInputText
+          id="employee-search"
+          type="search"
+          [ngModel]="searchTerm()"
+          (ngModelChange)="onSearchInput($event)"
+          placeholder="Nombre, código o identidad"
+          class="w-full sm:w-64"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="employee-status-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Estado
+        </label>
+        <p-select
+          inputId="employee-status-filter"
+          [options]="statusFilterOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="statusFilter()"
+          (onChange)="onStatusFilterChange($event.value)"
+          placeholder="Todos los estados"
+          styleClass="w-full sm:w-48"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="employee-position-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Puesto
+        </label>
+        <p-select
+          inputId="employee-position-filter"
+          [options]="positionFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="positionFilter()"
+          (onChange)="onPositionFilterChange($event.value)"
+          placeholder="Todos los puestos"
+          styleClass="w-full sm:w-56"
+        />
+      </div>
+    </div>
+
+    @if (canManage()) {
+      <p-button
+        label="Nuevo empleado"
+        icon="pi pi-plus"
+        routerLink="/empleados/nuevo"
+      />
+    }
+  </section>
+
+  @if (list.error(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+      <p-button
+        label="Reintentar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="list.reload()"
+      />
+    </div>
+  }
+
+  <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+    <p-table
+      #dt
+      [value]="list.items()"
+      [lazy]="true"
+      (onLazyLoad)="list.onLazyLoad($event)"
+      [loading]="list.loading()"
+      [paginator]="true"
+      [rows]="10"
+      [totalRecords]="list.total()"
+      [rowsPerPageOptions]="[5, 10, 20, 50]"
+      [tableStyle]="{ 'min-width': '68rem' }"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+      [showCurrentPageReport]="true"
+    >
+      <ng-template #header>
+        <tr>
+          <th scope="col">Código</th>
+          <th scope="col">Empleado</th>
+          <th scope="col">Puesto</th>
+          <th scope="col">Contrato</th>
+          <th scope="col">Salario base</th>
+          <th scope="col">Ingreso</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-employee>
+        <tr>
+          <td>
+            <span class="font-medium text-ink">{{ employee.employeeCode }}</span>
+          </td>
+
+          <td>
+            <div class="flex flex-col">
+              <span class="text-ink">{{ employee.fullName }}</span>
+              <span class="text-xs text-ink-soft">
+                {{ employee.nationalId || 'Sin identidad' }}
+              </span>
+            </div>
+          </td>
+
+          <td>{{ positionName(employee.positionId) }}</td>
+
+          <td>{{ contractLabel(employee) }}</td>
+
+          <td class="whitespace-nowrap">
+            {{ employee.baseSalary | currency: 'HNL' : 'L ' : '1.2-2' }}
+          </td>
+
+          <!-- UTC: the API stores day-granularity dates at UTC midnight. -->
+          <td class="whitespace-nowrap">
+            {{ employee.hireDate | date: 'dd/MM/yyyy' : 'UTC' }}
+          </td>
+
+          <td>
+            <p-tag
+              [value]="statusLabel(employee.status)"
+              [severity]="statusSeverity(employee.status)"
+            />
+          </td>
+
+          <td>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                @if (canManage()) {
+                  <p-button
+                    icon="pi pi-pencil"
+                    severity="secondary"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(employee.id)"
+                    [ariaLabel]="'Editar a ' + employee.fullName"
+                    [routerLink]="['/empleados', employee.id, 'editar']"
+                  />
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    [loading]="isPending(employee.id)"
+                    [ariaLabel]="'Eliminar a ' + employee.fullName"
+                    (onClick)="confirmDelete(employee)"
+                  />
+                } @else {
+                  <span class="text-xs text-ink-soft">Solo lectura</span>
+                }
+              </div>
+              @if (rowError(employee.id); as message) {
+                <span class="text-xs text-red-600" role="alert">
+                  {{ message }}
+                </span>
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="8">
+            <p class="py-8 text-center text-sm text-ink-soft">
+              @if (list.loading()) {
+                Cargando empleados…
+              } @else {
+                No hay empleados.
+              }
+            </p>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<p-confirmDialog />
