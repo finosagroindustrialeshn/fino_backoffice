@@ -6,7 +6,7 @@
  * degrades to "no filter" instead of being forwarded blindly.
  */
 
-import type { DateRange } from './date-range';
+import type { DateRange } from '../../../shared/utils/date-range';
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_PATTERN =

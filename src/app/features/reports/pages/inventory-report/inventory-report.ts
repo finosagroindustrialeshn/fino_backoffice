@@ -30,7 +30,7 @@ import type {
   StockReportRow,
 } from '../../models/inventory-report.model';
 import { ReportsInventoryDataClient } from '../../services/reports-inventory-data';
-import { formatDay, type DateRange } from '../../utils/date-range';
+import { formatDay, type DateRange } from '../../../../shared/utils/date-range';
 import { parseBool, parseRange, parseUuid } from '../../utils/report-params';
 
 interface Option {

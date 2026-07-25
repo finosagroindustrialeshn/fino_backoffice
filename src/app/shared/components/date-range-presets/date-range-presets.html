@@ -1,0 +1,27 @@
+<div
+  class="flex flex-wrap items-center gap-2"
+  role="group"
+  aria-label="Atajos de rango de fechas"
+>
+  <button
+    type="button"
+    class="h-10 shrink-0 rounded-full bg-brand-mist px-3.5 text-sm font-medium text-ink transition-colors hover:bg-brand-mist/70"
+    (click)="pickToday()"
+  >
+    Hoy
+  </button>
+  <button
+    type="button"
+    class="h-10 shrink-0 rounded-full bg-brand-mist px-3.5 text-sm font-medium text-ink transition-colors hover:bg-brand-mist/70"
+    (click)="pickLast7Days()"
+  >
+    7 días
+  </button>
+  <button
+    type="button"
+    class="h-10 shrink-0 rounded-full bg-brand-mist px-3.5 text-sm font-medium text-ink transition-colors hover:bg-brand-mist/70"
+    (click)="pickThisMonth()"
+  >
+    Este mes
+  </button>
+</div>

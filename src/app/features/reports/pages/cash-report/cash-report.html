@@ -26,14 +26,17 @@
           dateFormat="dd/mm/yy"
           appendTo="body"
           placeholder="Elegí un rango"
-          styleClass="w-full sm:w-60"
+          styleClass="w-full sm:w-72"
           [attr.aria-describedby]="rangeError() ? 'cash-range-error' : null"
         />
-        <p class="text-xs text-ink-soft">
-          Día civil de Honduras (UTC-6). Máximo 92 días.
-        </p>
       </div>
+
+      <app-date-range-presets (rangeSelected)="onDateRangeChange($event)" />
     </section>
+
+    <p class="text-xs text-ink-soft">
+      Día civil de Honduras (UTC-6). Máximo 92 días.
+    </p>
   </div>
 
   @if (rangeError(); as message) {

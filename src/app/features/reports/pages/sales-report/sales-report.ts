@@ -20,6 +20,8 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { Table, TableModule } from 'primeng/table';
 
 import { LazyList } from '../../../../core/http/lazy-list';
+import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
+import { formatDay, lastNDays, type DateRange } from '../../../../shared/utils/date-range';
 import { UserDataClient } from '../../../users/services/user-data';
 import {
   SALES_CHANNEL_LABELS,
@@ -30,7 +32,6 @@ import {
   type SellerSalesRow,
 } from '../../models/sales-report.model';
 import { ReportsSalesDataClient } from '../../services/reports-sales-data';
-import { formatDay, lastNDays, type DateRange } from '../../utils/date-range';
 import {
   parseOneOf,
   parseRange,
@@ -63,6 +64,7 @@ const PRODUCT_SORT_FIELDS: Record<string, ProductSalesSortBy> = {
     FormsModule,
     ButtonModule,
     DatePickerModule,
+    DateRangePresets,
     SelectModule,
     SkeletonModule,
     TableModule,

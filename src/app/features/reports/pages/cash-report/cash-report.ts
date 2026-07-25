@@ -18,6 +18,8 @@ import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import { LazyList } from '../../../../core/http/lazy-list';
+import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
+import { formatDay, lastNDays, type DateRange } from '../../../../shared/utils/date-range';
 import { UserDataClient } from '../../../users/services/user-data';
 import {
   CASH_LINE_KIND_LABELS,
@@ -28,12 +30,7 @@ import {
   type DailyCashRow,
 } from '../../models/cash-report.model';
 import { ReportsCashDataClient } from '../../services/reports-cash-data';
-import {
-  formatDay,
-  lastNDays,
-  validateCashRange,
-  type DateRange,
-} from '../../utils/date-range';
+import { validateCashRange } from '../../utils/date-range';
 import { parseRange } from '../../utils/report-params';
 
 /** Owners are a bounded lookup used to name the arqueo lines. */
@@ -50,6 +47,7 @@ const DEFAULT_RANGE_DAYS = 30;
     FormsModule,
     ButtonModule,
     DatePickerModule,
+    DateRangePresets,
     TableModule,
     TagModule,
   ],

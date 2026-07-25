@@ -21,6 +21,8 @@ import { TagModule } from 'primeng/tag';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
 import { LazyList } from '../../../../core/http/lazy-list';
+import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
+import { formatDay } from '../../../../shared/utils/date-range';
 import type { Product } from '../../../products/models/product.model';
 import { ProductDataClient } from '../../../products/services/product-data';
 import { UserDataClient } from '../../../users/services/user-data';
@@ -50,6 +52,7 @@ const LOOKUP_SIZE = 100;
     RouterLink,
     ButtonModule,
     DatePickerModule,
+    DateRangePresets,
     DialogModule,
     SelectModule,
     SkeletonModule,
@@ -269,10 +272,3 @@ function toMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-/** Formats a Date as YYYY-MM-DD using its local calendar day (no UTC shift). */
-function formatDay(date: Date): string {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}

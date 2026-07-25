@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDay } from './date-range';
+import { formatDay } from '../../../shared/utils/date-range';
 import { parseBool, parseDay, parseOneOf, parseRange, parseUuid } from './report-params';
 
 describe('parseDay', () => {

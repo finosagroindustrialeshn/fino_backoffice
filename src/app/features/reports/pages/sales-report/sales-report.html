@@ -19,7 +19,7 @@
       class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
       aria-label="Filtros del reporte de ventas"
     >
-      <div class="flex flex-col gap-1.5 sm:flex-1 sm:min-w-60">
+      <div class="flex flex-col gap-1.5">
         <label
           for="sales-date-filter"
           class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
@@ -36,9 +36,11 @@
           dateFormat="dd/mm/yy"
           appendTo="body"
           placeholder="Todas las fechas"
-          styleClass="w-full"
+          styleClass="w-full sm:w-72"
         />
       </div>
+
+      <app-date-range-presets (rangeSelected)="onDateRangeChange($event)" />
 
       <div class="flex flex-col gap-1.5">
         <label
