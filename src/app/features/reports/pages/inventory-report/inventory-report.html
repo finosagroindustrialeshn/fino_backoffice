@@ -47,7 +47,7 @@
       </div>
     }
 
-    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+    <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
       <p-table
         #stockTable
         [value]="stockList.items()"
@@ -58,12 +58,12 @@
         [rows]="10"
         [totalRecords]="stockList.total()"
         [rowsPerPageOptions]="rowsPerPageOptions"
-        [tableStyle]="{ 'min-width': '44rem' }"
+        tableStyleClass="min-w-full md:min-w-[44rem]"
         currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
         [showCurrentPageReport]="true"
       >
         <ng-template #header>
-          <tr>
+          <tr class="hidden md:table-row">
             <th scope="col">Producto</th>
             <th scope="col">Disponible</th>
             <th scope="col">Comprometido</th>
@@ -73,19 +73,50 @@
         </ng-template>
 
         <ng-template #body let-row>
-          <tr>
-            <td>
+          <tr
+            class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+          >
+            <!-- Desktop columns -->
+            <td class="hidden md:table-cell">
               <span class="font-medium text-ink">{{ row.name }}</span>
               <span class="block text-xs text-ink-soft">SKU: {{ row.sku }}</span>
             </td>
-            <td class="font-semibold text-ink">{{ row.available | number }}</td>
-            <td>{{ row.committed | number }}</td>
-            <td>{{ row.total | number }}</td>
-            <td>
+            <td class="hidden font-semibold text-ink md:table-cell">{{ row.available | number }}</td>
+            <td class="hidden md:table-cell">{{ row.committed | number }}</td>
+            <td class="hidden md:table-cell">{{ row.total | number }}</td>
+            <td class="hidden md:table-cell">
               <p-tag
                 [value]="stockLabel(row.available)"
                 [severity]="stockSeverity(row.available)"
               />
+            </td>
+
+            <!-- Mobile card: one cell, everything laid out by hand -->
+            <td class="block md:hidden">
+              <span class="font-medium text-ink">{{ row.name }}</span>
+              <span class="block text-xs text-ink-soft">SKU: {{ row.sku }}</span>
+
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <span class="text-sm font-semibold text-ink">
+                  {{ row.available | number }}
+                </span>
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+                >
+                  <i class="pi pi-lock text-[10px]" aria-hidden="true"></i>
+                  {{ row.committed | number }}
+                </span>
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+                >
+                  <i class="pi pi-box text-[10px]" aria-hidden="true"></i>
+                  {{ row.total | number }}
+                </span>
+                <p-tag
+                  [value]="stockLabel(row.available)"
+                  [severity]="stockSeverity(row.available)"
+                />
+              </div>
             </td>
           </tr>
         </ng-template>
@@ -186,7 +217,7 @@
         </div>
       }
 
-      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+      <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
         <p-table
           #kardexTable
           [value]="kardexList.items()"
@@ -197,12 +228,12 @@
           [rows]="10"
           [totalRecords]="kardexList.total()"
           [rowsPerPageOptions]="rowsPerPageOptions"
-          [tableStyle]="{ 'min-width': '40rem' }"
+          tableStyleClass="min-w-full md:min-w-[40rem]"
           currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
           [showCurrentPageReport]="true"
         >
           <ng-template #header>
-            <tr>
+            <tr class="hidden md:table-row">
               <th scope="col">Fecha</th>
               <th scope="col">Tipo</th>
               <th scope="col">Cantidad</th>
@@ -212,12 +243,15 @@
           </ng-template>
 
           <ng-template #body let-row>
-            <tr>
-              <td class="whitespace-nowrap text-sm text-ink-soft">
+            <tr
+              class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+            >
+              <!-- Desktop columns -->
+              <td class="hidden whitespace-nowrap text-sm text-ink-soft md:table-cell">
                 {{ row.createdAt | date: 'dd/MM/yyyy HH:mm' }}
               </td>
-              <td>{{ movementLabel(row.type) }}</td>
-              <td>
+              <td class="hidden md:table-cell">{{ movementLabel(row.type) }}</td>
+              <td class="hidden md:table-cell">
                 <span
                   class="font-semibold"
                   [class.text-green-600]="row.quantity > 0"
@@ -226,9 +260,38 @@
                   {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity | number }}
                 </span>
               </td>
-              <td class="font-semibold text-ink">{{ row.balance | number }}</td>
-              <td>
+              <td class="hidden font-semibold text-ink md:table-cell">{{ row.balance | number }}</td>
+              <td class="hidden md:table-cell">
                 <span class="text-sm text-ink-soft">{{ row.note ?? '—' }}</span>
+              </td>
+
+              <!-- Mobile card: one cell, everything laid out by hand -->
+              <td class="block md:hidden">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex flex-col">
+                    <span class="font-medium text-ink">{{ movementLabel(row.type) }}</span>
+                    <span class="text-xs text-ink-soft">
+                      {{ row.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                    </span>
+                  </div>
+                  <span
+                    class="font-semibold"
+                    [class.text-green-600]="row.quantity > 0"
+                    [class.text-red-600]="row.quantity < 0"
+                  >
+                    {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity | number }}
+                  </span>
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <span
+                    class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+                  >
+                    <i class="pi pi-chart-line text-[10px]" aria-hidden="true"></i>
+                    {{ row.balance | number }}
+                  </span>
+                  <span class="text-sm text-ink-soft">{{ row.note ?? '—' }}</span>
+                </div>
               </td>
             </tr>
           </ng-template>
@@ -300,7 +363,7 @@
       </div>
     }
 
-    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+    <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
       <p-table
         #sellerStockTable
         [value]="sellerStockList.items()"
@@ -311,12 +374,12 @@
         [rows]="10"
         [totalRecords]="sellerStockList.total()"
         [rowsPerPageOptions]="rowsPerPageOptions"
-        [tableStyle]="{ 'min-width': '40rem' }"
+        tableStyleClass="min-w-full md:min-w-[40rem]"
         currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
         [showCurrentPageReport]="true"
       >
         <ng-template #header>
-          <tr>
+          <tr class="hidden md:table-row">
             <th scope="col">Vendedor</th>
             <th scope="col">Producto</th>
             <th scope="col">Cantidad</th>
@@ -324,15 +387,33 @@
         </ng-template>
 
         <ng-template #body let-row>
-          <tr>
-            <td>
+          <tr
+            class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+          >
+            <!-- Desktop columns -->
+            <td class="hidden md:table-cell">
               <span class="font-medium text-ink">{{ row.sellerName }}</span>
             </td>
-            <td>
+            <td class="hidden md:table-cell">
               <span class="text-ink">{{ row.name }}</span>
               <span class="block text-xs text-ink-soft">SKU: {{ row.sku }}</span>
             </td>
-            <td class="font-semibold text-ink">{{ row.quantity | number }}</td>
+            <td class="hidden font-semibold text-ink md:table-cell">{{ row.quantity | number }}</td>
+
+            <!-- Mobile card: one cell, everything laid out by hand -->
+            <td class="block md:hidden">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex flex-col">
+                  <span class="font-medium text-ink">{{ row.sellerName }}</span>
+                  <span class="text-xs text-ink-soft">
+                    {{ row.name }} · SKU: {{ row.sku }}
+                  </span>
+                </div>
+                <span class="text-sm font-semibold text-ink">
+                  {{ row.quantity | number }}
+                </span>
+              </div>
+            </td>
           </tr>
         </ng-template>
 
