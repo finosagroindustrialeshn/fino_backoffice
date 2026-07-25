@@ -2,7 +2,19 @@
   <div class="flex flex-col gap-1">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Clientes</h2>
+      <!-- Below sm the title + full-label button collide; icon-only there.
+           class (host element) drives layout/visibility here, not
+           styleClass (PrimeNG's internal button) — margin/display on the
+           inner element doesn't move the outer host inside our flex row. -->
       <p-button
+        class="ml-auto sm:hidden"
+        icon="pi pi-plus"
+        [rounded]="true"
+        routerLink="/clientes/nuevo"
+        ariaLabel="Nuevo cliente"
+      />
+      <p-button
+        class="hidden sm:block"
         label="Nuevo cliente"
         icon="pi pi-plus"
         routerLink="/clientes/nuevo"
@@ -91,7 +103,7 @@
     </div>
   }
 
-  <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+  <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
     <p-table
       #dt
       [value]="list.items()"
@@ -102,12 +114,12 @@
       [rows]="10"
       [totalRecords]="list.total()"
       [rowsPerPageOptions]="[5, 10, 20, 50]"
-      [tableStyle]="{ 'min-width': '56rem' }"
+      tableStyleClass="min-w-full md:min-w-[56rem]"
       currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
       [showCurrentPageReport]="true"
     >
       <ng-template #header>
-        <tr>
+        <tr class="hidden md:table-row">
           <th scope="col">Foto</th>
           <th scope="col" pSortableColumn="name">
             Nombre <p-sortIcon field="name" />
@@ -120,8 +132,11 @@
       </ng-template>
 
       <ng-template #body let-client>
-        <tr>
-              <td>
+        <tr
+          class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+        >
+              <!-- Desktop columns -->
+              <td class="hidden md:table-cell">
                 @if (client.imageUrl) {
                   <img
                     [src]="client.imageUrl"
@@ -141,7 +156,7 @@
                 }
               </td>
 
-              <td>
+              <td class="hidden md:table-cell">
                 <span class="font-medium text-ink">{{ client.name }}</span>
                 @if (client.address) {
                   <span class="block max-w-xs truncate text-xs text-ink-soft">
@@ -150,19 +165,106 @@
                 }
               </td>
 
-              <td>{{ client.contactName ?? '—' }}</td>
+              <td class="hidden md:table-cell">{{ client.contactName ?? '—' }}</td>
 
-              <td>{{ client.phone ?? '—' }}</td>
+              <td class="hidden md:table-cell">{{ client.phone ?? '—' }}</td>
 
-              <td>
+              <td class="hidden md:table-cell">
                 <p-tag
                   [value]="client.isActive ? 'Activo' : 'Inactivo'"
                   [severity]="client.isActive ? 'success' : 'secondary'"
                 />
               </td>
 
-              <td>
+              <td class="hidden md:table-cell">
                 <div class="flex flex-col gap-2">
+                  <div class="flex items-center gap-2">
+                    <p-button
+                      icon="pi pi-pencil"
+                      severity="secondary"
+                      [text]="true"
+                      [rounded]="true"
+                      [disabled]="isPending(client.id)"
+                      [ariaLabel]="'Editar cliente ' + client.name"
+                      [routerLink]="['/clientes', client.id, 'editar']"
+                    />
+                    <p-button
+                      [icon]="client.isActive ? 'pi pi-ban' : 'pi pi-check-circle'"
+                      [severity]="client.isActive ? 'danger' : 'success'"
+                      [text]="true"
+                      [rounded]="true"
+                      [loading]="isPending(client.id)"
+                      [ariaLabel]="
+                        (client.isActive
+                          ? 'Desactivar cliente '
+                          : 'Activar cliente ') + client.name
+                      "
+                      (onClick)="toggleActive(client)"
+                    />
+                    @if (canDelete() === 'ADMIN') {
+                      <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [disabled]="isPending(client.id)"
+                        [ariaLabel]="'Eliminar cliente ' + client.name"
+                        (onClick)="confirmDelete(client)"
+                      />
+                    }
+                  </div>
+                  @if (rowError(client.id); as message) {
+                    <span class="text-xs text-red-600" role="alert">
+                      {{ message }}
+                    </span>
+                  }
+                </div>
+              </td>
+
+              <!-- Mobile card: one cell, everything laid out by hand -->
+              <td class="block md:hidden">
+                <div class="flex items-center gap-3">
+                  @if (client.imageUrl) {
+                    <img
+                      [src]="client.imageUrl"
+                      [alt]="'Foto del local de ' + client.name"
+                      width="48"
+                      height="48"
+                      loading="lazy"
+                      class="h-12 w-12 shrink-0 rounded-lg object-cover"
+                    />
+                  } @else {
+                    <span
+                      class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink-soft"
+                      aria-hidden="true"
+                    >
+                      <i class="pi pi-image"></i>
+                    </span>
+                  }
+                  <div class="flex flex-col">
+                    <span class="font-medium text-ink">{{ client.name }}</span>
+                    @if (client.address) {
+                      <span class="block max-w-xs truncate text-xs text-ink-soft">
+                        {{ client.address }}
+                      </span>
+                    }
+                  </div>
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <span class="text-sm text-ink-soft">
+                    {{ client.contactName ?? '—' }}
+                  </span>
+                  <span class="text-sm text-ink-soft">
+                    {{ client.phone ?? '—' }}
+                  </span>
+                  <p-tag
+                    [value]="client.isActive ? 'Activo' : 'Inactivo'"
+                    [severity]="client.isActive ? 'success' : 'secondary'"
+                  />
+                </div>
+
+                <div class="mt-3 flex flex-col gap-2">
                   <div class="flex items-center gap-2">
                     <p-button
                       icon="pi pi-pencil"
