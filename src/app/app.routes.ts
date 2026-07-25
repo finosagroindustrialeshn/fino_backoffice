@@ -166,10 +166,6 @@ export const routes: Routes = [
       },
       {
         path: 'empleados',
-        loadComponent: () =>
-          import('./features/employees/pages/empleados/empleados').then(
-            (m) => m.EmployeesShell,
-          ),
         data: { title: 'Empleados' },
         children: [
           { path: '', redirectTo: 'lista', pathMatch: 'full' },
@@ -193,10 +189,6 @@ export const routes: Routes = [
       },
       {
         path: 'reportes',
-        loadComponent: () =>
-          import('./features/reports/pages/reportes/reportes').then(
-            (m) => m.ReportesShell,
-          ),
         data: { title: 'Reportes' },
         children: [
           { path: '', redirectTo: 'ventas', pathMatch: 'full' },
@@ -228,10 +220,6 @@ export const routes: Routes = [
       },
       {
         path: 'catalogos',
-        loadComponent: () =>
-          import('./features/catalogs/pages/catalogos/catalogos').then(
-            (m) => m.CatalogosShell,
-          ),
         data: { title: 'Catálogos' },
         children: [
           { path: '', redirectTo: 'categorias-producto', pathMatch: 'full' },
