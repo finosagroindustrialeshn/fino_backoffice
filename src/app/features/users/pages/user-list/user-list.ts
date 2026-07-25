@@ -9,7 +9,6 @@ import {
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
-import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
 import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -44,7 +43,6 @@ const ROLE_SEVERITY: Record<Role, 'danger' | 'warn' | 'info' | 'success'> = {
     FormsModule,
     RouterLink,
     ButtonModule,
-    CheckboxModule,
     SelectModule,
     TableModule,
     TagModule,
