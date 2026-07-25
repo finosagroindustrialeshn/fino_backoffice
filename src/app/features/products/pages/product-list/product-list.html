@@ -3,7 +3,16 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Productos</h2>
       @if (canManage()) {
+        <!-- Below sm the title + full-label button collide; icon-only there. -->
         <p-button
+          class="ml-auto sm:hidden"
+          icon="pi pi-plus"
+          [rounded]="true"
+          routerLink="/productos/nuevo"
+          ariaLabel="Nuevo producto"
+        />
+        <p-button
+          class="hidden sm:block"
           label="Nuevo producto"
           icon="pi pi-plus"
           routerLink="/productos/nuevo"
@@ -112,7 +121,7 @@
     </div>
   }
 
-  <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+  <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
     <p-table
       #dt
       [value]="list.items()"
@@ -123,12 +132,12 @@
       [rows]="10"
       [totalRecords]="list.total()"
       [rowsPerPageOptions]="[5, 10, 20, 50]"
-      [tableStyle]="{ 'min-width': '56rem' }"
+      tableStyleClass="min-w-full md:min-w-[56rem]"
       currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
       [showCurrentPageReport]="true"
     >
       <ng-template #header>
-        <tr>
+        <tr class="hidden md:table-row">
           <th scope="col">Foto</th>
           <th scope="col" pSortableColumn="name">
             Producto <p-sortIcon field="name" />
@@ -143,95 +152,187 @@
       </ng-template>
 
       <ng-template #body let-product>
-        <tr>
-              <td>
-                @if (product.imageUrl) {
-                  <img
-                    [src]="product.imageUrl"
-                    [alt]="'Foto de ' + product.name"
-                    width="48"
-                    height="48"
-                    loading="lazy"
-                    class="h-12 w-12 rounded-lg object-cover"
+        <tr
+          class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+        >
+          <!-- Desktop columns -->
+          <td class="hidden md:table-cell">
+            @if (product.imageUrl) {
+              <img
+                [src]="product.imageUrl"
+                [alt]="'Foto de ' + product.name"
+                width="48"
+                height="48"
+                loading="lazy"
+                class="h-12 w-12 rounded-lg object-cover"
+              />
+            } @else {
+              <span
+                class="flex h-12 w-12 items-center justify-center rounded-lg bg-ink/5 text-ink-soft"
+                aria-hidden="true"
+              >
+                <i class="pi pi-box"></i>
+              </span>
+            }
+          </td>
+
+          <td class="hidden md:table-cell">
+            <span class="font-medium text-ink">{{ product.name }}</span>
+            <span class="block text-xs text-ink-soft">SKU: {{ product.sku }}</span>
+          </td>
+
+          <td class="hidden md:table-cell">{{ categoryName(product.categoryId) }}</td>
+
+          <td class="hidden whitespace-nowrap md:table-cell">
+            L {{ product.price | number: '1.2-2' }}
+          </td>
+
+          <td class="hidden md:table-cell">
+            <p-tag
+              [value]="product.isActive ? 'Activo' : 'Inactivo'"
+              [severity]="product.isActive ? 'success' : 'secondary'"
+            />
+          </td>
+
+          <td class="hidden md:table-cell">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                @if (canManage()) {
+                  <p-button
+                    icon="pi pi-pencil"
+                    severity="secondary"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(product.id)"
+                    [ariaLabel]="'Editar producto ' + product.name"
+                    [routerLink]="['/productos', product.id, 'editar']"
                   />
-                } @else {
-                  <span
-                    class="flex h-12 w-12 items-center justify-center rounded-lg bg-ink/5 text-ink-soft"
-                    aria-hidden="true"
-                  >
-                    <i class="pi pi-box"></i>
-                  </span>
+                  <p-button
+                    [icon]="
+                      product.isActive ? 'pi pi-ban' : 'pi pi-check-circle'
+                    "
+                    [severity]="product.isActive ? 'danger' : 'success'"
+                    [text]="true"
+                    [rounded]="true"
+                    [loading]="isPending(product.id)"
+                    [ariaLabel]="
+                      (product.isActive
+                        ? 'Desactivar producto '
+                        : 'Activar producto ') + product.name
+                    "
+                    (onClick)="toggleActive(product)"
+                  />
                 }
-              </td>
+                @if (canDelete()) {
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(product.id)"
+                    [ariaLabel]="'Eliminar producto ' + product.name"
+                    (onClick)="confirmDelete(product)"
+                  />
+                }
+              </div>
+              @if (rowError(product.id); as message) {
+                <span class="text-xs text-red-600" role="alert">
+                  {{ message }}
+                </span>
+              }
+            </div>
+          </td>
 
-              <td>
-                <span class="font-medium text-ink">{{ product.name }}</span>
-                <span class="block text-xs text-ink-soft">SKU: {{ product.sku }}</span>
-              </td>
-
-              <td>{{ categoryName(product.categoryId) }}</td>
-
-              <td class="whitespace-nowrap">
-                L {{ product.price | number: '1.2-2' }}
-              </td>
-
-              <td>
-                <p-tag
-                  [value]="product.isActive ? 'Activo' : 'Inactivo'"
-                  [severity]="product.isActive ? 'success' : 'secondary'"
+          <!-- Mobile card: one cell, everything laid out by hand -->
+          <td class="block md:hidden">
+            <div class="flex items-center gap-3">
+              @if (product.imageUrl) {
+                <img
+                  [src]="product.imageUrl"
+                  [alt]="'Foto de ' + product.name"
+                  width="48"
+                  height="48"
+                  loading="lazy"
+                  class="h-12 w-12 shrink-0 rounded-lg object-cover"
                 />
-              </td>
+              } @else {
+                <span
+                  class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink-soft"
+                  aria-hidden="true"
+                >
+                  <i class="pi pi-box"></i>
+                </span>
+              }
+              <div class="flex flex-col">
+                <span class="font-medium text-ink">{{ product.name }}</span>
+                <span class="text-xs text-ink-soft">SKU: {{ product.sku }}</span>
+              </div>
+            </div>
 
-              <td>
-                <div class="flex flex-col gap-2">
-                  <div class="flex items-center gap-2">
-                    @if (canManage()) {
-                      <p-button
-                        icon="pi pi-pencil"
-                        severity="secondary"
-                        [text]="true"
-                        [rounded]="true"
-                        [disabled]="isPending(product.id)"
-                        [ariaLabel]="'Editar producto ' + product.name"
-                        [routerLink]="['/productos', product.id, 'editar']"
-                      />
-                      <p-button
-                        [icon]="
-                          product.isActive ? 'pi pi-ban' : 'pi pi-check-circle'
-                        "
-                        [severity]="product.isActive ? 'danger' : 'success'"
-                        [text]="true"
-                        [rounded]="true"
-                        [loading]="isPending(product.id)"
-                        [ariaLabel]="
-                          (product.isActive
-                            ? 'Desactivar producto '
-                            : 'Activar producto ') + product.name
-                        "
-                        (onClick)="toggleActive(product)"
-                      />
-                    }
-                    @if (canDelete()) {
-                      <p-button
-                        icon="pi pi-trash"
-                        severity="danger"
-                        [text]="true"
-                        [rounded]="true"
-                        [disabled]="isPending(product.id)"
-                        [ariaLabel]="'Eliminar producto ' + product.name"
-                        (onClick)="confirmDelete(product)"
-                      />
-                    }
-                  </div>
-                  @if (rowError(product.id); as message) {
-                    <span class="text-xs text-red-600" role="alert">
-                      {{ message }}
-                    </span>
-                  }
-                </div>
-              </td>
-            </tr>
-          </ng-template>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                class="inline-flex items-center rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+              >
+                {{ categoryName(product.categoryId) }}
+              </span>
+              <span class="text-sm font-semibold text-ink">
+                L {{ product.price | number: '1.2-2' }}
+              </span>
+              <p-tag
+                [value]="product.isActive ? 'Activo' : 'Inactivo'"
+                [severity]="product.isActive ? 'success' : 'secondary'"
+              />
+            </div>
+
+            <div class="mt-3 flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                @if (canManage()) {
+                  <p-button
+                    icon="pi pi-pencil"
+                    severity="secondary"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(product.id)"
+                    [ariaLabel]="'Editar producto ' + product.name"
+                    [routerLink]="['/productos', product.id, 'editar']"
+                  />
+                  <p-button
+                    [icon]="
+                      product.isActive ? 'pi pi-ban' : 'pi pi-check-circle'
+                    "
+                    [severity]="product.isActive ? 'danger' : 'success'"
+                    [text]="true"
+                    [rounded]="true"
+                    [loading]="isPending(product.id)"
+                    [ariaLabel]="
+                      (product.isActive
+                        ? 'Desactivar producto '
+                        : 'Activar producto ') + product.name
+                    "
+                    (onClick)="toggleActive(product)"
+                  />
+                }
+                @if (canDelete()) {
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(product.id)"
+                    [ariaLabel]="'Eliminar producto ' + product.name"
+                    (onClick)="confirmDelete(product)"
+                  />
+                }
+              </div>
+              @if (rowError(product.id); as message) {
+                <span class="text-xs text-red-600" role="alert">
+                  {{ message }}
+                </span>
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
 
       <ng-template #emptymessage>
         <tr>
