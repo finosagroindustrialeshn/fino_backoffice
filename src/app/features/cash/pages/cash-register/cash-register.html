@@ -268,7 +268,8 @@
   [modal]="true"
   [draggable]="false"
   header="Cerrar caja (arqueo)"
-  [style]="{ width: '32rem', maxWidth: '95vw' }"
+  [style]="{ width: '32rem' }"
+  [breakpoints]="{ '640px': '92vw' }"
 >
   <form
     [formGroup]="closeForm"

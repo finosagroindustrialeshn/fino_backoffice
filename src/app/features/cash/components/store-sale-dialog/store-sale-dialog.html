@@ -4,7 +4,8 @@
   [draggable]="false"
   [dismissableMask]="true"
   header="Nueva venta de mostrador"
-  [style]="{ width: '58rem', maxWidth: '96vw' }"
+  [style]="{ width: '58rem' }"
+  [breakpoints]="{ '1024px': '85vw', '640px': '95vw' }"
 >
   <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5">
     @if (error(); as message) {
