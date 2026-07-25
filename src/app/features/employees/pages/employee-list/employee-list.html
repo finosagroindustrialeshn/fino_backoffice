@@ -1,74 +1,75 @@
 <div class="flex flex-col gap-6">
-  <!-- Filters + actions -->
-  <section
-    class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
-    aria-label="Filtros de empleados"
-  >
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
-      <div class="flex flex-col gap-1.5">
-        <label
-          for="employee-search"
-          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-        >
-          Buscar
-        </label>
-        <input
-          pInputText
-          id="employee-search"
-          type="search"
-          [ngModel]="searchTerm()"
-          (ngModelChange)="onSearchInput($event)"
-          placeholder="Nombre, código o identidad"
-          class="w-full sm:w-64"
+  <div class="flex flex-col gap-1">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Empleados</h2>
+      @if (canManage()) {
+        <p-button
+          label="Nuevo empleado"
+          icon="pi pi-plus"
+          routerLink="/empleados/nuevo"
         />
-      </div>
+      }
+    </div>
+    <p class="text-sm text-ink-soft">Administrá el personal de planilla y sus datos laborales.</p>
+  </div>
 
-      <div class="flex flex-col gap-1.5">
-        <label
-          for="employee-status-filter"
-          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-        >
-          Estado
-        </label>
-        <p-select
-          inputId="employee-status-filter"
-          [options]="statusFilterOptions"
-          optionLabel="label"
-          optionValue="value"
-          [ngModel]="statusFilter()"
-          (onChange)="onStatusFilterChange($event.value)"
-          placeholder="Todos los estados"
-          styleClass="w-full sm:w-48"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <label
-          for="employee-position-filter"
-          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-        >
-          Puesto
-        </label>
-        <p-select
-          inputId="employee-position-filter"
-          [options]="positionFilterOptions()"
-          optionLabel="label"
-          optionValue="value"
-          [ngModel]="positionFilter()"
-          (onChange)="onPositionFilterChange($event.value)"
-          placeholder="Todos los puestos"
-          styleClass="w-full sm:w-56"
-        />
-      </div>
+  <!-- Filters -->
+  <section class="flex flex-col gap-4 sm:flex-row sm:items-end" aria-label="Filtros de empleados">
+    <div class="flex flex-col gap-1.5 sm:flex-1">
+      <label
+        for="employee-search"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Buscar
+      </label>
+      <input
+        pInputText
+        id="employee-search"
+        type="search"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="onSearchInput($event)"
+        placeholder="Nombre, código o identidad"
+        class="w-full"
+      />
     </div>
 
-    @if (canManage()) {
-      <p-button
-        label="Nuevo empleado"
-        icon="pi pi-plus"
-        routerLink="/empleados/nuevo"
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="employee-status-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Estado
+      </label>
+      <p-select
+        inputId="employee-status-filter"
+        [options]="statusFilterOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="statusFilter()"
+        (onChange)="onStatusFilterChange($event.value)"
+        placeholder="Todos los estados"
+        styleClass="w-full sm:w-48"
       />
-    }
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="employee-position-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Puesto
+      </label>
+      <p-select
+        inputId="employee-position-filter"
+        [options]="positionFilterOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="positionFilter()"
+        (onChange)="onPositionFilterChange($event.value)"
+        placeholder="Todos los puestos"
+        styleClass="w-full sm:w-56"
+      />
+    </div>
   </section>
 
   @if (list.error(); as message) {
