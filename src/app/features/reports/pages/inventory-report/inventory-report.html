@@ -1,4 +1,11 @@
 <div class="flex flex-col gap-8">
+  <div class="flex flex-col gap-1">
+    <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Reporte de inventario</h2>
+    <p class="text-sm text-ink-soft">
+      Existencias de bodega, kardex por producto y el stock que carga cada vendedor.
+    </p>
+  </div>
+
   <!-- Warehouse stock -->
   <section class="flex flex-col gap-4" aria-labelledby="stock-heading">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -19,7 +26,7 @@
           (ngModelChange)="onLowStockChange($event)"
         />
         <label for="low-stock-only" class="text-sm text-ink">
-          Solo bajo stock (menos de {{ lowStockThreshold }})
+          Stock &lt; {{ lowStockThreshold }}
         </label>
       </div>
     </div>

@@ -1,77 +1,85 @@
 <div class="flex flex-col gap-8">
-  <!-- Filters -->
-  <section
-    class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-    aria-label="Filtros del reporte de ventas"
-  >
-    <div class="flex flex-col gap-1.5">
-      <label
-        for="sales-date-filter"
-        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-      >
-        Rango de fechas
-      </label>
-      <p-datepicker
-        inputId="sales-date-filter"
-        selectionMode="range"
-        [ngModel]="dateRange()"
-        (ngModelChange)="onDateRangeChange($event)"
-        [readonlyInput]="true"
-        [showClear]="true"
-        dateFormat="dd/mm/yy"
-        appendTo="body"
-        placeholder="Todas las fechas"
-        styleClass="w-full sm:w-60"
+  <div class="flex flex-col gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Reporte de ventas</h2>
+      <p-button
+        label="Actualizar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="refreshAll()"
       />
     </div>
+    <p class="text-sm text-ink-soft">
+      Totales del período, contado vs. crédito, y el ranking por producto y por vendedor.
+    </p>
 
-    <div class="flex flex-col gap-1.5">
-      <label
-        for="sales-seller-filter"
-        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-      >
-        Vendedor
-      </label>
-      <p-select
-        inputId="sales-seller-filter"
-        [options]="sellerFilterOptions()"
-        optionLabel="label"
-        optionValue="value"
-        [ngModel]="sellerFilter()"
-        (onChange)="onSellerFilterChange($event.value)"
-        appendTo="body"
-        placeholder="Todos los vendedores"
-        styleClass="w-full sm:w-52"
-      />
-    </div>
+    <!-- Filters -->
+    <section
+      class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+      aria-label="Filtros del reporte de ventas"
+    >
+      <div class="flex flex-col gap-1.5 sm:flex-1 sm:min-w-60">
+        <label
+          for="sales-date-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Rango de fechas
+        </label>
+        <p-datepicker
+          inputId="sales-date-filter"
+          selectionMode="range"
+          [ngModel]="dateRange()"
+          (ngModelChange)="onDateRangeChange($event)"
+          [readonlyInput]="true"
+          [showClear]="true"
+          dateFormat="dd/mm/yy"
+          appendTo="body"
+          placeholder="Todas las fechas"
+          styleClass="w-full"
+        />
+      </div>
 
-    <div class="flex flex-col gap-1.5">
-      <label
-        for="sales-channel-filter"
-        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-      >
-        Canal
-      </label>
-      <p-select
-        inputId="sales-channel-filter"
-        [options]="channelFilterOptions"
-        optionLabel="label"
-        optionValue="value"
-        [ngModel]="channelFilter()"
-        (onChange)="onChannelFilterChange($event.value)"
-        appendTo="body"
-        styleClass="w-full sm:w-44"
-      />
-    </div>
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="sales-seller-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Vendedor
+        </label>
+        <p-select
+          inputId="sales-seller-filter"
+          [options]="sellerFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="sellerFilter()"
+          (onChange)="onSellerFilterChange($event.value)"
+          appendTo="body"
+          placeholder="Todos los vendedores"
+          styleClass="w-full sm:w-52"
+        />
+      </div>
 
-    <p-button
-      label="Actualizar"
-      icon="pi pi-refresh"
-      severity="secondary"
-      [outlined]="true"
-      (onClick)="refreshAll()"
-    />
-  </section>
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="sales-channel-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Canal
+        </label>
+        <p-select
+          inputId="sales-channel-filter"
+          [options]="channelFilterOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="channelFilter()"
+          (onChange)="onChannelFilterChange($event.value)"
+          appendTo="body"
+          styleClass="w-full sm:w-44"
+        />
+      </div>
+    </section>
+  </div>
 
   <!-- Summary -->
   <section class="flex flex-col gap-4" aria-labelledby="sales-summary-heading">

@@ -1,33 +1,40 @@
 <div class="flex flex-col gap-8">
-  <!-- Filters -->
-  <section
-    class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-    aria-label="Filtros del cierre de caja"
-  >
-    <div class="flex flex-col gap-1.5">
-      <label
-        for="cash-date-filter"
-        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-      >
-        Rango de fechas <span aria-hidden="true">*</span>
-      </label>
-      <p-datepicker
-        inputId="cash-date-filter"
-        selectionMode="range"
-        [ngModel]="dateRange()"
-        (ngModelChange)="onDateRangeChange($event)"
-        [readonlyInput]="true"
-        dateFormat="dd/mm/yy"
-        appendTo="body"
-        placeholder="Elegí un rango"
-        styleClass="w-full sm:w-60"
-        [attr.aria-describedby]="rangeError() ? 'cash-range-error' : null"
-      />
-      <p class="text-xs text-ink-soft">
-        Día civil de Honduras (UTC-6). Máximo 92 días.
-      </p>
-    </div>
-  </section>
+  <div class="flex flex-col gap-3">
+    <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Cierre de caja</h2>
+    <p class="text-sm text-ink-soft">
+      Cierre consolidado por día y el arqueo de cada jornada y caja, sobre el día civil de Honduras.
+    </p>
+
+    <!-- Filters -->
+    <section
+      class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+      aria-label="Filtros del cierre de caja"
+    >
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="cash-date-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Rango de fechas <span aria-hidden="true">*</span>
+        </label>
+        <p-datepicker
+          inputId="cash-date-filter"
+          selectionMode="range"
+          [ngModel]="dateRange()"
+          (ngModelChange)="onDateRangeChange($event)"
+          [readonlyInput]="true"
+          dateFormat="dd/mm/yy"
+          appendTo="body"
+          placeholder="Elegí un rango"
+          styleClass="w-full sm:w-60"
+          [attr.aria-describedby]="rangeError() ? 'cash-range-error' : null"
+        />
+        <p class="text-xs text-ink-soft">
+          Día civil de Honduras (UTC-6). Máximo 92 días.
+        </p>
+      </div>
+    </section>
+  </div>
 
   @if (rangeError(); as message) {
     <p
