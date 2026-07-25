@@ -1,93 +1,99 @@
 <div class="flex flex-col gap-6">
-  <!-- Toolbar -->
+  <div class="flex flex-col gap-1">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Productos</h2>
+      @if (canManage()) {
+        <p-button
+          label="Nuevo producto"
+          icon="pi pi-plus"
+          routerLink="/productos/nuevo"
+        />
+      }
+    </div>
+    <p class="text-sm text-ink-soft">
+      Catálogo de productos con precio, categoría y presentación.
+    </p>
+  </div>
+
+  <!-- Filters -->
   <section
-    class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
-    aria-label="Filtros y acciones de productos"
+    class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+    aria-label="Filtros de productos"
   >
-    <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-      <div class="flex flex-col gap-1.5">
-        <label
-          for="product-search"
-          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-        >
-          Buscar
-        </label>
-        <input
-          id="product-search"
-          pInputText
-          type="search"
-          [ngModel]="searchTerm()"
-          (input)="onSearchInput($any($event.target).value)"
-          placeholder="SKU, nombre o descripción"
-          class="w-full sm:w-64"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <label
-          for="category-filter"
-          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-        >
-          Categoría
-        </label>
-        <p-select
-          inputId="category-filter"
-          [options]="categoryFilterOptions()"
-          optionLabel="label"
-          optionValue="value"
-          [ngModel]="categoryFilter()"
-          (onChange)="onCategoryFilterChange($event.value)"
-          placeholder="Todas las categorías"
-          styleClass="w-full sm:w-52"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <label
-          for="presentation-filter"
-          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-        >
-          Presentación
-        </label>
-        <p-select
-          inputId="presentation-filter"
-          [options]="presentationFilterOptions()"
-          optionLabel="label"
-          optionValue="value"
-          [ngModel]="presentationFilter()"
-          (onChange)="onPresentationFilterChange($event.value)"
-          placeholder="Todas las presentaciones"
-          styleClass="w-full sm:w-52"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <label
-          for="active-filter"
-          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-        >
-          Estado
-        </label>
-        <p-select
-          inputId="active-filter"
-          [options]="activeFilterOptions"
-          optionLabel="label"
-          optionValue="value"
-          [ngModel]="activeFilter()"
-          (onChange)="onActiveFilterChange($event.value)"
-          placeholder="Todos los estados"
-          styleClass="w-full sm:w-44"
-        />
-      </div>
+    <div class="flex flex-col gap-1.5 sm:flex-1 sm:min-w-60">
+      <label
+        for="product-search"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Buscar
+      </label>
+      <input
+        id="product-search"
+        pInputText
+        type="search"
+        [ngModel]="searchTerm()"
+        (input)="onSearchInput($any($event.target).value)"
+        placeholder="SKU, nombre o descripción"
+        class="w-full"
+      />
     </div>
 
-    @if (canManage()) {
-      <p-button
-        label="Nuevo producto"
-        icon="pi pi-plus"
-        routerLink="/productos/nuevo"
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="category-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Categoría
+      </label>
+      <p-select
+        inputId="category-filter"
+        [options]="categoryFilterOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="categoryFilter()"
+        (onChange)="onCategoryFilterChange($event.value)"
+        placeholder="Todas las categorías"
+        styleClass="w-full sm:w-52"
       />
-    }
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="presentation-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Presentación
+      </label>
+      <p-select
+        inputId="presentation-filter"
+        [options]="presentationFilterOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="presentationFilter()"
+        (onChange)="onPresentationFilterChange($event.value)"
+        placeholder="Todas las presentaciones"
+        styleClass="w-full sm:w-52"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="active-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Estado
+      </label>
+      <p-select
+        inputId="active-filter"
+        [options]="activeFilterOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="activeFilter()"
+        (onChange)="onActiveFilterChange($event.value)"
+        placeholder="Todos los estados"
+        styleClass="w-full sm:w-44"
+      />
+    </div>
   </section>
 
   @if (list.error(); as message) {
