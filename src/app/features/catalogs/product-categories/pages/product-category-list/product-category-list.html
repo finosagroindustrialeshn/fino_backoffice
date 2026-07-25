@@ -3,7 +3,16 @@
   <div class="flex flex-col gap-3">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Categorías de producto</h2>
+      <!-- Below sm the title + full-label button collide; icon-only there. -->
       <p-button
+        class="ml-auto sm:hidden"
+        icon="pi pi-plus"
+        [rounded]="true"
+        (onClick)="openCreate()"
+        ariaLabel="Nueva categoría"
+      />
+      <p-button
+        class="hidden sm:block"
         label="Nueva categoría"
         icon="pi pi-plus"
         (onClick)="openCreate()"
@@ -64,7 +73,7 @@
     </div>
   }
 
-  <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+  <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
     <p-table
       #dt
       [value]="list.items()"
@@ -75,12 +84,12 @@
       [rows]="10"
       [totalRecords]="list.total()"
       [rowsPerPageOptions]="[5, 10, 20, 50]"
-      [tableStyle]="{ 'min-width': '52rem' }"
+      tableStyleClass="min-w-full md:min-w-[52rem]"
       currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
       [showCurrentPageReport]="true"
     >
       <ng-template #header>
-        <tr>
+        <tr class="hidden md:table-row">
           <th scope="col">Código</th>
           <th scope="col">Nombre</th>
           <th scope="col">Descripción</th>
@@ -91,14 +100,17 @@
       </ng-template>
 
       <ng-template #body let-category>
-        <tr>
-          <td>
+        <tr
+          class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+        >
+          <!-- Desktop columns -->
+          <td class="hidden md:table-cell">
             <span class="font-medium text-ink">{{ category.code }}</span>
           </td>
 
-          <td>{{ category.name }}</td>
+          <td class="hidden md:table-cell">{{ category.name }}</td>
 
-          <td>
+          <td class="hidden md:table-cell">
             <span
               class="block max-w-xs truncate text-sm text-ink-soft"
               [title]="category.description"
@@ -107,17 +119,88 @@
             </span>
           </td>
 
-          <td>{{ category.sortOrder }}</td>
+          <td class="hidden md:table-cell">{{ category.sortOrder }}</td>
 
-          <td>
+          <td class="hidden md:table-cell">
             <p-tag
               [value]="category.isActive ? 'Activa' : 'Inactiva'"
               [severity]="category.isActive ? 'success' : 'secondary'"
             />
           </td>
 
-          <td>
+          <td class="hidden md:table-cell">
             <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <p-button
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  [disabled]="isPending(category.id)"
+                  [ariaLabel]="'Editar la categoría ' + category.name"
+                  (onClick)="openEdit(category)"
+                />
+                <p-button
+                  [icon]="
+                    category.isActive ? 'pi pi-ban' : 'pi pi-check-circle'
+                  "
+                  [severity]="category.isActive ? 'danger' : 'success'"
+                  [text]="true"
+                  [rounded]="true"
+                  [loading]="isPending(category.id)"
+                  [ariaLabel]="
+                    (category.isActive ? 'Desactivar la categoría ' : 'Activar la categoría ') +
+                    category.name
+                  "
+                  (onClick)="toggleActive(category)"
+                />
+                @if (canDelete()) {
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(category.id)"
+                    [ariaLabel]="'Eliminar la categoría ' + category.name"
+                    (onClick)="confirmRemove(category)"
+                  />
+                }
+              </div>
+              @if (rowError(category.id); as message) {
+                <span class="text-xs text-red-600" role="alert">
+                  {{ message }}
+                </span>
+              }
+            </div>
+          </td>
+
+          <!-- Mobile card: one cell, everything laid out by hand -->
+          <td class="block md:hidden">
+            <div class="flex flex-col">
+              <span class="font-medium text-ink">{{ category.name }}</span>
+              <span class="text-xs text-ink-soft">{{ category.code }}</span>
+            </div>
+
+            <span
+              class="mt-1 block truncate text-xs text-ink-soft"
+              [title]="category.description"
+            >
+              {{ category.description || '—' }}
+            </span>
+
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <p-tag
+                [value]="category.isActive ? 'Activa' : 'Inactiva'"
+                [severity]="category.isActive ? 'success' : 'secondary'"
+              />
+              <span
+                class="inline-flex items-center rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+              >
+                Orden: {{ category.sortOrder }}
+              </span>
+            </div>
+
+            <div class="mt-3 flex flex-col gap-2">
               <div class="flex items-center gap-2">
                 <p-button
                   icon="pi pi-pencil"
@@ -189,6 +272,7 @@
   [draggable]="false"
   [resizable]="false"
   [style]="{ width: '30rem' }"
+  [breakpoints]="{ '640px': '92vw' }"
   [header]="editingId() ? 'Editar categoría' : 'Nueva categoría'"
 >
   @if (formError(); as message) {
