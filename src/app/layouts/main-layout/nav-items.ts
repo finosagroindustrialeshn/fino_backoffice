@@ -1,5 +1,10 @@
 import type { Role } from '../../core/auth/user-profile.model';
 
+export interface NavChild {
+  readonly label: string;
+  readonly route: string;
+}
+
 export interface NavItem {
   readonly label: string;
   /** PrimeIcons class, e.g. 'pi pi-th-large'. */
@@ -7,6 +12,8 @@ export interface NavItem {
   readonly route: string;
   /** Roles allowed to see this item. Omit to show it to everyone. */
   readonly roles?: readonly Role[];
+  /** Sibling routes shown as an expandable submenu instead of a link. */
+  readonly children?: readonly NavChild[];
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
@@ -42,12 +49,21 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'pi pi-id-card',
     route: '/empleados',
     roles: ['ADMIN', 'SUPERVISOR'],
+    children: [
+      { label: 'Empleados', route: '/empleados/lista' },
+      { label: 'Puestos', route: '/empleados/puestos' },
+    ],
   },
   {
     label: 'Reportes',
     icon: 'pi pi-chart-bar',
     route: '/reportes',
     roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
+    children: [
+      { label: 'Ventas', route: '/reportes/ventas' },
+      { label: 'Caja', route: '/reportes/caja' },
+      { label: 'Inventario', route: '/reportes/inventario' },
+    ],
   },
   {
     label: 'Productos',
@@ -66,6 +82,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'pi pi-tags',
     route: '/catalogos',
     roles: ['ADMIN', 'SUPERVISOR'],
+    children: [
+      { label: 'Categorías de producto', route: '/catalogos/categorias-producto' },
+      { label: 'Presentaciones', route: '/catalogos/presentaciones' },
+      { label: 'Zonas', route: '/catalogos/zonas' },
+      { label: 'Categorías de gasto', route: '/catalogos/categorias-gasto' },
+      { label: 'Motivos de retorno', route: '/catalogos/motivos-retorno' },
+    ],
   },
   {
     label: 'Usuarios y roles',

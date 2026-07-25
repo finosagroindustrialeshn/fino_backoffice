@@ -1,45 +1,61 @@
 <header
-  class="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-ink/10 bg-cream/80 px-4 backdrop-blur-sm sm:px-5 lg:px-7"
+  class="flex h-[72px] shrink-0 items-center justify-between gap-3 bg-white px-4 shadow-[0_2px_8px_-2px_rgba(27,58,40,0.08)] sm:px-5 lg:px-7"
 >
-  <div class="flex min-w-0 items-center gap-2">
-    <button
-      type="button"
-      aria-label="Abrir menú de navegación"
-      (click)="menuToggle.emit()"
-      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-white lg:hidden"
-    >
-      <i class="pi pi-bars text-base" aria-hidden="true"></i>
-    </button>
-    <h1
-      class="truncate font-heading text-lg font-extrabold tracking-tight text-ink sm:text-xl lg:text-2xl"
-    >
-      {{ title() }}
-    </h1>
-  </div>
+  <button
+    type="button"
+    aria-label="Abrir menú de navegación"
+    (click)="menuToggle.emit()"
+    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-cream lg:hidden"
+  >
+    <i class="pi pi-bars text-base" aria-hidden="true"></i>
+  </button>
 
-  <div class="flex shrink-0 items-center gap-1 sm:gap-2">
+  <label class="relative hidden flex-1 max-w-md sm:block">
+    <span class="sr-only">Buscar</span>
+    <i
+      class="pi pi-search pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-ink-soft"
+      aria-hidden="true"
+    ></i>
+    <input
+      type="search"
+      placeholder="Buscar…"
+      class="h-10 w-full rounded-full bg-cream px-4 pl-10 text-sm text-ink placeholder:text-ink-soft focus:ring-2 focus:ring-brand/30 focus:outline-none"
+    />
+  </label>
+
+  <div class="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
     <button
       type="button"
-      aria-label="Buscar"
-      class="hidden h-10 w-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-white sm:flex"
-    >
-      <i class="pi pi-search text-base" aria-hidden="true"></i>
-    </button>
-    <button
-      type="button"
-      aria-label="Notificaciones"
-      class="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-white"
+      [attr.aria-label]="'Notificaciones: ' + notificationLabel()"
+      (click)="notifications.toggle($event)"
+      class="flex h-10 items-center gap-2 rounded-full bg-cream px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-brand-mist/60"
     >
       <i class="pi pi-bell text-base" aria-hidden="true"></i>
+      <span>{{ notificationLabel() }}</span>
     </button>
+    <p-popover #notifications>
+      <div class="w-64 p-1 text-sm">
+        <p class="font-semibold text-ink">Notificaciones</p>
+        <p class="mt-2 text-ink-soft">Sin novedad por ahora.</p>
+      </div>
+    </p-popover>
 
     <button
       type="button"
       [attr.aria-label]="'Menú de ' + (profile()?.fullName ?? 'usuario') + ', ' + roleLabel()"
       (click)="userMenu.toggle($event)"
-      class="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-brand-mist text-xs font-bold text-ink transition-opacity hover:opacity-80"
+      class="ml-1 flex items-center gap-2.5 rounded-full py-1 pr-3 pl-1 transition-colors hover:bg-cream"
     >
-      {{ initials() }}
+      <span
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-mist text-xs font-bold text-ink"
+        aria-hidden="true"
+      >
+        {{ initials() }}
+      </span>
+      <span class="hidden min-w-0 flex-col items-start leading-tight sm:flex">
+        <span class="truncate text-sm font-semibold text-ink">{{ profile()?.fullName }}</span>
+        <span class="truncate text-xs text-ink-soft">{{ roleLabel() }}</span>
+      </span>
     </button>
     <p-menu #userMenu [model]="userMenuItems" [popup]="true" appendTo="body" />
   </div>

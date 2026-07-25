@@ -1,8 +1,8 @@
-<ng-template #navContent>
+<ng-template #navContent let-collapsed="collapsed">
   <!-- Brand -->
-  <div class="flex items-center gap-2.5 px-2.5 pb-5">
+  <div class="flex items-center gap-2.5 px-2.5 pb-5" [class.justify-center]="collapsed">
     <span
-      class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white"
+      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-white"
       aria-hidden="true"
     >
       <svg viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
@@ -11,10 +11,12 @@
         />
       </svg>
     </span>
-    <div class="flex flex-col leading-tight">
-      <span class="font-heading text-sm font-extrabold text-ink">Fino Agroindustriales</span>
-      <span class="text-[10px] font-semibold tracking-[0.14em] text-ink-soft">BACKOFFICE</span>
-    </div>
+    @if (!collapsed) {
+      <div class="flex flex-col leading-tight">
+        <span class="font-heading text-sm font-extrabold text-ink">Fino Agroindustriales</span>
+        <span class="text-[10px] font-semibold tracking-[0.14em] text-ink-soft">BACKOFFICE</span>
+      </div>
+    }
   </div>
 
   <!-- Navigation -->
@@ -22,48 +24,104 @@
     <ul class="flex flex-col gap-1">
       @for (item of navItems(); track item.route) {
         <li>
-          <a
-            [routerLink]="item.route"
-            routerLinkActive="bg-brand-mist text-ink font-semibold"
-            (click)="open.set(false)"
-            class="flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-cream"
-          >
-            <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
-            <span>{{ item.label }}</span>
-          </a>
+          @if (item.children && !collapsed) {
+            <div routerLinkActive #section="routerLinkActive">
+              <button
+                type="button"
+                (click)="toggleSection(item.route)"
+                [attr.aria-expanded]="isSectionOpen(item.route) || section.isActive"
+                class="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-medium transition-colors hover:bg-cream"
+                [class.bg-brand-mist]="section.isActive"
+                [class.text-ink]="section.isActive"
+                [class.font-semibold]="section.isActive"
+                [class.text-ink-soft]="!section.isActive"
+              >
+                <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
+                <span class="flex-1 text-left">{{ item.label }}</span>
+                <i
+                  class="pi pi-chevron-down text-xs transition-transform"
+                  [class.rotate-180]="isSectionOpen(item.route) || section.isActive"
+                  aria-hidden="true"
+                ></i>
+              </button>
+
+              @if (isSectionOpen(item.route) || section.isActive) {
+                <ul class="mt-1 flex flex-col gap-1 pl-8">
+                  @for (child of item.children; track child.route) {
+                    <li>
+                      <a
+                        [routerLink]="child.route"
+                        routerLinkActive="bg-brand-mist text-ink font-semibold"
+                        (click)="open.set(false)"
+                        class="flex h-9 items-center rounded-lg px-3 text-sm text-ink-soft transition-colors hover:bg-cream"
+                      >
+                        {{ child.label }}
+                      </a>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          } @else {
+            <a
+              [routerLink]="item.route"
+              routerLinkActive="bg-brand-mist text-ink font-semibold"
+              (click)="open.set(false)"
+              [attr.title]="collapsed ? item.label : null"
+              [attr.aria-label]="collapsed ? item.label : null"
+              class="flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-cream"
+              [class.justify-center]="collapsed"
+            >
+              <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
+              @if (!collapsed) {
+                <span>{{ item.label }}</span>
+              }
+            </a>
+          }
         </li>
       }
     </ul>
   </nav>
-
-  <!-- User -->
-  <div class="mt-auto flex items-center gap-2.5 rounded-xl p-2.5">
-    <span
-      class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-mist text-xs font-bold text-ink"
-      aria-hidden="true"
-    >
-      {{ initials() }}
-    </span>
-    <div class="flex min-w-0 flex-col leading-tight">
-      <span class="truncate text-sm font-semibold text-ink">{{ profile()?.fullName }}</span>
-      <span class="truncate text-xs text-ink-soft">{{ roleLabel() }}</span>
-    </div>
-  </div>
 </ng-template>
 
 <!-- Desktop: static column, always visible at lg+ -->
 <aside
-  class="hidden h-dvh w-[250px] shrink-0 flex-col gap-1 border-r border-ink/10 bg-white px-3.5 py-6 lg:flex"
+  class="hidden h-dvh shrink-0 flex-col gap-1 bg-white px-3.5 py-6 shadow-[2px_0_8px_-2px_rgba(27,58,40,0.08)] transition-[width] duration-200 lg:flex"
+  [style.width.px]="collapsed() ? 76 : 250"
 >
-  <ng-container [ngTemplateOutlet]="navContent" />
+  <ng-container
+    [ngTemplateOutlet]="navContent"
+    [ngTemplateOutletContext]="{ collapsed: collapsed() }"
+  />
+
+  <button
+    type="button"
+    (click)="toggleCollapsed()"
+    [attr.aria-label]="collapsed() ? 'Expandir menú' : 'Contraer menú'"
+    class="mt-auto flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-cream"
+    [class.justify-center]="collapsed()"
+  >
+    <i
+      class="pi text-base"
+      [class.pi-angle-double-left]="!collapsed()"
+      [class.pi-angle-double-right]="collapsed()"
+      aria-hidden="true"
+    ></i>
+    @if (!collapsed()) {
+      <span>Contraer</span>
+    }
+  </button>
 </aside>
 
-<!-- Mobile/tablet: off-canvas drawer below lg, toggled from the topbar -->
+<!-- Mobile/tablet: off-canvas drawer below lg, always expanded regardless of the rail's state -->
 <p-drawer
   [(visible)]="open"
   [blockScroll]="true"
   appendTo="body"
   styleClass="w-[250px] px-1.5 py-4 lg:!hidden"
 >
-  <ng-container [ngTemplateOutlet]="navContent" />
+  <ng-container
+    [ngTemplateOutlet]="navContent"
+    [ngTemplateOutletContext]="{ collapsed: false }"
+  />
 </p-drawer>
