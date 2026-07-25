@@ -176,13 +176,13 @@
             Ventas a crédito abiertas
           </h4>
 
-          <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+          <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
             <p-table
               [value]="openSales()"
-              [tableStyle]="{ 'min-width': '40rem' }"
+              tableStyleClass="min-w-full md:min-w-[40rem]"
             >
               <ng-template #header>
-                <tr>
+                <tr class="hidden md:table-row">
                   <th scope="col">Fecha</th>
                   <th scope="col">Estado</th>
                   <th scope="col">Total</th>
@@ -192,19 +192,49 @@
               </ng-template>
 
               <ng-template #body let-sale>
-                <tr>
-                  <td>{{ sale.createdAt | date: 'dd/MM/yyyy' }}</td>
-                  <td>
+                <tr
+                  class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+                >
+                  <!-- Desktop columns -->
+                  <td class="hidden md:table-cell">{{ sale.createdAt | date: 'dd/MM/yyyy' }}</td>
+                  <td class="hidden md:table-cell">
                     <span class="text-sm text-ink-soft">
                       {{ statusLabel(sale.status) }}
                     </span>
                   </td>
-                  <td>{{ sale.total | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
-                  <td>
+                  <td class="hidden md:table-cell">{{ sale.total | currency: 'HNL' : 'L ' : '1.2-2' }}</td>
+                  <td class="hidden md:table-cell">
                     {{ sale.amountPaid | currency: 'HNL' : 'L ' : '1.2-2' }}
                   </td>
-                  <td class="font-semibold text-ink">
+                  <td class="hidden font-semibold text-ink md:table-cell">
                     {{ sale.balanceDue | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </td>
+
+                  <!-- Mobile card: one cell, everything laid out by hand -->
+                  <td class="block md:hidden">
+                    <div class="flex items-center justify-between gap-3">
+                      <span
+                        class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+                      >
+                        <i class="pi pi-calendar text-[10px]" aria-hidden="true"></i>
+                        {{ sale.createdAt | date: 'dd/MM/yyyy' }}
+                      </span>
+                      <span class="text-sm text-ink-soft">
+                        {{ statusLabel(sale.status) }}
+                      </span>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                      <span class="text-xs text-ink-soft">
+                        Total: {{ sale.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </span>
+                      <span class="text-xs text-ink-soft">
+                        Abonado: {{ sale.amountPaid | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </span>
+                      <span class="text-sm font-semibold text-ink">
+                        Saldo: {{ sale.balanceDue | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               </ng-template>
@@ -339,18 +369,18 @@
           </div>
         </dl>
 
-        <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+        <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
           <p-table
             [value]="entries()"
             [paginator]="true"
             [rows]="20"
             [rowsPerPageOptions]="rowsPerPageOptions"
-            [tableStyle]="{ 'min-width': '48rem' }"
+            tableStyleClass="min-w-full md:min-w-[48rem]"
             currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
             [showCurrentPageReport]="true"
           >
             <ng-template #header>
-              <tr>
+              <tr class="hidden md:table-row">
                 <th scope="col">Fecha</th>
                 <th scope="col">Concepto</th>
                 <th scope="col">Cargo</th>
@@ -360,9 +390,17 @@
             </ng-template>
 
             <ng-template #body let-entry>
-              <tr>
-                <td>{{ entry.date | date: 'dd/MM/yyyy HH:mm' }}</td>
-                <td>
+              <!-- Compared against null, not truthiness: a 0 is a real amount.
+                   Declared once here (rather than per <td>) so both the
+                   desktop columns and the mobile card below can read them. -->
+              @let charge = chargeOf(entry);
+              @let credit = creditOf(entry);
+              <tr
+                class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+              >
+                <!-- Desktop columns -->
+                <td class="hidden md:table-cell">{{ entry.date | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td class="hidden md:table-cell">
                   <span class="font-medium text-ink">
                     {{ entryLabel(entry.kind) }}
                   </span>
@@ -372,9 +410,7 @@
                     </span>
                   }
                 </td>
-                <td>
-                  <!-- Compared against null, not truthiness: a 0 is a real amount. -->
-                  @let charge = chargeOf(entry);
+                <td class="hidden md:table-cell">
                   @if (charge !== null) {
                     {{ charge | currency: 'HNL' : 'L ' : '1.2-2' }}
                   } @else {
@@ -382,8 +418,7 @@
                     <span class="sr-only">Sin cargo</span>
                   }
                 </td>
-                <td>
-                  @let credit = creditOf(entry);
+                <td class="hidden md:table-cell">
                   @if (credit !== null) {
                     <span class="text-green-700">
                       {{ credit | currency: 'HNL' : 'L ' : '1.2-2' }}
@@ -393,8 +428,41 @@
                     <span class="sr-only">Sin abono</span>
                   }
                 </td>
-                <td class="font-semibold text-ink">
+                <td class="hidden font-semibold text-ink md:table-cell">
                   {{ entry.runningBalance | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </td>
+
+                <!-- Mobile card: one cell, everything laid out by hand -->
+                <td class="block md:hidden">
+                  <div class="flex flex-col">
+                    <span class="font-medium text-ink">
+                      {{ entryLabel(entry.kind) }}
+                      @if (entry.status) {
+                        <span class="ml-2 text-xs text-ink-soft">
+                          ({{ statusLabel(entry.status) }})
+                        </span>
+                      }
+                    </span>
+                    <span class="text-xs text-ink-soft">
+                      {{ entry.date | date: 'dd/MM/yyyy HH:mm' }}
+                    </span>
+                  </div>
+
+                  <div class="mt-3 flex flex-wrap items-center gap-2">
+                    @if (charge !== null) {
+                      <span class="text-xs text-ink-soft">
+                        Cargo: {{ charge | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </span>
+                    }
+                    @if (credit !== null) {
+                      <span class="text-xs text-green-700">
+                        Abono: {{ credit | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </span>
+                    }
+                    <span class="text-sm font-semibold text-ink">
+                      Saldo: {{ entry.runningBalance | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </span>
+                  </div>
                 </td>
               </tr>
             </ng-template>

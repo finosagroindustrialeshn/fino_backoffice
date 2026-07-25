@@ -5,7 +5,21 @@
       <h2 id="ar-heading" class="font-heading text-2xl font-bold text-ink sm:text-3xl">
         Cuentas por cobrar
       </h2>
+      <!-- Below sm the title + button collide; icon-only there.
+           class (host element) drives layout/visibility here, not
+           styleClass (PrimeNG's internal button) — margin/display on the
+           inner element doesn't move the outer host inside our flex row. -->
       <p-button
+        class="ml-auto sm:hidden"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        [rounded]="true"
+        ariaLabel="Actualizar"
+        (onClick)="refreshAll()"
+      />
+      <p-button
+        class="hidden sm:block"
         label="Actualizar"
         icon="pi pi-refresh"
         severity="secondary"
@@ -221,7 +235,7 @@
       </div>
     }
 
-    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+    <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
       <p-table
         [value]="debtors.items()"
         [lazy]="true"
@@ -233,12 +247,12 @@
         [rowsPerPageOptions]="rowsPerPageOptions"
         sortField="totalOwed"
         [sortOrder]="-1"
-        [tableStyle]="{ 'min-width': '44rem' }"
+        tableStyleClass="min-w-full md:min-w-[44rem]"
         currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
         [showCurrentPageReport]="true"
       >
         <ng-template #header>
-          <tr>
+          <tr class="hidden md:table-row">
             <th scope="col">Cliente</th>
             <th scope="col">Ventas abiertas</th>
             <th scope="col" pSortableColumn="oldestSaleDate">
@@ -256,16 +270,19 @@
         </ng-template>
 
         <ng-template #body let-row>
-          <tr>
-            <td>
+          <tr
+            class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+          >
+            <!-- Desktop columns -->
+            <td class="hidden md:table-cell">
               <span class="font-medium text-ink">{{ row.clientName }}</span>
             </td>
-            <td>{{ row.openSalesCount | number }}</td>
-            <td>{{ row.oldestSaleDate | date: 'dd/MM/yyyy' }}</td>
-            <td class="text-base font-bold text-ink">
+            <td class="hidden md:table-cell">{{ row.openSalesCount | number }}</td>
+            <td class="hidden md:table-cell">{{ row.oldestSaleDate | date: 'dd/MM/yyyy' }}</td>
+            <td class="hidden text-base font-bold text-ink md:table-cell">
               {{ row.totalOwed | currency: 'HNL' : 'L ' : '1.2-2' }}
             </td>
-            <td>
+            <td class="hidden md:table-cell">
               <a
                 class="inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
                 [routerLink]="['/contabilidad', 'clientes', row.clientId]"
@@ -274,6 +291,37 @@
                 <i class="pi pi-file" aria-hidden="true"></i>
                 Estado de cuenta
               </a>
+            </td>
+
+            <!-- Mobile card: one cell, everything laid out by hand -->
+            <td class="block md:hidden">
+              <span class="font-medium text-ink">{{ row.clientName }}</span>
+
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <span class="text-sm font-bold text-ink">
+                  {{ row.totalOwed | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </span>
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+                >
+                  <i class="pi pi-calendar text-[10px]" aria-hidden="true"></i>
+                  {{ row.oldestSaleDate | date: 'dd/MM/yyyy' }}
+                </span>
+                <span class="text-xs text-ink-soft">
+                  {{ row.openSalesCount | number }} ventas abiertas
+                </span>
+              </div>
+
+              <div class="mt-3 flex justify-end">
+                <a
+                  class="inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
+                  [routerLink]="['/contabilidad', 'clientes', row.clientId]"
+                  [attr.aria-label]="'Ver estado de cuenta de ' + row.clientName"
+                >
+                  <i class="pi pi-file" aria-hidden="true"></i>
+                  Estado de cuenta
+                </a>
+              </div>
             </td>
           </tr>
         </ng-template>
