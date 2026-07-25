@@ -15,6 +15,7 @@
 
   --color-brand: #2d5e3a;
   --color-brand-soft: #4a8c5e;
+  --color-brand-gold: #d9a441;
   --color-brand-mist: #c8dbbc;
   --color-brand-sky: #d6e4e8;
   --color-cream: #f5f3ee;
@@ -35,5 +36,59 @@
     color: var(--color-ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* One-shot entrance used by pages that want a subtle mount animation (e.g.
+   the login card). Never loops — a continuous animation on a work-tool
+   screen reads as distracting rather than polished. */
+@layer utilities {
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(0.75rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up {
+      animation-duration: 1ms;
+      animation-delay: 0ms !important;
+    }
+  }
+
+  /* Ambient background leaf-fall (login). Continuous, but decorative-only —
+     aria-hidden and reduced-motion just hides the layer instead of freezing
+     it mid-fall. Opacity is per-leaf via --leaf-opacity so it can fade in
+     and out at the edges of its own fall instead of popping in/out. */
+  @keyframes leaf-fall {
+    0% {
+      transform: translateY(-10vh) rotate(0deg);
+      opacity: 0;
+    }
+    10% {
+      opacity: var(--leaf-opacity, 0.2);
+    }
+    90% {
+      opacity: var(--leaf-opacity, 0.2);
+    }
+    100% {
+      transform: translateY(110vh) rotate(360deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-leaf-fall {
+    animation-name: leaf-fall;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
   }
 }
