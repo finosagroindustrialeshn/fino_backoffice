@@ -7,14 +7,12 @@ import {
   viewChild,
 } from '@angular/core';
 import {
-  FormsModule,
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
-import { CheckboxModule } from 'primeng/checkbox';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -32,10 +30,8 @@ import type { ProductCategory } from '../../models/product-category.model';
 @Component({
   selector: 'app-product-category-list',
   imports: [
-    FormsModule,
     ReactiveFormsModule,
     ButtonModule,
-    CheckboxModule,
     ConfirmDialogModule,
     DialogModule,
     InputNumberModule,

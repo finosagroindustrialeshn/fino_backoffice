@@ -6,7 +6,6 @@ import {
   viewChild,
 } from '@angular/core';
 import {
-  FormsModule,
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
@@ -14,7 +13,6 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
-import { CheckboxModule } from 'primeng/checkbox';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -31,10 +29,8 @@ import { ReturnReasonDataClient } from '../../services/return-reason-data';
 @Component({
   selector: 'app-return-reason-list',
   imports: [
-    FormsModule,
     ReactiveFormsModule,
     ButtonModule,
-    CheckboxModule,
     ConfirmDialogModule,
     DialogModule,
     InputNumberModule,

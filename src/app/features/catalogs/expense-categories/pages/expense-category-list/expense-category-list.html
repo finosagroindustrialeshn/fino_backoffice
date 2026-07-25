@@ -1,25 +1,54 @@
-<div class="flex flex-col gap-6">
-  <!-- Toolbar -->
-  <section
-    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-    aria-label="Acciones de categorías de gasto"
-  >
-    <label class="flex items-center gap-2 text-sm text-ink">
-      <p-checkbox
-        [binary]="true"
-        [ngModel]="includeInactive()"
-        (onChange)="onIncludeInactiveChange($event.checked)"
-        inputId="include-inactive"
+<div class="flex flex-col gap-5">
+  <!-- Header + toolbar -->
+  <div class="flex flex-col gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Categorías de gasto</h2>
+      <p-button
+        label="Nueva categoría"
+        icon="pi pi-plus"
+        (onClick)="openCreate()"
       />
-      <span>Incluir inactivas</span>
-    </label>
+    </div>
+    <p class="text-sm text-ink-soft">
+      Clasificá los gastos operativos de caja chica en la contabilidad.
+    </p>
 
-    <p-button
-      label="Nueva categoría"
-      icon="pi pi-plus"
-      (onClick)="openCreate()"
-    />
-  </section>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <label class="relative w-full sm:w-4/5">
+        <span class="sr-only">Buscar categorías de gasto</span>
+        <i
+          class="pi pi-search pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-ink-soft"
+          aria-hidden="true"
+        ></i>
+        <input
+          type="search"
+          placeholder="Buscar por nombre…"
+          class="h-10 w-full rounded-full border border-ink/10 bg-white pl-10 pr-4 text-sm text-ink placeholder:text-ink-soft focus:ring-2 focus:ring-brand/30 focus:outline-none"
+        />
+      </label>
+
+      <button
+        type="button"
+        role="switch"
+        [attr.aria-checked]="includeInactive()"
+        (click)="onIncludeInactiveChange(!includeInactive())"
+        class="flex h-10 shrink-0 items-center gap-2 rounded-full px-3.5 text-sm font-medium transition-colors"
+        [class.bg-brand-mist]="includeInactive()"
+        [class.text-ink]="includeInactive()"
+        [class.font-semibold]="includeInactive()"
+        [class.bg-cream]="!includeInactive()"
+        [class.text-ink-soft]="!includeInactive()"
+      >
+        <i
+          class="pi"
+          [class.pi-eye]="includeInactive()"
+          [class.pi-eye-slash]="!includeInactive()"
+          aria-hidden="true"
+        ></i>
+        <span>Incluir inactivas</span>
+      </button>
+    </div>
+  </div>
 
   @if (list.error(); as message) {
     <div
