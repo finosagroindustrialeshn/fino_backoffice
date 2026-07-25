@@ -1,26 +1,22 @@
 <div class="flex flex-col gap-8">
   <!-- Header -->
-  <section
-    class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
-    aria-labelledby="ar-heading"
-  >
-    <div class="flex flex-col gap-1">
-      <h2 id="ar-heading" class="text-xl font-semibold text-ink">
+  <div class="flex flex-col gap-1">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 id="ar-heading" class="font-heading text-2xl font-bold text-ink sm:text-3xl">
         Cuentas por cobrar
       </h2>
-      <p class="text-sm text-ink-soft">
-        Cartera de crédito vigente: cuánto se debe, quién lo debe y hace cuánto.
-      </p>
+      <p-button
+        label="Actualizar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="refreshAll()"
+      />
     </div>
-
-    <p-button
-      label="Actualizar"
-      icon="pi pi-refresh"
-      severity="secondary"
-      [outlined]="true"
-      (onClick)="refreshAll()"
-    />
-  </section>
+    <p class="text-sm text-ink-soft">
+      Cartera de crédito vigente: cuánto se debe, quién lo debe y hace cuánto.
+    </p>
+  </div>
 
   <!-- Portfolio summary -->
   <section class="flex flex-col gap-4" aria-labelledby="ar-summary-heading">
