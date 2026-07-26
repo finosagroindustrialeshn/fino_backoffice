@@ -11,7 +11,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { DrawerModule } from 'primeng/drawer';
 
 import { AuthSession } from '../../../core/auth/auth-session';
-import { NAV_ITEMS } from '../nav-items';
+import { NAV_GROUPS } from '../nav-items';
 
 @Component({
   selector: 'app-sidebar',
@@ -32,11 +32,15 @@ export class Sidebar {
     this.collapsed.update((value) => !value);
   }
 
-  protected readonly navItems = computed(() => {
+  /** Each group's items filtered by role; groups left with nothing to show are dropped. */
+  protected readonly navGroups = computed(() => {
     const role = this.auth.role();
-    return NAV_ITEMS.filter(
-      (item) => !item.roles || (role !== null && item.roles.includes(role)),
-    );
+    return NAV_GROUPS.map((group) => ({
+      label: group.label,
+      items: group.items.filter(
+        (item) => !item.roles || (role !== null && item.roles.includes(role)),
+      ),
+    })).filter((group) => group.items.length > 0);
   });
 
   /** Submenus expanded by the user; a section on the active route is open regardless. */
@@ -53,6 +57,26 @@ export class Sidebar {
         next.delete(route);
       } else {
         next.add(route);
+      }
+      return next;
+    });
+  }
+
+  /** Groups start open; tracks only the ones the user collapsed. */
+  private readonly collapsedGroups = signal<ReadonlySet<string>>(new Set());
+
+  /** Ungrouped (undefined label) items have no toggle and are always shown. */
+  protected isGroupOpen(label: string | undefined): boolean {
+    return label === undefined || !this.collapsedGroups().has(label);
+  }
+
+  protected toggleGroup(label: string): void {
+    this.collapsedGroups.update((current) => {
+      const next = new Set(current);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
       }
       return next;
     });

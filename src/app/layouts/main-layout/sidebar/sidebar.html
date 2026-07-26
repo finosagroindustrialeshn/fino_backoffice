@@ -19,68 +19,106 @@
     }
   </div>
 
-  <!-- Navigation -->
-  <nav class="flex flex-col gap-1" aria-label="Navegación principal">
-    <ul class="flex flex-col gap-1">
-      @for (item of navItems(); track item.route) {
-        <li>
-          @if (item.children && !collapsed) {
-            <div routerLinkActive #section="routerLinkActive">
-              <button
-                type="button"
-                (click)="toggleSection(item.route)"
-                [attr.aria-expanded]="isSectionOpen(item.route) || section.isActive"
-                class="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-medium transition-colors hover:bg-cream"
-                [class.bg-brand-mist]="section.isActive"
-                [class.text-ink]="section.isActive"
-                [class.font-semibold]="section.isActive"
-                [class.text-ink-soft]="!section.isActive"
-              >
-                <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
-                <span class="flex-1 text-left">{{ item.label }}</span>
-                <i
-                  class="pi pi-chevron-down text-xs transition-transform"
-                  [class.rotate-180]="isSectionOpen(item.route) || section.isActive"
-                  aria-hidden="true"
-                ></i>
-              </button>
+  <!-- Navigation: min-h-0 lets this flex item shrink below its content size,
+       which is what makes overflow-y-auto actually kick in instead of
+       stretching the fixed-height aside taller than the viewport. -->
+  <nav class="min-h-0 flex-1 overflow-y-auto flex flex-col gap-4" aria-label="Navegación principal">
+    @for (group of navGroups(); track group.label ?? '__lead') {
+      <div class="flex flex-col gap-1">
+        @if (group.label && !collapsed) {
+          <button
+            type="button"
+            (click)="toggleGroup(group.label)"
+            [attr.aria-expanded]="isGroupOpen(group.label)"
+            class="flex h-7 w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold tracking-wide text-ink-soft/70 uppercase transition-colors hover:text-ink-soft"
+          >
+            <span class="flex-1 text-left">{{ group.label }}</span>
+            <i
+              class="pi pi-chevron-down text-[10px] transition-transform"
+              [class.rotate-180]="isGroupOpen(group.label)"
+              aria-hidden="true"
+            ></i>
+          </button>
+        }
+        <!-- grid-rows trick animates to the content's real height with no JS
+             measurement; motion-reduce collapses it to an instant toggle. -->
+        <div
+          class="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
+          [style.grid-template-rows]="
+            collapsed || isGroupOpen(group.label) ? '1fr' : '0fr'
+          "
+        >
+        <ul class="flex flex-col gap-1 overflow-hidden">
+          @for (item of group.items; track item.route) {
+            <li>
+              @if (item.children && !collapsed) {
+                <div routerLinkActive #section="routerLinkActive">
+                  <button
+                    type="button"
+                    (click)="toggleSection(item.route)"
+                    [attr.aria-expanded]="isSectionOpen(item.route) || section.isActive"
+                    class="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-medium transition-colors hover:bg-cream"
+                    [class.bg-brand-mist]="section.isActive"
+                    [class.text-ink]="section.isActive"
+                    [class.font-semibold]="section.isActive"
+                    [class.text-ink-soft]="!section.isActive"
+                  >
+                    <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
+                    <span class="flex-1 text-left">{{ item.label }}</span>
+                    <i
+                      class="pi pi-chevron-down text-xs transition-transform"
+                      [class.rotate-180]="isSectionOpen(item.route) || section.isActive"
+                      aria-hidden="true"
+                    ></i>
+                  </button>
 
-              @if (isSectionOpen(item.route) || section.isActive) {
-                <ul class="mt-1 flex flex-col gap-1 pl-8">
-                  @for (child of item.children; track child.route) {
-                    <li>
-                      <a
-                        [routerLink]="child.route"
-                        routerLinkActive="bg-brand-mist text-ink font-semibold"
-                        (click)="open.set(false)"
-                        class="flex h-9 items-center rounded-lg px-3 text-sm text-ink-soft transition-colors hover:bg-cream"
-                      >
-                        {{ child.label }}
-                      </a>
-                    </li>
+                  <!-- grid-rows trick animates to the content's real height
+                       with no JS measurement; motion-reduce collapses it to
+                       an instant toggle instead of freezing mid-slide. -->
+                  <div
+                    class="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
+                    [style.grid-template-rows]="
+                      isSectionOpen(item.route) || section.isActive ? '1fr' : '0fr'
+                    "
+                  >
+                    <ul class="flex flex-col gap-1 overflow-hidden pt-1 pl-8">
+                      @for (child of item.children; track child.route) {
+                        <li>
+                          <a
+                            [routerLink]="child.route"
+                            routerLinkActive="bg-brand-mist text-ink font-semibold"
+                            (click)="open.set(false)"
+                            class="flex h-9 items-center rounded-lg px-3 text-sm text-ink-soft transition-colors hover:bg-cream"
+                          >
+                            {{ child.label }}
+                          </a>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                </div>
+              } @else {
+                <a
+                  [routerLink]="item.route"
+                  routerLinkActive="bg-brand-mist text-ink font-semibold"
+                  (click)="open.set(false)"
+                  [attr.title]="collapsed ? item.label : null"
+                  [attr.aria-label]="collapsed ? item.label : null"
+                  class="flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-cream"
+                  [class.justify-center]="collapsed"
+                >
+                  <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
+                  @if (!collapsed) {
+                    <span>{{ item.label }}</span>
                   }
-                </ul>
+                </a>
               }
-            </div>
-          } @else {
-            <a
-              [routerLink]="item.route"
-              routerLinkActive="bg-brand-mist text-ink font-semibold"
-              (click)="open.set(false)"
-              [attr.title]="collapsed ? item.label : null"
-              [attr.aria-label]="collapsed ? item.label : null"
-              class="flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-cream"
-              [class.justify-center]="collapsed"
-            >
-              <i [class]="item.icon" class="text-base" aria-hidden="true"></i>
-              @if (!collapsed) {
-                <span>{{ item.label }}</span>
-              }
-            </a>
+            </li>
           }
-        </li>
-      }
-    </ul>
+        </ul>
+        </div>
+      </div>
+    }
   </nav>
 </ng-template>
 

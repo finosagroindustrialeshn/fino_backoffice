@@ -16,84 +16,112 @@ export interface NavItem {
   readonly children?: readonly NavChild[];
 }
 
-export const NAV_ITEMS: readonly NavItem[] = [
-  { label: 'Dashboard', icon: 'pi pi-th-large', route: '/dashboard' },
+export interface NavGroup {
+  /** Section heading shown above the group. Omit for an ungrouped lead item (Dashboard). */
+  readonly label?: string;
+  readonly items: readonly NavItem[];
+}
+
+export const NAV_GROUPS: readonly NavGroup[] = [
   {
-    label: 'Despacho',
-    icon: 'pi pi-box',
-    route: '/despacho',
-    roles: ['ADMIN', 'SUPERVISOR'],
+    items: [{ label: 'Dashboard', icon: 'pi pi-th-large', route: '/dashboard' }],
   },
   {
-    label: 'Retorno',
-    icon: 'pi pi-replay',
-    route: '/retorno',
-    roles: ['ADMIN', 'SUPERVISOR'],
-  },
-  { label: 'Mapa de rutas', icon: 'pi pi-map', route: '/mapa' },
-  { label: 'Clientes', icon: 'pi pi-users', route: '/clientes' },
-  {
-    label: 'Caja',
-    icon: 'pi pi-wallet',
-    route: '/caja',
-    roles: ['ADMIN', 'SUPERVISOR'],
-  },
-  {
-    label: 'Contabilidad',
-    icon: 'pi pi-calculator',
-    route: '/contabilidad',
-    roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
-  },
-  {
-    label: 'Empleados',
-    icon: 'pi pi-id-card',
-    route: '/empleados',
-    roles: ['ADMIN', 'SUPERVISOR'],
-    children: [
-      { label: 'Empleados', route: '/empleados/lista' },
-      { label: 'Puestos', route: '/empleados/puestos' },
+    label: 'Operación',
+    items: [
+      {
+        label: 'Despacho',
+        icon: 'pi pi-box',
+        route: '/despacho',
+        roles: ['ADMIN', 'SUPERVISOR'],
+      },
+      {
+        label: 'Retorno',
+        icon: 'pi pi-replay',
+        route: '/retorno',
+        roles: ['ADMIN', 'SUPERVISOR'],
+      },
+      { label: 'Mapa de rutas', icon: 'pi pi-map', route: '/mapa' },
+      {
+        label: 'Caja',
+        icon: 'pi pi-wallet',
+        route: '/caja',
+        roles: ['ADMIN', 'SUPERVISOR'],
+      },
     ],
   },
   {
-    label: 'Reportes',
-    icon: 'pi pi-chart-bar',
-    route: '/reportes',
-    roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
-    children: [
-      { label: 'Ventas', route: '/reportes/ventas' },
-      { label: 'Caja', route: '/reportes/caja' },
-      { label: 'Inventario', route: '/reportes/inventario' },
+    label: 'Comercial',
+    items: [
+      { label: 'Clientes', icon: 'pi pi-users', route: '/clientes' },
+      {
+        label: 'Contabilidad',
+        icon: 'pi pi-calculator',
+        route: '/contabilidad',
+        roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
+      },
+      {
+        label: 'Reportes',
+        icon: 'pi pi-chart-bar',
+        route: '/reportes',
+        roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
+        children: [
+          { label: 'Ventas', route: '/reportes/ventas' },
+          { label: 'Caja', route: '/reportes/caja' },
+          { label: 'Inventario', route: '/reportes/inventario' },
+        ],
+      },
     ],
   },
   {
-    label: 'Productos',
-    icon: 'pi pi-shopping-bag',
-    route: '/productos',
-    roles: ['ADMIN', 'SUPERVISOR'],
-  },
-  {
-    label: 'Inventario',
-    icon: 'pi pi-inbox',
-    route: '/inventario',
-    roles: ['ADMIN', 'SUPERVISOR'],
-  },
-  {
-    label: 'Catálogos',
-    icon: 'pi pi-tags',
-    route: '/catalogos',
-    roles: ['ADMIN', 'SUPERVISOR'],
-    children: [
-      { label: 'Categorías de producto', route: '/catalogos/categorias-producto' },
-      { label: 'Presentaciones', route: '/catalogos/presentaciones' },
-      { label: 'Zonas', route: '/catalogos/zonas' },
-      { label: 'Categorías de gasto', route: '/catalogos/categorias-gasto' },
-      { label: 'Motivos de retorno', route: '/catalogos/motivos-retorno' },
+    label: 'Catálogo',
+    items: [
+      {
+        label: 'Productos',
+        icon: 'pi pi-shopping-bag',
+        route: '/productos',
+        roles: ['ADMIN', 'SUPERVISOR'],
+      },
+      {
+        label: 'Inventario',
+        icon: 'pi pi-inbox',
+        route: '/inventario',
+        roles: ['ADMIN', 'SUPERVISOR'],
+      },
+      {
+        label: 'Catálogos',
+        icon: 'pi pi-tags',
+        route: '/catalogos',
+        roles: ['ADMIN', 'SUPERVISOR'],
+        children: [
+          { label: 'Categorías de producto', route: '/catalogos/categorias-producto' },
+          { label: 'Presentaciones', route: '/catalogos/presentaciones' },
+          { label: 'Zonas', route: '/catalogos/zonas' },
+          { label: 'Categorías de gasto', route: '/catalogos/categorias-gasto' },
+          { label: 'Motivos de retorno', route: '/catalogos/motivos-retorno' },
+        ],
+      },
     ],
   },
   {
-    label: 'Usuarios y roles',
-    icon: 'pi pi-shield',
-    route: '/usuarios',
-    roles: ['ADMIN'],
+    label: 'Administración',
+    items: [
+      {
+        label: 'Empleados',
+        icon: 'pi pi-id-card',
+        route: '/empleados',
+        roles: ['ADMIN', 'SUPERVISOR'],
+        children: [
+          { label: 'Empleados', route: '/empleados/lista' },
+          { label: 'Puestos', route: '/empleados/puestos' },
+        ],
+      },
+      {
+        label: 'Usuarios y roles',
+        icon: 'pi pi-shield',
+        route: '/usuarios',
+        roles: ['ADMIN'],
+      },
+    ],
   },
 ] as const;
