@@ -1,9 +1,33 @@
 <div class="flex flex-col gap-8">
   <div class="flex flex-col gap-1">
-    <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Reporte de inventario</h2>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Reporte de inventario</h2>
+
+      <div class="ml-auto flex items-center gap-2">
+        <p-button
+          class="sm:hidden"
+          icon="pi pi-download"
+          [rounded]="true"
+          [loading]="exporting()"
+          (onClick)="exportReport()"
+          ariaLabel="Descargar reporte"
+        />
+        <p-button
+          class="hidden sm:inline-flex"
+          label="Descargar reporte"
+          icon="pi pi-download"
+          [loading]="exporting()"
+          (onClick)="exportReport()"
+        />
+      </div>
+    </div>
     <p class="text-sm text-ink-soft">
       Existencias de bodega, kardex por producto y el stock que carga cada vendedor.
     </p>
+
+    @if (exportError(); as message) {
+      <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+    }
   </div>
 
   <!-- Warehouse stock -->
