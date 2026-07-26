@@ -1,12 +1,13 @@
 /**
- * Parsers for the report filters carried in the URL.
+ * Parsers for filters carried in the URL (report pages, the dashboard, any
+ * page using the URL-as-source-of-truth pattern for its filters).
  *
  * Query params are user input — they get typed, pasted and shared — so every
  * value is validated here before it can reach the API. Anything unparseable
  * degrades to "no filter" instead of being forwarded blindly.
  */
 
-import type { DateRange } from '../../../shared/utils/date-range';
+import type { DateRange } from './date-range';
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_PATTERN =

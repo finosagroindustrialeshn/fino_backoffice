@@ -38,7 +38,7 @@ import {
   type ExcelCellSpec,
   type ExcelSheetSpec,
 } from '../../../../shared/utils/excel-export';
-import { parseBool, parseRange, parseUuid } from '../../utils/report-params';
+import { parseBool, parseRange, parseUuid } from '../../../../shared/utils/query-params';
 
 interface Option {
   readonly label: string;

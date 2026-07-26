@@ -18,7 +18,7 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 
 import { formatDay, type DateRange } from '../../../../shared/utils/date-range';
-import { parseRange, parseUuid } from '../../../reports/utils/report-params';
+import { parseRange, parseUuid } from '../../../../shared/utils/query-params';
 import { SALE_STATUS_LABELS } from '../../../sales/models/sale.model';
 import type { Sale, SaleStatus } from '../../../sales/models/sale.model';
 import {

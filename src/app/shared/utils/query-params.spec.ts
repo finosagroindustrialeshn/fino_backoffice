@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDay } from '../../../shared/utils/date-range';
-import { parseBool, parseDay, parseOneOf, parseRange, parseUuid } from './report-params';
+import { formatDay } from './date-range';
+import { parseBool, parseDay, parseOneOf, parseRange, parseUuid } from './query-params';
 
 describe('parseDay', () => {
   it('parses a YYYY-MM-DD string into that local calendar day', () => {

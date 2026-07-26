@@ -38,7 +38,7 @@ import {
 } from '../../models/cash-report.model';
 import { ReportsCashDataClient } from '../../services/reports-cash-data';
 import { validateCashRange } from '../../utils/date-range';
-import { parseRange } from '../../utils/report-params';
+import { parseRange } from '../../../../shared/utils/query-params';
 
 /** Owners are a bounded lookup used to name the arqueo lines. */
 const LOOKUP_SIZE = 100;

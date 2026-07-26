@@ -42,7 +42,7 @@ import {
   parseOneOf,
   parseRange,
   parseUuid,
-} from '../../utils/report-params';
+} from '../../../../shared/utils/query-params';
 
 type SummaryState =
   | { readonly status: 'loading' }
