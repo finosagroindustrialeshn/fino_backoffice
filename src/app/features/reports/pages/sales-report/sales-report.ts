@@ -19,9 +19,15 @@ import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { Table, TableModule } from 'primeng/table';
 
+import { fetchAllPages } from '../../../../core/http/fetch-all-pages';
 import { LazyList } from '../../../../core/http/lazy-list';
 import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
 import { formatDay, lastNDays, type DateRange } from '../../../../shared/utils/date-range';
+import {
+  exportToExcel,
+  type ExcelCellSpec,
+  type ExcelSheetSpec,
+} from '../../../../shared/utils/excel-export';
 import { UserDataClient } from '../../../users/services/user-data';
 import {
   SALES_CHANNEL_LABELS,
@@ -45,6 +51,8 @@ type SummaryState =
 
 /** Sellers are a bounded lookup used only to populate the filter dropdown. */
 const LOOKUP_SIZE = 100;
+/** Max page size the API allows — used to page through export data in as few round-trips as possible. */
+const EXPORT_PAGE_SIZE = 100;
 /** Window used when the URL carries no range. */
 const DEFAULT_RANGE_DAYS = 30;
 
@@ -134,6 +142,8 @@ export class SalesReport implements OnInit {
   ]);
 
   protected readonly summaryState = signal<SummaryState>({ status: 'loading' });
+  protected readonly exporting = signal(false);
+  protected readonly exportError = signal<string | null>(null);
 
   // Annotated explicitly: the fetcher reads back this.productList.sortOrder(),
   // which would otherwise make the type circular.
@@ -222,6 +232,149 @@ export class SalesReport implements OnInit {
     void this.loadSummary();
     this.productTable().reset();
     this.sellerTable().reset();
+  }
+
+  /**
+   * Exports the full report — not just the current page of either table —
+   * as a 3-sheet workbook (Resumen, Por producto, Por vendedor). The module
+   * that writes the .xlsx has no calculation logic of its own, so every
+   * number here is already final by the time it's handed off.
+   */
+  protected async exportReport(): Promise<void> {
+    this.exporting.set(true);
+    this.exportError.set(null);
+    try {
+      const [products, sellers] = await Promise.all([
+        this.fetchAllProducts(),
+        this.fetchAllSellers(),
+      ]);
+      const summary = this.summaryState();
+
+      await exportToExcel({
+        fileName: `reporte-ventas-${formatDay(new Date())}`,
+        sheets: [
+          this.buildSummarySheet(summary.status === 'success' ? summary.summary : null),
+          this.buildProductSheet(products),
+          this.buildSellerSheet(sellers),
+        ],
+      });
+    } catch (error) {
+      this.exportError.set(toMessage(error, 'No se pudo generar el reporte.'));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
+  private fetchAllProducts(): Promise<readonly ProductSalesRow[]> {
+    return fetchAllPages(
+      (page, pageSize) =>
+        this.reports.byProduct({
+          page,
+          pageSize,
+          ...this.range(),
+          sortBy: this.productSortBy(),
+          sortDir: this.productList.sortOrder() ?? 'desc',
+        }),
+      EXPORT_PAGE_SIZE,
+    );
+  }
+
+  private fetchAllSellers(): Promise<readonly SellerSalesRow[]> {
+    return fetchAllPages(
+      (page, pageSize) =>
+        this.reports.bySeller({
+          page,
+          pageSize,
+          ...this.range(),
+          sortDir: this.sellerList.sortOrder() ?? 'desc',
+        }),
+      EXPORT_PAGE_SIZE,
+    );
+  }
+
+  private buildSummarySheet(summary: SalesSummary | null): ExcelSheetSpec {
+    const { dateFrom, dateTo } = this.range();
+    const money = '"L "#,##0.00';
+    const cells: ExcelCellSpec[] = [
+      { ref: 'A1', value: 'Reporte de ventas', bold: true },
+      { ref: 'A2', value: `Del ${dateFrom || '—'} al ${dateTo || '—'}` },
+    ];
+
+    if (summary) {
+      const rows: readonly [string, number][] = [
+        ['Total vendido', summary.totalAmount],
+        ['Ticket promedio', summary.averageTicket],
+        ['Cobrado', summary.totalCollected],
+        ['Por cobrar', summary.totalOutstanding],
+        ['Contado', summary.cash.amount],
+        ['Crédito', summary.credit.amount],
+        ['Campo', summary.field.amount],
+        ['Tienda', summary.store.amount],
+      ];
+      rows.forEach(([label, value], index) => {
+        const row = index + 4;
+        cells.push(
+          { ref: `A${row}`, value: label, bold: true },
+          { ref: `B${row}`, value, numberFormat: money, align: 'right' },
+        );
+      });
+    } else {
+      cells.push({ ref: 'A4', value: 'Sin datos para el período seleccionado.' });
+    }
+
+    return { name: 'Resumen', cells, columnWidths: { A: 22, B: 18 } };
+  }
+
+  private buildProductSheet(products: readonly ProductSalesRow[]): ExcelSheetSpec {
+    const cells: ExcelCellSpec[] = [
+      { ref: 'A1', value: 'Producto', bold: true },
+      { ref: 'B1', value: 'Unidades', bold: true },
+      { ref: 'C1', value: 'Ingresos', bold: true },
+    ];
+    products.forEach((product, index) => {
+      const row = index + 2;
+      cells.push(
+        { ref: `A${row}`, value: product.productName },
+        { ref: `B${row}`, value: product.unitsSold, align: 'right' },
+        {
+          ref: `C${row}`,
+          value: product.revenue,
+          numberFormat: '"L "#,##0.00',
+          align: 'right',
+        },
+      );
+    });
+    return {
+      name: 'Por producto',
+      cells,
+      columnWidths: { A: 32, B: 12, C: 16 },
+    };
+  }
+
+  private buildSellerSheet(sellers: readonly SellerSalesRow[]): ExcelSheetSpec {
+    const money = '"L "#,##0.00';
+    const cells: ExcelCellSpec[] = [
+      { ref: 'A1', value: 'Vendedor', bold: true },
+      { ref: 'B1', value: 'Ventas', bold: true },
+      { ref: 'C1', value: 'Contado', bold: true },
+      { ref: 'D1', value: 'Crédito', bold: true },
+      { ref: 'E1', value: 'Total', bold: true },
+    ];
+    sellers.forEach((seller, index) => {
+      const row = index + 2;
+      cells.push(
+        { ref: `A${row}`, value: seller.sellerName || this.sellerName(seller.sellerId) },
+        { ref: `B${row}`, value: seller.saleCount, align: 'right' },
+        { ref: `C${row}`, value: seller.cash.amount, numberFormat: money, align: 'right' },
+        { ref: `D${row}`, value: seller.credit.amount, numberFormat: money, align: 'right' },
+        { ref: `E${row}`, value: seller.total, numberFormat: money, align: 'right' },
+      );
+    });
+    return {
+      name: 'Por vendedor',
+      cells,
+      columnWidths: { A: 26, B: 10, C: 16, D: 16, E: 16 },
+    };
   }
 
   protected async loadSummary(): Promise<void> {
