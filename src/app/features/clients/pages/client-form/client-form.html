@@ -8,6 +8,19 @@
     Volver a clientes
   </a>
 
+  @if (client(); as loaded) {
+    <div class="flex flex-wrap items-baseline gap-3">
+      <h1 class="font-heading text-2xl font-bold text-ink">{{ loaded.name }}</h1>
+      <!-- A label, not a key: shown so it can be dictated, never sent as an id. -->
+      <span
+        class="rounded-lg bg-ink/5 px-2 py-1 font-mono text-sm text-ink-soft"
+        aria-label="Código del cliente"
+      >
+        {{ loaded.code }}
+      </span>
+    </div>
+  }
+
   @if (loadError(); as message) {
     <div
       role="alert"
@@ -135,6 +148,44 @@
           </div>
         </div>
 
+        <!-- RTN — optional, digits only, leading zeros preserved -->
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="client-rtn"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            RTN <span class="normal-case text-ink-soft/70">(opcional)</span>
+          </label>
+          <input
+            pInputText
+            id="client-rtn"
+            formControlName="rtn"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="0801-1990-123456"
+            class="w-full"
+            aria-describedby="client-rtn-help"
+            [attr.aria-invalid]="
+              form.controls.rtn.invalid && form.controls.rtn.touched
+            "
+          />
+          @if (form.controls.rtn.touched && form.controls.rtn.hasError('rtnDigits')) {
+            <span class="text-xs text-red-600" role="alert">
+              El RTN solo admite dígitos (podés separarlos con guiones).
+            </span>
+          } @else if (
+            form.controls.rtn.touched && form.controls.rtn.hasError('rtnTooLong')
+          ) {
+            <span class="text-xs text-red-600" role="alert">
+              El RTN no puede tener más de {{ rtnMaxDigits }} dígitos.
+            </span>
+          } @else {
+            <span id="client-rtn-help" class="text-xs text-ink-soft">
+              Dejalo vacío si el cliente no está registrado ante el SAR.
+            </span>
+          }
+        </div>
+
         <!-- Address -->
         <div class="flex flex-col gap-1.5">
           <label
@@ -167,6 +218,31 @@
             class="w-full"
           ></textarea>
         </div>
+
+        <!-- Cartera ownership — ADMIN/SUPERVISOR only -->
+        @if (canAssignSeller()) {
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="client-assigned-seller"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Vendedor asignado
+            </label>
+            <p-select
+              inputId="client-assigned-seller"
+              formControlName="assignedSellerId"
+              [options]="sellerOptions()"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Sin asignar"
+              styleClass="w-full"
+            />
+            <span class="text-xs text-ink-soft">
+              Quién atiende este cliente. Sin asignar queda disponible para
+              entregarlo después.
+            </span>
+          </div>
+        }
       </div>
 
       <!-- Right: location -->
@@ -233,6 +309,99 @@
           </div>
         </div>
       </div>
+
+      <!-- Last purchase — read-only, only exists for a saved client -->
+      @if (client(); as loaded) {
+        <section
+          class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6 lg:col-span-2"
+          aria-labelledby="last-purchase-heading"
+        >
+          <h2
+            id="last-purchase-heading"
+            class="text-sm font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Última compra
+          </h2>
+
+          @if (loaded.lastPurchase; as purchase) {
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <div class="flex flex-col">
+                <span class="text-xs text-ink-soft">Fecha</span>
+                <span class="text-sm font-medium text-ink">
+                  {{ purchase.date | date: 'dd/MM/yyyy' }}
+                </span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-xs text-ink-soft">Total</span>
+                <span class="text-sm font-medium text-ink">
+                  {{ purchase.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-xs text-ink-soft">Saldo pendiente</span>
+                <span
+                  class="text-sm font-medium"
+                  [class.text-red-600]="purchase.balanceDue > 0"
+                  [class.text-ink]="purchase.balanceDue === 0"
+                >
+                  {{ purchase.balanceDue | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </span>
+              </div>
+              <p-tag
+                [value]="lastPurchaseLabel(purchase.status)"
+                [severity]="lastPurchaseSeverity(purchase.status)"
+              />
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <caption class="sr-only">
+                  Productos de la última compra
+                </caption>
+                <thead>
+                  <tr class="border-b border-ink/10 text-left text-ink-soft">
+                    <th scope="col" class="py-2 pr-4 font-medium">Producto</th>
+                    <th scope="col" class="py-2 pr-4 text-right font-medium">
+                      Cantidad
+                    </th>
+                    <th scope="col" class="py-2 pr-4 text-right font-medium">
+                      Precio unit.
+                    </th>
+                    <th scope="col" class="py-2 text-right font-medium">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of purchase.items; track line.productId) {
+                    <tr class="border-b border-ink/5 last:border-0">
+                      <td class="py-2 pr-4 text-ink">{{ line.productName }}</td>
+                      <td class="py-2 pr-4 text-right text-ink">
+                        {{ line.quantity }}
+                      </td>
+                      <td class="py-2 pr-4 text-right text-ink-soft">
+                        {{ line.unitPrice | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </td>
+                      <td class="py-2 text-right font-medium text-ink">
+                        {{ line.subtotal | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="4" class="py-4 text-center text-ink-soft">
+                        La venta no tiene productos registrados.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <!-- Normal for a newly registered client — never an error state. -->
+            <p class="text-sm text-ink-soft">
+              Este cliente todavía no ha realizado compras.
+            </p>
+          }
+        </section>
+      }
 
       <!-- Actions -->
       <div class="flex items-center justify-end gap-2 lg:col-span-2">

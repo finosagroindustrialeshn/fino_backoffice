@@ -7,16 +7,28 @@ import type {
   PaginationQuery,
   SortOrder,
 } from '../../../core/http/pagination.model';
-import type { Client, ClientPayload } from '../models/client.model';
+import type {
+  Client,
+  ClientDetail,
+  ClientPayload,
+} from '../models/client.model';
 
 /** Fields the API can sort the client list by. */
 export type ClientSortBy = 'name' | 'createdAt';
 
 export interface ClientListQuery extends PaginationQuery {
-  /** Case-insensitive search over name, contact, phone and address. */
+  /**
+   * Case-insensitive search over code, name, contact, phone and address.
+   * A client code (CLI-0042) is matched first, so it wins over addresses
+   * that merely contain the same digits.
+   */
   readonly search?: string;
-  /** Filter by the seller who registered the client. */
+  /** Filter by the seller who registered the client (audit trail). */
   readonly createdById?: string;
+  /** Filter by the seller who owns the client. Ignored by the API for a SELLER. */
+  readonly assignedSellerId?: string;
+  /** Only clients with no seller assigned yet. Takes precedence over assignedSellerId. */
+  readonly unassignedOnly?: boolean;
   readonly isActive?: boolean;
   readonly sortBy?: ClientSortBy;
   readonly sortOrder?: SortOrder;
@@ -40,6 +52,12 @@ export class ClientDataClient {
     if (query.createdById) {
       params['createdById'] = query.createdById;
     }
+    if (query.assignedSellerId) {
+      params['assignedSellerId'] = query.assignedSellerId;
+    }
+    if (query.unassignedOnly) {
+      params['unassignedOnly'] = true;
+    }
     if (query.isActive !== undefined) {
       params['isActive'] = query.isActive;
     }
@@ -52,8 +70,9 @@ export class ClientDataClient {
     return this.api.get<Paginated<Client>>('/clients', params as QueryParams);
   }
 
-  get(id: string): Observable<Client> {
-    return this.api.get<Client>(`/clients/${id}`);
+  /** Not scoped to the caller's cartera — any client can be opened by id. */
+  get(id: string): Observable<ClientDetail> {
+    return this.api.get<ClientDetail>(`/clients/${id}`);
   }
 
   create(dto: ClientPayload): Observable<Client> {

@@ -1,3 +1,4 @@
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,17 +19,38 @@ import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
+import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
+import { AuthSession } from '../../../../core/auth/auth-session';
 import { ImageDropzone } from '../../../../shared/components/image-dropzone/image-dropzone';
 import {
   LocationPicker,
   type Coordinates,
 } from '../../../../shared/components/location-picker/location-picker';
-import type { Client, ClientPayload } from '../../models/client.model';
+import { UserDataClient } from '../../../users/services/user-data';
+import {
+  LAST_PURCHASE_STATUS_LABELS,
+  LAST_PURCHASE_STATUS_SEVERITY,
+  RTN_MAX_DIGITS,
+  stripRtnSeparators,
+  type ClientDetail,
+  type ClientPayload,
+  type LastPurchaseStatus,
+  type LastPurchaseStatusSeverity,
+} from '../../models/client.model';
 import { ClientDataClient } from '../../services/client-data';
 import { ClientImageStorage } from '../../services/client-image-storage';
+
+/** Sellers are a bounded lookup for the "assigned seller" picker. */
+const LOOKUP_SIZE = 100;
+
+interface SelectOption<T> {
+  readonly label: string;
+  readonly value: T;
+}
 
 /** A client must be pinned to a real point — reject the unset 0,0 origin. */
 function locationRequired(group: AbstractControl): ValidationErrors | null {
@@ -37,9 +59,28 @@ function locationRequired(group: AbstractControl): ValidationErrors | null {
   return lat === 0 && lng === 0 ? { locationRequired: true } : null;
 }
 
+/**
+ * RTN is optional, digits only, and capped by DIGIT count — not by character
+ * count. The API accepts `0801-1990-123456` and strips the dashes, so a plain
+ * 20-char cap would truncate a separated RTN before its last digits.
+ */
+function rtnFormat(control: AbstractControl): ValidationErrors | null {
+  const raw = String(control.value ?? '').trim();
+  if (raw.length === 0) {
+    return null;
+  }
+  const digits = stripRtnSeparators(raw);
+  if (!/^\d+$/.test(digits)) {
+    return { rtnDigits: true };
+  }
+  return digits.length > RTN_MAX_DIGITS ? { rtnTooLong: true } : null;
+}
+
 @Component({
   selector: 'app-client-form',
   imports: [
+    CurrencyPipe,
+    DatePipe,
     ReactiveFormsModule,
     RouterLink,
     ButtonModule,
@@ -47,7 +88,9 @@ function locationRequired(group: AbstractControl): ValidationErrors | null {
     InputNumberModule,
     InputTextModule,
     LocationPicker,
+    SelectModule,
     SkeletonModule,
+    TagModule,
     TextareaModule,
   ],
   templateUrl: './client-form.html',
@@ -57,11 +100,27 @@ export class ClientForm implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly clients = inject(ClientDataClient);
+  private readonly users = inject(UserDataClient);
+  private readonly auth = inject(AuthSession);
   private readonly storage = inject(ClientImageStorage);
   private readonly fb = inject(NonNullableFormBuilder);
 
   protected readonly clientId = signal<string | null>(null);
   protected readonly isEdit = computed(() => this.clientId() !== null);
+  protected readonly rtnMaxDigits = RTN_MAX_DIGITS;
+
+  /** Reassigning a cartera is ADMIN/SUPERVISOR only — a SELLER always owns what they register. */
+  protected readonly canAssignSeller = computed(() => {
+    const role = this.auth.role();
+    return role === 'ADMIN' || role === 'SUPERVISOR';
+  });
+
+  /** The loaded client, kept for read-only detail (code, last purchase). */
+  protected readonly client = signal<ClientDetail | null>(null);
+
+  protected readonly sellerOptions = signal<SelectOption<string | null>[]>([
+    { label: 'Sin asignar', value: null },
+  ]);
 
   protected readonly loading = signal(false);
   protected readonly loadError = signal<string | null>(null);
@@ -84,19 +143,42 @@ export class ClientForm implements OnInit {
       name: this.fb.control('', [Validators.required]),
       contactName: this.fb.control('', [Validators.required]),
       phone: this.fb.control('', [Validators.required]),
+      // Optional: most clients a seller visits are not registered taxpayers.
+      rtn: this.fb.control('', [rtnFormat]),
       address: this.fb.control(''),
       notes: this.fb.control(''),
       latitude: this.fb.control(0),
       longitude: this.fb.control(0),
+      assignedSellerId: this.fb.control<string | null>(null),
     },
     { validators: locationRequired },
   );
 
   ngOnInit(): void {
+    if (this.canAssignSeller()) {
+      void this.loadSellers();
+    }
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.clientId.set(id);
       void this.loadClient(id);
+    }
+  }
+
+  private async loadSellers(): Promise<void> {
+    try {
+      const result = await firstValueFrom(
+        this.users.list({ role: 'SELLER', pageSize: LOOKUP_SIZE }),
+      );
+      this.sellerOptions.set([
+        { label: 'Sin asignar', value: null },
+        ...result.items.map((user) => ({
+          label: user.fullName,
+          value: user.id,
+        })),
+      ]);
+    } catch {
+      // Picker keeps only "unassigned" if the lookup fails.
     }
   }
 
@@ -115,15 +197,18 @@ export class ClientForm implements OnInit {
     }
   }
 
-  private fill(client: Client): void {
+  private fill(client: ClientDetail): void {
+    this.client.set(client);
     this.form.reset({
       name: client.name,
       contactName: client.contactName ?? '',
       phone: client.phone ?? '',
+      rtn: client.rtn ?? '',
       address: client.address ?? '',
       notes: client.notes ?? '',
       latitude: client.latitude,
       longitude: client.longitude,
+      assignedSellerId: client.assignedSellerId,
     });
     this.mapLat.set(client.latitude);
     this.mapLng.set(client.longitude);
@@ -188,11 +273,18 @@ export class ClientForm implements OnInit {
         name: raw.name.trim(),
         contactName: this.emptyToNull(raw.contactName),
         phone: this.emptyToNull(raw.phone),
+        // Send digits only so what we store matches what the API echoes back.
+        rtn: this.emptyToNull(stripRtnSeparators(raw.rtn)),
         address: this.emptyToNull(raw.address),
         notes: this.emptyToNull(raw.notes),
         latitude: raw.latitude,
         longitude: raw.longitude,
         imageUrl,
+        // A SELLER may not assign — the API always makes them the owner, and
+        // sending the field at all would be rejected as CLIENT_REASSIGN_FORBIDDEN.
+        ...(this.canAssignSeller()
+          ? { assignedSellerId: raw.assignedSellerId }
+          : {}),
       };
 
       const id = this.clientId();
@@ -211,6 +303,16 @@ export class ClientForm implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  protected lastPurchaseLabel(status: LastPurchaseStatus): string {
+    return LAST_PURCHASE_STATUS_LABELS[status];
+  }
+
+  protected lastPurchaseSeverity(
+    status: LastPurchaseStatus,
+  ): LastPurchaseStatusSeverity {
+    return LAST_PURCHASE_STATUS_SEVERITY[status];
   }
 
   private emptyToNull(value: string): string | null {
