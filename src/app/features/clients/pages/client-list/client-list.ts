@@ -1,6 +1,8 @@
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   OnInit,
   signal,
@@ -22,16 +24,28 @@ import { TagModule } from 'primeng/tag';
 import { AuthSession } from '../../../../core/auth/auth-session';
 import { LazyList } from '../../../../core/http/lazy-list';
 import { UserDataClient } from '../../../users/services/user-data';
-import type { Client } from '../../models/client.model';
+import { ClientDetailDialog } from '../../components/client-detail-dialog/client-detail-dialog';
+import {
+  LAST_PURCHASE_STATUS_LABELS,
+  LAST_PURCHASE_STATUS_SEVERITY,
+  type Client,
+  type LastPurchaseStatus,
+  type LastPurchaseStatusSeverity,
+} from '../../models/client.model';
 import {
   ClientDataClient,
   type ClientSortBy,
 } from '../../services/client-data';
 
-/** Sellers are a bounded lookup for the "registered by" filter. */
+/** Sellers are a bounded lookup for the "assigned seller" filter. */
 const LOOKUP_SIZE = 100;
 /** Delay before a keystroke turns into a search request. */
 const SEARCH_DEBOUNCE_MS = 350;
+/**
+ * Sentinel for the seller filter: clients nobody owns yet. Not a seller id —
+ * it maps to the API's `unassignedOnly` flag rather than `assignedSellerId`.
+ */
+const UNASSIGNED = '__unassigned__';
 
 interface SelectOption<T> {
   readonly label: string;
@@ -41,9 +55,12 @@ interface SelectOption<T> {
 @Component({
   selector: 'app-client-list',
   imports: [
+    CurrencyPipe,
+    DatePipe,
     FormsModule,
     RouterLink,
     ButtonModule,
+    ClientDetailDialog,
     ConfirmDialogModule,
     InputTextModule,
     SelectModule,
@@ -68,11 +85,19 @@ export class ClientList implements OnInit {
   protected readonly searchTerm = signal('');
   private readonly appliedSearch = signal('');
   protected readonly sellerFilter = signal<string | null>(null);
+  /** The sentinel never travels as a seller id — it becomes `unassignedOnly`. */
+  private readonly assignedSellerFilter = computed(() => {
+    const selected = this.sellerFilter();
+    return selected && selected !== UNASSIGNED ? selected : undefined;
+  });
   protected readonly activeFilter = signal<boolean | null>(null);
   private searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly sellerFilterOptions = signal<SelectOption<string | null>[]>(
-    [{ label: 'Todos los vendedores', value: null }],
+    [
+      { label: 'Todos los vendedores', value: null },
+      { label: 'Sin asignar', value: UNASSIGNED },
+    ],
   );
   protected readonly activeFilterOptions: SelectOption<boolean | null>[] = [
     { label: 'Todos los estados', value: null },
@@ -86,7 +111,8 @@ export class ClientList implements OnInit {
         page,
         pageSize,
         search: this.appliedSearch() || undefined,
-        createdById: this.sellerFilter() ?? undefined,
+        assignedSellerId: this.assignedSellerFilter(),
+        unassignedOnly: this.sellerFilter() === UNASSIGNED || undefined,
         isActive: this.activeFilter() ?? undefined,
         sortBy: (this.list.sortField() as ClientSortBy | null) ?? undefined,
         sortOrder: this.list.sortOrder() ?? undefined,
@@ -96,6 +122,23 @@ export class ClientList implements OnInit {
 
   private readonly pendingIds = signal<ReadonlySet<string>>(new Set());
   private readonly rowErrors = signal<Readonly<Record<string, string>>>({});
+
+  // Detail dialog
+  protected readonly detailVisible = signal(false);
+  protected readonly detailClientId = signal<string | null>(null);
+  /** Seller names by id, so the dialog shows a name instead of a uuid. */
+  protected readonly sellerNames = computed(() =>
+    Object.fromEntries(
+      this.sellerFilterOptions()
+        .filter((option) => option.value !== null && option.value !== UNASSIGNED)
+        .map((option) => [option.value as string, option.label]),
+    ),
+  );
+
+  protected openDetail(client: Client): void {
+    this.detailClientId.set(client.id);
+    this.detailVisible.set(true);
+  }
 
   ngOnInit(): void {
     void this.loadSellers();
@@ -129,6 +172,7 @@ export class ClientList implements OnInit {
       );
       this.sellerFilterOptions.set([
         { label: 'Todos los vendedores', value: null },
+        { label: 'Sin asignar', value: UNASSIGNED },
         ...result.items.map((user) => ({
           label: user.fullName,
           value: user.id,
@@ -137,6 +181,16 @@ export class ClientList implements OnInit {
     } catch {
       // Filter simply keeps only the "all sellers" option if the lookup fails.
     }
+  }
+
+  protected lastPurchaseLabel(status: LastPurchaseStatus): string {
+    return LAST_PURCHASE_STATUS_LABELS[status];
+  }
+
+  protected lastPurchaseSeverity(
+    status: LastPurchaseStatus,
+  ): LastPurchaseStatusSeverity {
+    return LAST_PURCHASE_STATUS_SEVERITY[status];
   }
 
   protected isPending(id: string): boolean {

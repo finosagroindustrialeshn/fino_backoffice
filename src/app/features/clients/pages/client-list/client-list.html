@@ -43,7 +43,7 @@
         type="search"
         [ngModel]="searchTerm()"
         (input)="onSearchInput($any($event.target).value)"
-        placeholder="Nombre, contacto, teléfono o dirección"
+        placeholder="Código, nombre, contacto, teléfono o dirección"
         class="w-full"
       />
     </div>
@@ -53,7 +53,7 @@
         for="seller-filter"
         class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
       >
-        Registrado por
+        Vendedor asignado
       </label>
       <p-select
         inputId="seller-filter"
@@ -121,11 +121,13 @@
       <ng-template #header>
         <tr class="hidden md:table-row">
           <th scope="col">Foto</th>
+          <th scope="col">Código</th>
           <th scope="col" pSortableColumn="name">
             Nombre <p-sortIcon field="name" />
           </th>
           <th scope="col">Contacto</th>
           <th scope="col">Teléfono</th>
+          <th scope="col">Última compra</th>
           <th scope="col">Estado</th>
           <th scope="col">Acciones</th>
         </tr>
@@ -157,6 +159,10 @@
               </td>
 
               <td class="hidden md:table-cell">
+                <span class="font-mono text-sm text-ink-soft">{{ client.code }}</span>
+              </td>
+
+              <td class="hidden md:table-cell">
                 <span class="font-medium text-ink">{{ client.name }}</span>
                 @if (client.address) {
                   <span class="block max-w-xs truncate text-xs text-ink-soft">
@@ -170,6 +176,30 @@
               <td class="hidden md:table-cell">{{ client.phone ?? '—' }}</td>
 
               <td class="hidden md:table-cell">
+                @if (client.lastPurchase; as purchase) {
+                  <div class="flex flex-col gap-1">
+                    <span class="text-sm font-medium text-ink">
+                      {{ purchase.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </span>
+                    <span class="text-xs text-ink-soft">
+                      {{ purchase.date | date: 'dd/MM/yyyy' }}
+                    </span>
+                    <p-tag
+                      [value]="lastPurchaseLabel(purchase.status)"
+                      [severity]="lastPurchaseSeverity(purchase.status)"
+                    />
+                    @if (purchase.balanceDue > 0) {
+                      <span class="text-xs font-medium text-red-600">
+                        Debe {{ purchase.balanceDue | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </span>
+                    }
+                  </div>
+                } @else {
+                  <span class="text-sm text-ink-soft">Sin compras</span>
+                }
+              </td>
+
+              <td class="hidden md:table-cell">
                 <p-tag
                   [value]="client.isActive ? 'Activo' : 'Inactivo'"
                   [severity]="client.isActive ? 'success' : 'secondary'"
@@ -179,6 +209,14 @@
               <td class="hidden md:table-cell">
                 <div class="flex flex-col gap-2">
                   <div class="flex items-center gap-2">
+                    <p-button
+                      icon="pi pi-eye"
+                      severity="secondary"
+                      [text]="true"
+                      [rounded]="true"
+                      [ariaLabel]="'Ver detalle de ' + client.name"
+                      (onClick)="openDetail(client)"
+                    />
                     <p-button
                       icon="pi pi-pencil"
                       severity="secondary"
@@ -242,6 +280,9 @@
                     </span>
                   }
                   <div class="flex flex-col">
+                    <span class="font-mono text-xs text-ink-soft">
+                      {{ client.code }}
+                    </span>
                     <span class="font-medium text-ink">{{ client.name }}</span>
                     @if (client.address) {
                       <span class="block max-w-xs truncate text-xs text-ink-soft">
@@ -264,8 +305,44 @@
                   />
                 </div>
 
+                <div class="mt-3 border-t border-ink/10 pt-3">
+                  @if (client.lastPurchase; as purchase) {
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="text-xs uppercase tracking-wide text-ink-soft">
+                        Última compra
+                      </span>
+                      <span class="text-sm font-medium text-ink">
+                        {{ purchase.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </span>
+                      <span class="text-xs text-ink-soft">
+                        {{ purchase.date | date: 'dd/MM/yyyy' }}
+                      </span>
+                      <p-tag
+                        [value]="lastPurchaseLabel(purchase.status)"
+                        [severity]="lastPurchaseSeverity(purchase.status)"
+                      />
+                      @if (purchase.balanceDue > 0) {
+                        <span class="text-xs font-medium text-red-600">
+                          Debe
+                          {{ purchase.balanceDue | currency: 'HNL' : 'L ' : '1.2-2' }}
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="text-xs text-ink-soft">Sin compras registradas</span>
+                  }
+                </div>
+
                 <div class="mt-3 flex flex-col gap-2">
                   <div class="flex items-center gap-2">
+                    <p-button
+                      icon="pi pi-eye"
+                      severity="secondary"
+                      [text]="true"
+                      [rounded]="true"
+                      [ariaLabel]="'Ver detalle de ' + client.name"
+                      (onClick)="openDetail(client)"
+                    />
                     <p-button
                       icon="pi pi-pencil"
                       severity="secondary"
@@ -312,7 +389,7 @@
 
       <ng-template #emptymessage>
         <tr>
-          <td colspan="6">
+          <td colspan="8">
             <p class="py-8 text-center text-sm text-ink-soft">
               @if (list.loading()) {
                 Cargando clientes…
@@ -328,3 +405,9 @@
 </div>
 
 <p-confirmDialog />
+
+<app-client-detail-dialog
+  [(visible)]="detailVisible"
+  [clientId]="detailClientId()"
+  [sellerNames]="sellerNames()"
+/>
