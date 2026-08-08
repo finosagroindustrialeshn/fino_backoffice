@@ -1,0 +1,313 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-1">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Rutas</h2>
+      <!-- Below sm the title + full-label button collide; icon-only there. -->
+      <p-button
+        class="ml-auto sm:hidden"
+        icon="pi pi-plus"
+        [rounded]="true"
+        ariaLabel="Nueva ruta"
+        (onClick)="openCreate()"
+      />
+      <p-button
+        class="hidden sm:block"
+        label="Nueva ruta"
+        icon="pi pi-plus"
+        (onClick)="openCreate()"
+      />
+    </div>
+    <p class="text-sm text-ink-soft">
+      Rutas de visita por vendedor, con las paradas que se recorren cada día.
+    </p>
+  </div>
+
+  <!-- Filters -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+    aria-label="Filtros de rutas"
+  >
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="route-seller-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Vendedor
+      </label>
+      <p-select
+        inputId="route-seller-filter"
+        [options]="sellerFilterOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="sellerFilter()"
+        (onChange)="onSellerFilterChange($event.value)"
+        appendTo="body"
+        placeholder="Todos los vendedores"
+        styleClass="w-full sm:w-52"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="route-status-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Estado
+      </label>
+      <p-select
+        inputId="route-status-filter"
+        [options]="statusFilterOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="statusFilter()"
+        (onChange)="onStatusFilterChange($event.value)"
+        appendTo="body"
+        placeholder="Todos los estados"
+        styleClass="w-full sm:w-48"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="route-date-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Rango de fechas
+      </label>
+      <p-datepicker
+        inputId="route-date-filter"
+        selectionMode="range"
+        [ngModel]="dateRange()"
+        (ngModelChange)="onDateRangeChange($event)"
+        [readonlyInput]="true"
+        [showClear]="true"
+        dateFormat="dd/mm/yy"
+        appendTo="body"
+        placeholder="Todas las fechas"
+        styleClass="w-full sm:w-72"
+      />
+    </div>
+  </section>
+
+  @if (list.error(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+      <p-button
+        label="Reintentar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="list.reload()"
+      />
+    </div>
+  }
+
+  <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
+    <p-table
+      #dt
+      [value]="list.items()"
+      [lazy]="true"
+      (onLazyLoad)="list.onLazyLoad($event)"
+      [loading]="list.loading()"
+      [paginator]="true"
+      [rows]="10"
+      [totalRecords]="list.total()"
+      [rowsPerPageOptions]="rowsPerPageOptions"
+      tableStyleClass="min-w-full md:min-w-[52rem]"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+      [showCurrentPageReport]="true"
+    >
+      <!-- Column headers only make sense once fields sit side by side; below
+           md each row renders as a stacked card with its own inline labels. -->
+      <ng-template #header>
+        <tr class="hidden md:table-row">
+          <th scope="col">Fecha</th>
+          <th scope="col">Vendedor</th>
+          <th scope="col">Zona</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Paradas</th>
+          <th scope="col">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-route>
+        <tr
+          class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+        >
+          <!-- Desktop columns -->
+          <td class="hidden md:table-cell">
+            <!-- dayLabel, not DatePipe: the day is stored at UTC midnight and
+                 localizing it would show the previous day in Honduras. -->
+            <a
+              [routerLink]="['/mapa', route.id]"
+              class="whitespace-nowrap font-medium text-ink underline-offset-2 hover:underline"
+            >
+              {{ dayLabel(route.date) }}
+            </a>
+          </td>
+          <td class="hidden md:table-cell">
+            <span class="text-sm text-ink">{{ sellerName(route.sellerId) }}</span>
+          </td>
+          <td class="hidden md:table-cell">
+            <span class="text-sm text-ink-soft">{{ zoneName(route.zoneId) }}</span>
+          </td>
+          <td class="hidden md:table-cell">
+            <p-tag
+              [value]="statusLabel(route.status)"
+              [severity]="statusSeverity(route.status)"
+            />
+          </td>
+          <td class="hidden md:table-cell">
+            <!-- The list endpoint does not guarantee stops — a dash means
+                 "unknown here", not "zero paradas". -->
+            <span class="text-sm text-ink-soft">
+              {{ route.stops?.length ?? '—' }}
+            </span>
+          </td>
+          <td class="hidden md:table-cell">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <p-button
+                  icon="pi pi-map"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  [ariaLabel]="'Ver ruta del ' + dayLabel(route.date)"
+                  [routerLink]="['/mapa', route.id]"
+                />
+                @if (hasTransitions(route.status)) {
+                  <p-button
+                    icon="pi pi-sync"
+                    severity="secondary"
+                    [text]="true"
+                    [rounded]="true"
+                    [loading]="isPending(route.id)"
+                    [ariaLabel]="'Cambiar estado de la ruta del ' + dayLabel(route.date)"
+                    (onClick)="openStatusMenu(route, $event)"
+                  />
+                }
+                @if (canDelete()) {
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(route.id)"
+                    [ariaLabel]="'Eliminar la ruta del ' + dayLabel(route.date)"
+                    (onClick)="confirmDelete(route)"
+                  />
+                }
+              </div>
+              @if (rowError(route.id); as message) {
+                <span class="text-xs text-red-600" role="alert">{{ message }}</span>
+              }
+            </div>
+          </td>
+
+          <!-- Mobile card: one cell, everything laid out by hand -->
+          <td class="block md:hidden">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex flex-col">
+                <a
+                  [routerLink]="['/mapa', route.id]"
+                  class="font-medium text-ink underline-offset-2 hover:underline"
+                >
+                  {{ dayLabel(route.date) }}
+                </a>
+                <span class="text-sm text-ink-soft">
+                  {{ sellerName(route.sellerId) }}
+                </span>
+              </div>
+              <p-tag
+                [value]="statusLabel(route.status)"
+                [severity]="statusSeverity(route.status)"
+              />
+            </div>
+
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+              >
+                <i class="pi pi-map-marker text-[10px]" aria-hidden="true"></i>
+                {{ zoneName(route.zoneId) }}
+              </span>
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+              >
+                <i class="pi pi-flag text-[10px]" aria-hidden="true"></i>
+                Paradas: {{ route.stops?.length ?? '—' }}
+              </span>
+            </div>
+
+            <div class="mt-3 flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <p-button
+                  icon="pi pi-map"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  [ariaLabel]="'Ver ruta del ' + dayLabel(route.date)"
+                  [routerLink]="['/mapa', route.id]"
+                />
+                @if (hasTransitions(route.status)) {
+                  <p-button
+                    icon="pi pi-sync"
+                    severity="secondary"
+                    [text]="true"
+                    [rounded]="true"
+                    [loading]="isPending(route.id)"
+                    [ariaLabel]="'Cambiar estado de la ruta del ' + dayLabel(route.date)"
+                    (onClick)="openStatusMenu(route, $event)"
+                  />
+                }
+                @if (canDelete()) {
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    [disabled]="isPending(route.id)"
+                    [ariaLabel]="'Eliminar la ruta del ' + dayLabel(route.date)"
+                    (onClick)="confirmDelete(route)"
+                  />
+                }
+              </div>
+              @if (rowError(route.id); as message) {
+                <span class="text-xs text-red-600" role="alert">{{ message }}</span>
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="6">
+            <p class="py-8 text-center text-sm text-ink-soft">
+              @if (list.loading()) {
+                Cargando rutas…
+              } @else {
+                No hay rutas registradas.
+              }
+            </p>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- One shared popup for every row; its items follow the row that opened it. -->
+<p-menu #statusMenu [model]="statusMenuItems()" [popup]="true" appendTo="body" />
+
+<p-confirmDialog />
+
+<app-route-form-dialog
+  [(visible)]="createOpen"
+  [sellers]="sellerOptions()"
+  [zones]="zoneOptions()"
+  (created)="onRouteCreated($event)"
+/>
