@@ -1,0 +1,88 @@
+@switch (status()) {
+  @case ('ready') {
+    <div class="relative overflow-hidden rounded-2xl border border-ink/10">
+      <google-map
+        height="400px"
+        width="100%"
+        [center]="defaultCenter"
+        [zoom]="defaultZoom"
+        [options]="mapOptions"
+        (mapInitialized)="onMapInitialized($event)"
+      >
+        @for (marker of markers(); track marker.stopId) {
+          <map-advanced-marker
+            [position]="marker.position"
+            [title]="marker.title"
+            [content]="marker.content"
+            [zIndex]="marker.zIndex"
+            (mapClick)="stopSelected.emit(marker.stopId)"
+          />
+        }
+      </google-map>
+
+      <!-- On-map card for pointer users. The stop list mirrors the same
+           selection, so nothing here is the only way to reach the data. -->
+      @if (selectedStop(); as stop) {
+        <div
+          class="absolute inset-x-3 bottom-3 flex items-start gap-3 rounded-xl border border-ink/10 bg-white/95 p-3 shadow-lg sm:max-w-sm"
+        >
+          <span
+            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white"
+            aria-hidden="true"
+          >
+            {{ stop.sortOrder }}
+          </span>
+
+          <div class="flex min-w-0 flex-col gap-0.5">
+            <p class="truncate font-semibold text-ink">{{ stop.client.name }}</p>
+            <p class="font-mono text-xs text-ink-soft">{{ stop.client.code }}</p>
+            @if (stop.client.address) {
+              <p class="text-xs text-ink-soft">{{ stop.client.address }}</p>
+            }
+            @if (stop.client.phone) {
+              <a
+                [href]="'tel:' + stop.client.phone"
+                class="text-xs text-brand underline underline-offset-2"
+              >
+                {{ stop.client.phone }}
+              </a>
+            }
+          </div>
+
+          <button
+            type="button"
+            class="ml-auto shrink-0 rounded-full p-1 text-ink-soft hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            aria-label="Cerrar detalle de la parada"
+            (click)="stopSelected.emit(null)"
+          >
+            <i class="pi pi-times text-xs" aria-hidden="true"></i>
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @case ('loading') {
+    <div
+      class="flex h-[400px] items-center justify-center rounded-2xl border border-ink/10 bg-ink/5 text-sm text-ink-soft"
+      aria-live="polite"
+    >
+      Cargando mapa…
+    </div>
+  }
+
+  @case ('error') {
+    <div
+      class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"
+      role="alert"
+    >
+      No se pudo cargar el mapa. La lista de paradas sigue disponible abajo.
+    </div>
+  }
+
+  @case ('no-key') {
+    <div class="rounded-2xl border border-ink/10 bg-ink/5 p-4 text-sm text-ink-soft">
+      Mapa no disponible. La lista de paradas sigue disponible abajo.
+    </div>
+  }
+}

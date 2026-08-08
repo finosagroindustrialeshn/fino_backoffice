@@ -1,0 +1,134 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="visible.set($event)"
+  (onHide)="reset()"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  header="Agregar cliente a la ruta"
+  styleClass="w-[95vw] max-w-2xl"
+>
+  <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="add-stop-search"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Buscar cliente
+      </label>
+      <input
+        id="add-stop-search"
+        pInputText
+        type="search"
+        [value]="searchTerm()"
+        (input)="onSearchInput($any($event.target).value)"
+        placeholder="Código, nombre, contacto, teléfono o dirección"
+        class="w-full"
+      />
+    </div>
+
+    @if (error(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700"
+      >
+        <p class="text-sm">{{ message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="retry()"
+        />
+      </div>
+    } @else {
+      <fieldset class="flex max-h-80 flex-col gap-2 overflow-y-auto">
+        <legend class="sr-only">Resultados de la búsqueda</legend>
+
+        @for (client of candidates(); track client.id) {
+          <label
+            class="flex cursor-pointer items-start gap-3 rounded-xl border border-ink/10 p-3 transition-colors hover:bg-ink/5 has-[:checked]:border-brand has-[:checked]:bg-brand/5"
+          >
+            <input
+              type="radio"
+              name="add-stop-client"
+              class="mt-1 accent-brand"
+              [value]="client.id"
+              [checked]="selectedClient()?.id === client.id"
+              (change)="select(client)"
+            />
+            <span class="flex min-w-0 flex-col gap-0.5">
+              <span class="font-medium text-ink">{{ client.name }}</span>
+              <span class="font-mono text-xs text-ink-soft">{{ client.code }}</span>
+              @if (client.address) {
+                <span class="text-xs text-ink-soft">{{ client.address }}</span>
+              }
+              @if (client.phone) {
+                <span class="text-xs text-ink-soft">{{ client.phone }}</span>
+              }
+            </span>
+          </label>
+        } @empty {
+          <p class="py-6 text-center text-sm text-ink-soft">
+            @if (loading()) {
+              Buscando clientes…
+            } @else {
+              No hay clientes disponibles para agregar.
+            }
+          </p>
+        }
+      </fieldset>
+
+      <p class="text-xs text-ink-soft" aria-live="polite">
+        Clientes disponibles: {{ candidates().length }}.
+        @if (alreadyOnRouteCount() > 0) {
+          Ocultos por estar ya en la ruta: {{ alreadyOnRouteCount() }}.
+        }
+      </p>
+    }
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="add-stop-order"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Orden de visita
+      </label>
+      <input
+        id="add-stop-order"
+        pInputText
+        type="number"
+        min="1"
+        step="1"
+        [value]="sortOrderText()"
+        (input)="onSortOrderInput($any($event.target).value)"
+        aria-describedby="add-stop-order-hint"
+        class="w-full sm:w-32"
+      />
+      <!-- The API has no reorder endpoint, so this is the only chance to place
+           the stop somewhere other than at the end of the run. -->
+      <span id="add-stop-order-hint" class="text-xs text-ink-soft">
+        El orden no se puede cambiar después de agregar la parada.
+      </span>
+    </div>
+  </div>
+
+  <ng-template #footer>
+    <div class="flex justify-end gap-2">
+      <p-button
+        label="Cancelar"
+        severity="secondary"
+        [text]="true"
+        [disabled]="saving()"
+        (onClick)="visible.set(false)"
+      />
+      <p-button
+        label="Agregar"
+        icon="pi pi-plus"
+        [loading]="saving()"
+        [disabled]="!canSubmit()"
+        (onClick)="submit()"
+      />
+    </div>
+  </ng-template>
+</p-dialog>

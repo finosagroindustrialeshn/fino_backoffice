@@ -1,0 +1,339 @@
+<div class="flex flex-col gap-6">
+  <a
+    routerLink="/mapa"
+    class="inline-flex w-fit items-center gap-2 rounded-xl border border-ink/10 bg-white px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:border-ink/20 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+  >
+    <i class="pi pi-arrow-left text-xs" aria-hidden="true"></i>
+    Volver a rutas
+  </a>
+
+  @if (errorMessage(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+      <p-button
+        label="Reintentar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="load()"
+      />
+    </div>
+  } @else if (isLoading()) {
+    <div class="flex flex-col gap-4" aria-busy="true">
+      <span class="sr-only">Cargando ruta…</span>
+      <p-skeleton width="16rem" height="2rem" />
+      <p-skeleton width="100%" height="6rem" />
+      <p-skeleton width="100%" height="20rem" />
+    </div>
+  } @else if (detail(); as routeDetail) {
+    <!-- Header -->
+    <header class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- `date` is a CALENDAR DAY the API sends as UTC midnight:
+                   rendering it in local time (UTC-6) would show the day before. -->
+          <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+            Ruta del {{ routeDetail.date | date: 'dd/MM/yyyy' : 'UTC' }}
+          </h2>
+          <p-tag
+            [value]="statusLabels[routeDetail.status]"
+            [severity]="statusSeverity[routeDetail.status]"
+          />
+        </div>
+
+        @if (transitions().length > 0) {
+          <div class="flex flex-wrap items-center gap-2">
+            @for (next of transitions(); track next) {
+              <!-- Advancing the route is the primary action here, so it renders
+                   solid; only the destructive one stays outlined. -->
+              <p-button
+                [label]="statusActions[next].label"
+                [icon]="statusActions[next].icon"
+                [severity]="statusActions[next].severity"
+                [outlined]="statusActions[next].severity !== null"
+                [loading]="statusPending()"
+                (onClick)="requestStatusChange(next)"
+              />
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Route metadata reads as one line: three labelled blocks stacked in a
+           grid cost more vertical space than the facts are worth. -->
+      <dl class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+        <div class="flex items-center gap-1.5">
+          <dt class="text-ink-soft">Vendedor:</dt>
+          <dd class="font-medium text-ink">{{ sellerName() ?? '—' }}</dd>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <dt class="text-ink-soft">Zona:</dt>
+          <dd class="font-medium text-ink">
+            @if (routeDetail.zoneId) {
+              {{ zoneName() ?? '—' }}
+            } @else {
+              Sin zona
+            }
+          </dd>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <dt class="text-ink-soft">Paradas:</dt>
+          <dd class="font-medium text-ink">{{ stops().length }}</dd>
+        </div>
+      </dl>
+
+      @if (routeDetail.notes) {
+        <p class="whitespace-pre-line text-sm text-ink-soft">
+          {{ routeDetail.notes }}
+        </p>
+      }
+
+      @if (isClosed()) {
+        <p class="rounded-xl border border-ink/10 bg-ink/5 p-3 text-sm text-ink-soft">
+          Esta ruta está cerrada. Sus paradas ya no se pueden modificar.
+        </p>
+      }
+
+      @if (actionError(); as message) {
+        <p role="alert" class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {{ message }}
+        </p>
+      }
+    </header>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <!-- Map -->
+      <section
+        class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-6"
+        aria-labelledby="route-map-heading"
+      >
+        <h3
+          id="route-map-heading"
+          class="text-sm font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Mapa de la ruta
+        </h3>
+
+        @if (locatedStops().length > 0) {
+          <app-route-map
+            [stops]="locatedStops()"
+            [selectedStopId]="selectedStopId()"
+            (stopSelected)="onMapSelection($event)"
+          />
+        } @else {
+          <p class="rounded-2xl border border-ink/10 bg-ink/5 p-4 text-sm text-ink-soft">
+            Ninguna parada tiene ubicación GPS registrada, así que no hay nada que mostrar en el
+            mapa.
+          </p>
+        }
+
+        @if (unplaceableStops().length > 0) {
+          <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
+            <p class="text-xs font-semibold uppercase tracking-wide">Sin ubicación en el mapa</p>
+            <ul class="mt-1 list-inside list-disc text-xs">
+              @for (stop of unplaceableStops(); track stop.id) {
+                <li>{{ stop.sortOrder }}. {{ stop.client?.name ?? 'Cliente sin datos' }}</li>
+              }
+            </ul>
+          </div>
+        }
+      </section>
+
+      <!-- Stops.
+           The API returns every stop in one array (GET /routes/:id takes no
+           pagination), so the list can run long. It scrolls INSIDE its panel
+           rather than growing the page: selecting a stop highlights it on the
+           map, and that feedback is worthless if reaching stop 25 has scrolled
+           the map off screen. On mobile the columns stack and the page scrolls
+           normally — there is no room to keep both in view anyway. -->
+      <section
+        class="flex flex-col rounded-2xl border border-ink/10 bg-white lg:max-h-[30rem]"
+        aria-labelledby="route-stops-heading"
+      >
+        <div
+          class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-ink/10 p-6"
+        >
+          <h3
+            id="route-stops-heading"
+            class="text-sm font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Paradas ({{ stops().length }})
+          </h3>
+          <p-button
+            label="Agregar cliente"
+            icon="pi pi-plus"
+            [disabled]="isClosed()"
+            (onClick)="addDialogVisible.set(true)"
+          />
+        </div>
+
+        <p class="sr-only" aria-live="polite">{{ selectionAnnouncement() }}</p>
+
+        <!-- A stop collapses to order + name + state. Address, phone and the
+             status actions only appear for the selected one: the same row the
+             map highlights, so the detail lives in exactly one place. -->
+        <ol class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          @for (stop of stops(); track stop.id) {
+            <li
+              [id]="'stop-row-' + stop.id"
+              class="border-b border-ink/10 transition-colors last:border-b-0"
+              [class.bg-brand-sky]="selectedStopId() === stop.id"
+              [attr.aria-current]="selectedStopId() === stop.id ? 'true' : null"
+            >
+              <div class="flex items-center gap-3 px-6 py-3">
+                <!-- Storefront photo: a seller recognizes the place by its
+                     front long before they parse its name. The order badge
+                     rides on it so both read as one unit. -->
+                <span class="relative shrink-0">
+                  <!-- `?.` on the alt stays: narrowing `stop.client?.imageUrl`
+                       in the @if does NOT narrow `stop.client` itself. -->
+                  @if (stop.client?.imageUrl; as imageUrl) {
+                    <img
+                      [src]="imageUrl"
+                      [alt]="'Foto del local de ' + (stop.client?.name ?? 'cliente')"
+                      width="40"
+                      height="40"
+                      loading="lazy"
+                      class="h-10 w-10 rounded-lg object-cover"
+                    />
+                  } @else {
+                    <span
+                      class="flex h-10 w-10 items-center justify-center rounded-lg bg-ink/5 text-ink-soft"
+                      aria-hidden="true"
+                    >
+                      <i class="pi pi-image"></i>
+                    </span>
+                  }
+                  <!-- The tinted row is deliberately subtle, so the badge
+                       carries the selection too: one signal can be missed. -->
+                  <span
+                    class="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[10px] font-semibold text-white"
+                    [class.bg-ink]="selectedStopId() !== stop.id"
+                    [class.bg-brand]="selectedStopId() === stop.id"
+                    aria-hidden="true"
+                  >
+                    {{ stop.sortOrder }}
+                  </span>
+                </span>
+
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 flex-col items-start text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  [attr.aria-expanded]="selectedStopId() === stop.id"
+                  [attr.aria-controls]="'stop-panel-' + stop.id"
+                  (click)="selectStop(stop.id)"
+                >
+                  <span class="w-full truncate text-sm font-medium text-ink">
+                    {{ stop.client?.name ?? 'Cliente sin datos' }}
+                  </span>
+                  @if (stop.client; as client) {
+                    <span class="w-full truncate text-xs text-ink-soft">
+                      {{ client.code }}@if (client.address) { · {{ client.address }} }
+                    </span>
+                  }
+                </button>
+
+                <p-tag
+                  [value]="stopStatusLabels[stop.status]"
+                  [severity]="stopStatusSeverity[stop.status]"
+                />
+
+                <p-button
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [text]="true"
+                  [rounded]="true"
+                  size="small"
+                  [disabled]="isClosed() || isPending(stop.id)"
+                  [ariaLabel]="'Quitar de la ruta a ' + (stop.client?.name ?? 'cliente sin datos')"
+                  (onClick)="confirmRemoveStop(stop)"
+                />
+              </div>
+
+              @if (selectedStopId() === stop.id) {
+                <div
+                  [id]="'stop-panel-' + stop.id"
+                  class="flex flex-col gap-3 px-6 pb-4 pl-19"
+                >
+                  @if (stop.client; as client) {
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                      @if (client.phone) {
+                        <a
+                          [href]="'tel:' + client.phone"
+                          class="inline-flex items-center gap-1.5 text-brand underline underline-offset-2"
+                        >
+                          <i class="pi pi-phone text-[10px]" aria-hidden="true"></i>
+                          {{ client.phone }}
+                        </a>
+                      }
+                      @if (client.contactName) {
+                        <span class="text-ink-soft">{{ client.contactName }}</span>
+                      }
+                      @if (client.lastPurchase; as purchase) {
+                        <span class="text-ink-soft">
+                          Última compra:
+                          {{ purchase.total | currency: 'HNL' : 'symbol-narrow' }}
+                          ({{ purchase.date | date: 'dd/MM/yyyy' }})
+                        </span>
+                      }
+                    </div>
+                  }
+
+                  @if (stop.visitedAt; as visitedAt) {
+                    <span class="text-xs text-ink-soft">
+                      Visitada el {{ visitedAt | date: 'dd/MM/yyyy HH:mm' }}
+                    </span>
+                  }
+
+                  <div class="flex flex-wrap items-center gap-2">
+                    @for (status of stopStatuses; track status) {
+                      @if (status !== stop.status) {
+                        <p-button
+                          [label]="stopStatusActions[status].label"
+                          [icon]="stopStatusActions[status].icon"
+                          [severity]="stopStatusActions[status].severity"
+
+                          size="small"
+                          [disabled]="isClosed() || isPending(stop.id)"
+                          (onClick)="setStopStatus(stop, status)"
+                        />
+                      }
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (rowError(stop.id); as message) {
+                <!-- Own surface, so the error keeps its contrast whether or not
+                     the row is the tinted selected one. -->
+                <p
+                  class="mx-6 mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                  role="alert"
+                >
+                  {{ message }}
+                </p>
+              }
+            </li>
+          } @empty {
+            <li class="p-6 text-center text-sm text-ink-soft">
+              Esta ruta todavía no tiene paradas. Agregá el primer cliente a visitar.
+            </li>
+          }
+        </ol>
+      </section>
+    </div>
+  }
+</div>
+
+<p-confirmDialog />
+
+<app-add-stop-dialog
+  [(visible)]="addDialogVisible"
+  [excludedClientIds]="stopClientIds()"
+  [nextSortOrder]="nextSortOrder()"
+  [saving]="addPending()"
+  (stopAdded)="onStopAdded($event)"
+/>

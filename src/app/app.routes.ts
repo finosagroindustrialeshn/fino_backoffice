@@ -2,11 +2,6 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
 import { MainLayout } from './layouts/main-layout/main-layout';
 
-const placeholder = () =>
-  import('./shared/components/placeholder-page/placeholder-page').then(
-    (m) => m.PlaceholderPage,
-  );
-
 export const routes: Routes = [
   {
     path: 'login',
@@ -62,8 +57,19 @@ export const routes: Routes = [
       },
       {
         path: 'mapa',
-        loadComponent: placeholder,
+        loadComponent: () =>
+          import('./features/routes/pages/route-list/route-list').then(
+            (m) => m.RouteList,
+          ),
         data: { title: 'Mapa de rutas' },
+      },
+      {
+        path: 'mapa/:id',
+        loadComponent: () =>
+          import('./features/routes/pages/route-detail/route-detail').then(
+            (m) => m.RouteDetail,
+          ),
+        data: { title: 'Detalle de ruta' },
       },
       {
         path: 'clientes',
