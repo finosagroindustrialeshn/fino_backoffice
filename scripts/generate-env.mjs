@@ -4,7 +4,18 @@ import { dirname, resolve } from 'node:path';
 const isProduction = process.argv.includes('--production');
 const envPath = resolve('.env');
 const outPath = resolve('src/environments/environment.ts');
-const required = ['API_URL', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+const required = [
+  'API_URL',
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'FIREBASE_API_KEY',
+  'FIREBASE_AUTH_DOMAIN',
+  'FIREBASE_DATABASE_URL',
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_STORAGE_BUCKET',
+  'FIREBASE_MESSAGING_SENDER_ID',
+  'FIREBASE_APP_ID',
+];
 
 // Local dev reads from a .env file; CI/hosting (e.g. Vercel) injects the same
 // keys as real environment variables. A local .env, when present, takes
@@ -35,6 +46,16 @@ export const environment = {
   supabaseAnonKey: '${env['SUPABASE_ANON_KEY']}',
   mapsApiKey: '${env['MAPS_API_KEY'] ?? ''}',
   mapsMapId: '${env['MAPS_MAP_ID'] ?? ''}',
+  firebase: {
+    apiKey: '${env['FIREBASE_API_KEY']}',
+    authDomain: '${env['FIREBASE_AUTH_DOMAIN']}',
+    databaseURL: '${env['FIREBASE_DATABASE_URL']}',
+    projectId: '${env['FIREBASE_PROJECT_ID']}',
+    storageBucket: '${env['FIREBASE_STORAGE_BUCKET']}',
+    messagingSenderId: '${env['FIREBASE_MESSAGING_SENDER_ID']}',
+    appId: '${env['FIREBASE_APP_ID']}',
+    measurementId: '${env['FIREBASE_MEASUREMENT_ID'] ?? ''}',
+  },
 } as const;
 `,
 );
