@@ -43,6 +43,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       },
       { label: 'Mapa de rutas', icon: 'pi pi-map', route: '/mapa' },
       {
+        label: 'Vendedores',
+        icon: 'pi pi-map-marker',
+        route: '/vendedores',
+        roles: ['ADMIN', 'SUPERVISOR'],
+      },
+      {
         label: 'Caja',
         icon: 'pi pi-wallet',
         route: '/caja',

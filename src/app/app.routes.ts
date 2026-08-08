@@ -72,6 +72,14 @@ export const routes: Routes = [
         data: { title: 'Detalle de ruta' },
       },
       {
+        path: 'vendedores',
+        loadComponent: () =>
+          import('./features/sellers/pages/seller-map/seller-map').then(
+            (m) => m.SellerMap,
+          ),
+        data: { title: 'Vendedores' },
+      },
+      {
         path: 'clientes',
         loadComponent: () =>
           import('./features/clients/pages/client-list/client-list').then(

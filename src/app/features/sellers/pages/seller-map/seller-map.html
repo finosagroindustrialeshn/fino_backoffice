@@ -1,0 +1,132 @@
+<section class="flex flex-col gap-4" aria-labelledby="seller-map-heading">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h2 id="seller-map-heading" class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+      Vendedores en el mapa
+    </h2>
+
+    @if (hasSellers()) {
+      <!-- The count is the one fact the map itself cannot state. -->
+      <p class="text-sm text-ink-soft" aria-live="polite">
+        <span class="font-semibold text-ink">{{ liveCount() }}</span>
+        {{ liveCount() === 1 ? 'vendedor en línea' : 'vendedores en línea' }}
+        @if (totalCount() > liveCount()) {
+          · {{ totalCount() - liveCount() }} sin señal reciente
+        }
+      </p>
+    }
+  </div>
+
+  @if (feedError(); as message) {
+    <p
+      role="alert"
+      class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
+    >
+      Se perdió la conexión con las ubicaciones: {{ message }}. Se muestra la última posición
+      conocida.
+    </p>
+  }
+
+  @switch (status()) {
+    @case ('ready') {
+      <!-- The height lives on the container, not on <google-map>'s `height`
+           input. That input is written straight into `style.height`, and an
+           invalid CSS value there fails silently: the property stays empty and
+           the map renders 1567x0, which reads as "nothing rendered at all".
+           Note the underscores: Tailwind emits `calc(100vh-16rem)` without
+           them, and a calc() with no spaces around the operator IS invalid. -->
+      <div
+        class="relative h-[calc(100vh_-_16rem)] min-h-96 overflow-hidden rounded-2xl border border-ink/10 bg-white"
+      >
+        <google-map
+          class="block h-full w-full"
+          height="100%"
+          width="100%"
+          [center]="defaultCenter"
+          [zoom]="defaultZoom"
+          [options]="mapOptions"
+          (mapInitialized)="onMapInitialized($event)"
+        >
+          @for (marker of markers(); track marker.sellerId) {
+            <map-advanced-marker
+              [position]="marker.position"
+              [title]="marker.title"
+              [content]="marker.content"
+              [zIndex]="marker.zIndex"
+              (mapClick)="select(marker.sellerId)"
+            />
+          }
+        </google-map>
+
+        @if (isLoadingFeed()) {
+          <p
+            class="absolute inset-x-3 top-3 rounded-xl border border-ink/10 bg-white/95 p-3 text-sm text-ink-soft shadow-lg sm:max-w-xs"
+            aria-live="polite"
+          >
+            Buscando vendedores…
+          </p>
+        } @else if (!hasSellers()) {
+          <p
+            class="absolute inset-x-3 top-3 rounded-xl border border-ink/10 bg-white/95 p-3 text-sm text-ink-soft shadow-lg sm:max-w-sm"
+            aria-live="polite"
+          >
+            Ningún vendedor ha reportado su ubicación todavía.
+          </p>
+        }
+
+        @if (selected(); as seller) {
+          <div
+            class="absolute inset-x-3 bottom-3 flex items-start gap-3 rounded-xl border border-ink/10 bg-white/95 p-3 shadow-lg sm:max-w-sm"
+          >
+            <span
+              class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
+              [class.bg-brand]="seller.live"
+              [class.bg-ink-soft]="!seller.live"
+              aria-hidden="true"
+            ></span>
+
+            <div class="flex min-w-0 flex-col gap-0.5">
+              <p class="truncate font-semibold text-ink">{{ seller.name }}</p>
+              <p class="text-xs text-ink-soft">
+                {{ seller.live ? 'En línea' : 'Sin señal reciente' }} · actualizado
+                {{ seller.since }}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="ml-auto shrink-0 rounded-full p-1 text-ink-soft hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              aria-label="Cerrar detalle del vendedor"
+              (click)="select(null)"
+            >
+              <i class="pi pi-times text-xs" aria-hidden="true"></i>
+            </button>
+          </div>
+        }
+      </div>
+    }
+
+    @case ('loading') {
+      <div
+        class="flex h-[24rem] items-center justify-center rounded-2xl border border-ink/10 bg-ink/5 text-sm text-ink-soft"
+        aria-live="polite"
+      >
+        Cargando mapa…
+      </div>
+    }
+
+    @case ('error') {
+      <p
+        class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"
+        role="alert"
+      >
+        No se pudo cargar el mapa. Revisá la conexión y volvé a intentarlo.
+      </p>
+    }
+
+    @case ('no-key') {
+      <p class="rounded-2xl border border-ink/10 bg-ink/5 p-4 text-sm text-ink-soft">
+        Mapa no disponible: falta configurar la clave de Google Maps.
+      </p>
+    }
+  }
+</section>
