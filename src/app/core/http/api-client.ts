@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map, type Observable } from 'rxjs';
 
@@ -9,6 +9,17 @@ import type { ApiEnvelope } from './api-envelope';
 export type QueryParams =
   | HttpParams
   | Record<string, string | number | boolean>;
+
+/** Per-request options for write operations. */
+export interface WriteOptions {
+  /**
+   * Value for the `Idempotency-Key` header. Send one whenever a retry after a
+   * lost response would duplicate a real-world effect — money collected, stock
+   * moved. Reuse the SAME key while retrying the same operation; generate a
+   * new one only when the payload itself changes.
+   */
+  readonly idempotencyKey?: string;
+}
 
 /**
  * Single entry point for HTTP access. Feature services depend on ApiClient
@@ -31,9 +42,13 @@ export class ApiClient {
       .pipe(map((response) => response.data));
   }
 
-  post<T>(path: string, body?: unknown): Observable<T> {
+  post<T>(
+    path: string,
+    body?: unknown,
+    options?: WriteOptions,
+  ): Observable<T> {
     return this.http
-      .post<ApiEnvelope<T>>(this.url(path), body)
+      .post<ApiEnvelope<T>>(this.url(path), body, this.toHeaders(options))
       .pipe(map((response) => response.data));
   }
 
@@ -57,6 +72,15 @@ export class ApiClient {
 
   private url(path: string): string {
     return `${this.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+
+  private toHeaders(options?: WriteOptions): { headers?: HttpHeaders } {
+    if (!options?.idempotencyKey) {
+      return {};
+    }
+    return {
+      headers: new HttpHeaders({ 'Idempotency-Key': options.idempotencyKey }),
+    };
   }
 
   private toParams(params?: QueryParams): HttpParams | undefined {
