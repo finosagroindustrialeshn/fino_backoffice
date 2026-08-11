@@ -59,6 +59,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: 'Comercial',
     items: [
+      // No role filter: the API already scopes a SELLER to their own sales.
+      { label: 'Ventas', icon: 'pi pi-shopping-cart', route: '/ventas' },
       { label: 'Clientes', icon: 'pi pi-users', route: '/clientes' },
       {
         label: 'Contabilidad',

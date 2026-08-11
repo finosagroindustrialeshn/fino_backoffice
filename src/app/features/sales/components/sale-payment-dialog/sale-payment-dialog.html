@@ -1,0 +1,114 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="visible.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '30rem' }"
+  [breakpoints]="{ '640px': '94vw' }"
+  header="Registrar abono"
+  [dismissableMask]="!saving()"
+  [closable]="!saving()"
+>
+  <form class="flex flex-col gap-5" [formGroup]="form" (ngSubmit)="submit()">
+    @if (error(); as message) {
+      <div
+        role="alert"
+        class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+      >
+        {{ message }}
+      </div>
+    }
+
+    <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+      <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+        Saldo pendiente
+      </span>
+      <span class="text-lg font-bold text-ink">
+        {{ balanceDue() | currency: 'HNL' : 'L ' : '1.2-2' }}
+      </span>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="payment-amount"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Monto del abono
+      </label>
+      <div class="flex items-start gap-2">
+        <p-inputnumber
+          inputId="payment-amount"
+          formControlName="amount"
+          mode="decimal"
+          locale="en-US"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          [min]="0"
+          [max]="balanceDue()"
+          aria-describedby="payment-amount-help"
+          styleClass="flex-1"
+          inputStyleClass="w-full"
+        />
+        <p-button
+          type="button"
+          label="Todo"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="saving()"
+          (onClick)="payInFull()"
+        />
+      </div>
+      <p id="payment-amount-help" class="text-xs text-ink-soft">
+        @if (exceedsBalance()) {
+          <span role="alert" class="font-medium text-red-700">
+            El abono no puede superar el saldo pendiente.
+          </span>
+        } @else if (settlesSale()) {
+          <span class="font-medium text-emerald-700">
+            Con este abono la venta queda saldada.
+          </span>
+        } @else {
+          Quedará un saldo de
+          {{ remaining() | currency: 'HNL' : 'L ' : '1.2-2' }}.
+        }
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="payment-method"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Método
+      </label>
+      <p-select
+        inputId="payment-method"
+        formControlName="method"
+        [options]="methodOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        styleClass="w-full"
+      />
+    </div>
+
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <p-button
+        type="button"
+        label="Cancelar"
+        severity="secondary"
+        [text]="true"
+        [disabled]="saving()"
+        (onClick)="cancel()"
+      />
+      <p-button
+        type="submit"
+        label="Registrar abono"
+        icon="pi pi-check"
+        [loading]="saving()"
+        [disabled]="saving() || exceedsBalance() || amount() <= 0"
+      />
+    </div>
+  </form>
+</p-dialog>

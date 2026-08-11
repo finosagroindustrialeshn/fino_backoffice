@@ -1,0 +1,223 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-3">
+    <p-button
+      label="Volver a ventas"
+      icon="pi pi-arrow-left"
+      severity="secondary"
+      [text]="true"
+      routerLink="/ventas"
+      styleClass="self-start"
+    />
+    <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Detalle de venta</h2>
+  </div>
+
+  @switch (state().status) {
+    @case ('loading') {
+      <div class="flex flex-col gap-3" aria-busy="true">
+        <span class="sr-only">Cargando la venta…</span>
+        @for (row of skeletonRows; track row) {
+          <p-skeleton width="100%" height="3rem" />
+        }
+      </div>
+    }
+
+    @case ('error') {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ errorMessage() }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="retry()"
+        />
+      </div>
+    }
+
+    @case ('success') {
+      @if (sale(); as current) {
+        <!-- Summary -->
+        <section
+          class="flex flex-col gap-5 rounded-2xl border border-ink/10 bg-white p-6"
+          aria-label="Resumen de la venta"
+        >
+          <div class="flex flex-wrap items-center gap-2">
+            <p-tag
+              [value]="channelLabel(current.channel)"
+              [severity]="channelSeverity(current.channel)"
+            />
+            <p-tag
+              [value]="statusLabel(current.status)"
+              [severity]="statusSeverity(current.status)"
+            />
+            <span class="text-sm text-ink-soft">
+              {{ paymentTypeLabel(current.paymentType) }}
+            </span>
+          </div>
+
+          <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div class="flex flex-col gap-0.5">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Cliente
+              </dt>
+              <dd class="text-sm font-medium text-ink">{{ displayClient() }}</dd>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Vendedor
+              </dt>
+              <dd class="text-sm text-ink">{{ displaySeller() }}</dd>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Fecha
+              </dt>
+              <dd class="text-sm text-ink">
+                {{ current.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+              </dd>
+            </div>
+          </dl>
+
+          @if (current.notes) {
+            <p class="rounded-xl bg-ink/5 px-4 py-3 text-sm text-ink-soft">
+              {{ current.notes }}
+            </p>
+          }
+
+          <!-- Money -->
+          <dl class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Total
+              </dt>
+              <dd class="text-lg font-bold text-ink">
+                {{ current.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </dd>
+            </div>
+            <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Abonado
+              </dt>
+              <dd class="text-lg font-semibold text-emerald-700">
+                {{ current.amountPaid | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </dd>
+            </div>
+            <div
+              class="flex items-baseline justify-between rounded-xl px-4 py-3"
+              [class.bg-red-50]="current.balanceDue > 0"
+              [class.bg-cream]="current.balanceDue <= 0"
+            >
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Saldo
+              </dt>
+              <dd
+                class="text-lg font-bold"
+                [class.text-red-700]="current.balanceDue > 0"
+                [class.text-ink]="current.balanceDue <= 0"
+              >
+                {{ current.balanceDue | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </dd>
+            </div>
+          </dl>
+
+          @if (canCollect()) {
+            <div class="flex justify-end">
+              <p-button
+                label="Registrar abono"
+                icon="pi pi-wallet"
+                (onClick)="openPaymentDialog()"
+              />
+            </div>
+          }
+        </section>
+
+        <!-- Line items -->
+        <section class="flex flex-col gap-3" aria-label="Productos vendidos">
+          <h3 class="font-heading text-lg font-semibold text-ink">Productos</h3>
+          <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+            <p-table [value]="items()" tableStyleClass="w-full min-w-[32rem]">
+              <ng-template #header>
+                <tr>
+                  <th scope="col">Producto</th>
+                  <th scope="col" class="text-right">Cantidad</th>
+                  <th scope="col" class="text-right">Precio unit.</th>
+                  <th scope="col" class="text-right">Subtotal</th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-item>
+                <tr>
+                  <td>{{ productName(item.productId) }}</td>
+                  <td class="text-right">{{ item.quantity }}</td>
+                  <td class="text-right text-ink-soft">
+                    {{ item.unitPrice | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </td>
+                  <td class="text-right font-semibold text-ink">
+                    {{ item.subtotal | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+          <p class="text-right text-sm text-ink-soft">
+            <span class="font-semibold text-ink">{{ items().length }}</span>
+            producto(s) ·
+            <span class="font-semibold text-ink">{{ totalUnits() }}</span>
+            unidad(es)
+          </p>
+        </section>
+
+        <!-- Payment history -->
+        <section class="flex flex-col gap-3" aria-label="Historial de abonos">
+          <h3 class="font-heading text-lg font-semibold text-ink">Abonos</h3>
+          @if (payments().length === 0) {
+            <p
+              class="rounded-2xl border border-dashed border-ink/15 px-6 py-8 text-center text-sm text-ink-soft"
+            >
+              @if (current.paymentType === 'CASH') {
+                Es una venta de contado: no lleva abonos.
+              } @else {
+                Todavía no se ha registrado ningún abono.
+              }
+            </p>
+          } @else {
+            <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+              <p-table [value]="payments()" tableStyleClass="w-full min-w-[28rem]">
+                <ng-template #header>
+                  <tr>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Método</th>
+                    <th scope="col" class="text-right">Monto</th>
+                  </tr>
+                </ng-template>
+                <ng-template #body let-payment>
+                  <tr>
+                    <td class="whitespace-nowrap text-sm text-ink">
+                      {{ payment.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                    </td>
+                    <td class="text-sm text-ink-soft">
+                      {{ paymentMethodLabel(payment.method) }}
+                    </td>
+                    <td class="text-right font-semibold text-emerald-700">
+                      {{ payment.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            </div>
+          }
+        </section>
+
+        <app-sale-payment-dialog
+          [(visible)]="paymentOpen"
+          [balanceDue]="current.balanceDue"
+          [saving]="paying()"
+          [error]="paymentError()"
+          (submitted)="collect($event)"
+        />
+      }
+    }
+  }
+</div>

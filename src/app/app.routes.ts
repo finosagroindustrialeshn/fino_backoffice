@@ -80,6 +80,22 @@ export const routes: Routes = [
         data: { title: 'Vendedores' },
       },
       {
+        path: 'ventas',
+        loadComponent: () =>
+          import('./features/sales/pages/sale-list/sale-list').then(
+            (m) => m.SaleList,
+          ),
+        data: { title: 'Ventas' },
+      },
+      {
+        path: 'ventas/:id',
+        loadComponent: () =>
+          import('./features/sales/pages/sale-detail/sale-detail').then(
+            (m) => m.SaleDetail,
+          ),
+        data: { title: 'Detalle de venta' },
+      },
+      {
         path: 'clientes',
         loadComponent: () =>
           import('./features/clients/pages/client-list/client-list').then(
