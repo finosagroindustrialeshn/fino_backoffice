@@ -85,3 +85,51 @@ export const SALE_CHANNEL_LABELS: Record<SaleChannel, string> = {
   FIELD: 'Campo',
   STORE: 'Mostrador',
 };
+
+/**
+ * Payment methods offered when collecting an abono. The API stores `method` as
+ * a free-form label, so the canonical lowercase English values the spec
+ * suggests (cash, transfer, …) are what travels; only the label is localized.
+ * That keeps the column consistent with whatever the seller app writes.
+ *
+ * Mutable on purpose: PrimeNG's `[options]` input rejects readonly arrays.
+ */
+export const PAYMENT_METHOD_OPTIONS: { value: string; label: string }[] = [
+  { value: 'cash', label: 'Efectivo' },
+  { value: 'transfer', label: 'Transferencia' },
+  { value: 'deposit', label: 'Depósito' },
+  { value: 'check', label: 'Cheque' },
+];
+
+/**
+ * Localizes a stored `method`. An unrecognized value is shown as-is rather
+ * than hidden — it is real data written by some other client.
+ */
+export function paymentMethodLabel(method: string | null): string {
+  if (!method) {
+    return '—';
+  }
+  return (
+    PAYMENT_METHOD_OPTIONS.find((option) => option.value === method)?.label ??
+    method
+  );
+}
+
+export type SaleTagSeverity =
+  | 'secondary'
+  | 'warn'
+  | 'info'
+  | 'success'
+  | 'danger';
+
+/** PENDING is danger rather than warn: nothing has been collected yet. */
+export const SALE_STATUS_SEVERITY: Record<SaleStatus, SaleTagSeverity> = {
+  PAID: 'success',
+  PARTIAL: 'warn',
+  PENDING: 'danger',
+};
+
+export const SALE_CHANNEL_SEVERITY: Record<SaleChannel, SaleTagSeverity> = {
+  FIELD: 'info',
+  STORE: 'secondary',
+};

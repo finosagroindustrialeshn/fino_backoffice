@@ -55,11 +55,22 @@ export class SaleDataClient {
     return this.api.get<readonly SalePayment[]>(`/sales/${id}/payments`);
   }
 
-  /** Records an abono against a CREDIT sale and returns the updated sale. */
+  /**
+   * Records an abono against a CREDIT sale and returns the updated sale.
+   *
+   * `idempotencyKey` is required, not optional: a retried abono after a lost
+   * response is money counted twice against the balance, and afterwards it is
+   * indistinguishable from a legitimate second part-payment. Callers must hold
+   * the same key across retries of the same collection and mint a new one only
+   * when the amount changes.
+   */
   addPayment(
     id: string,
     payload: CreateSalePaymentPayload,
+    idempotencyKey: string,
   ): Observable<Sale> {
-    return this.api.post<Sale>(`/sales/${id}/payments`, payload);
+    return this.api.post<Sale>(`/sales/${id}/payments`, payload, {
+      idempotencyKey,
+    });
   }
 }
