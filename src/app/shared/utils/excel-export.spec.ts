@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildWorkbook, columnLetter, type ExcelWorkbookSpec } from './excel-export';
+import {
+  buildTableSheet,
+  buildWorkbook,
+  columnLetter,
+  EXCEL_MONEY_FORMAT,
+  type ExcelColumn,
+  type ExcelWorkbookSpec,
+} from './excel-export';
 
 describe('columnLetter', () => {
   it('maps the first 26 columns to single letters A-Z', () => {
@@ -14,6 +21,100 @@ describe('columnLetter', () => {
     expect(columnLetter(27)).toBe('AB');
     expect(columnLetter(51)).toBe('AZ');
     expect(columnLetter(52)).toBe('BA');
+  });
+});
+
+describe('buildTableSheet', () => {
+  interface Row {
+    readonly name: string;
+    readonly amount: number;
+    readonly closedAt: Date | null;
+  }
+
+  const COLUMNS: readonly ExcelColumn<Row>[] = [
+    { header: 'Vendedor', value: (row) => row.name, width: 24 },
+    {
+      header: 'Monto',
+      value: (row) => row.amount,
+      numberFormat: EXCEL_MONEY_FORMAT,
+      align: 'right',
+    },
+    { header: 'Cierre', value: (row) => row.closedAt },
+  ];
+
+  const ROWS: readonly Row[] = [
+    { name: 'Ana Castillo', amount: 1250.5, closedAt: new Date(2026, 6, 24) },
+    { name: 'Beto Núñez', amount: 940, closedAt: null },
+  ];
+
+  it('writes the headers in the first row, in column order', () => {
+    const sheet = buildTableSheet('Jornadas', COLUMNS, ROWS);
+    const cell = (ref: string) => sheet.cells.find((c) => c.ref === ref);
+
+    expect(cell('A1')?.value).toBe('Vendedor');
+    expect(cell('B1')?.value).toBe('Monto');
+    expect(cell('C1')?.value).toBe('Cierre');
+    expect(cell('A1')?.bold).toBe(true);
+  });
+
+  it('writes one row per item starting at row 2', () => {
+    const sheet = buildTableSheet('Jornadas', COLUMNS, ROWS);
+    const cell = (ref: string) => sheet.cells.find((c) => c.ref === ref);
+
+    expect(cell('A2')?.value).toBe('Ana Castillo');
+    expect(cell('A3')?.value).toBe('Beto Núñez');
+  });
+
+  it('keeps numbers and dates as real values, not preformatted text', () => {
+    const sheet = buildTableSheet('Jornadas', COLUMNS, ROWS);
+    const cell = (ref: string) => sheet.cells.find((c) => c.ref === ref);
+
+    // Text that looks like a number sorts alphabetically, which defeats the
+    // whole point of exporting for analysis.
+    expect(cell('B2')?.value).toBe(1250.5);
+    expect(cell('C2')?.value).toBeInstanceOf(Date);
+  });
+
+  it('carries the number format and alignment onto every data cell', () => {
+    const sheet = buildTableSheet('Jornadas', COLUMNS, ROWS);
+    const cell = (ref: string) => sheet.cells.find((c) => c.ref === ref);
+
+    expect(cell('B2')?.numberFormat).toBe(EXCEL_MONEY_FORMAT);
+    expect(cell('B3')?.align).toBe('right');
+    // The header is not a money cell, so it carries no number format.
+    expect(cell('B1')?.numberFormat).toBeUndefined();
+  });
+
+  it('preserves a null as a blank cell rather than coercing it', () => {
+    const sheet = buildTableSheet('Jornadas', COLUMNS, ROWS);
+    const cell = (ref: string) => sheet.cells.find((c) => c.ref === ref);
+
+    expect(cell('C3')?.value).toBeNull();
+  });
+
+  it('emits only the header row when there are no items', () => {
+    const sheet = buildTableSheet('Jornadas', COLUMNS, []);
+
+    expect(sheet.cells).toHaveLength(COLUMNS.length);
+    expect(sheet.cells.every((cell) => cell.ref.endsWith('1'))).toBe(true);
+  });
+
+  it('applies the given width and falls back to a default', () => {
+    const sheet = buildTableSheet('Jornadas', COLUMNS, ROWS);
+
+    expect(sheet.columnWidths?.['A']).toBe(24);
+    expect(sheet.columnWidths?.['B']).toBe(18);
+  });
+
+  it('produces a sheet buildWorkbook can render end to end', () => {
+    const sheet = buildTableSheet('Jornadas', COLUMNS, ROWS);
+
+    const workbook = buildWorkbook({ fileName: 'jornadas', sheets: [sheet] });
+    const rendered = workbook.getWorksheet('Jornadas')!;
+
+    expect(rendered.getCell('A2').value).toBe('Ana Castillo');
+    expect(rendered.getCell('B2').value).toBe(1250.5);
+    expect(rendered.getColumn('A').width).toBe(24);
   });
 });
 

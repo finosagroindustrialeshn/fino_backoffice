@@ -41,6 +41,62 @@ export function columnLetter(index: number): string {
   return letters;
 }
 
+/** Common ExcelJS number formats, so callers don't retype the literals. */
+export const EXCEL_MONEY_FORMAT = '"L "#,##0.00';
+export const EXCEL_DATETIME_FORMAT = 'dd/mm/yyyy hh:mm';
+export const EXCEL_DATE_FORMAT = 'dd/mm/yyyy';
+
+/** One column of a tabular sheet: a header plus how to read it off a row. */
+export interface ExcelColumn<T> {
+  readonly header: string;
+  readonly value: (row: T) => string | number | Date | null;
+  /** ExcelJS number format, e.g. EXCEL_MONEY_FORMAT. */
+  readonly numberFormat?: string;
+  readonly align?: 'left' | 'center' | 'right';
+  readonly width?: number;
+}
+
+const DEFAULT_COLUMN_WIDTH = 18;
+
+/**
+ * Builds a plain header-plus-rows sheet — the shape every list export wants.
+ *
+ * Values are written with their real types rather than pre-formatted strings:
+ * a date stays a date and an amount stays a number, so the spreadsheet can
+ * sort, filter and pivot them. Formatting is presentation, applied through
+ * `numberFormat`. Text that merely looks like a date sorts alphabetically,
+ * which quietly ruins the analysis the export exists for.
+ */
+export function buildTableSheet<T>(
+  name: string,
+  columns: readonly ExcelColumn<T>[],
+  rows: readonly T[],
+): ExcelSheetSpec {
+  const cells: ExcelCellSpec[] = columns.map((column, index) => ({
+    ref: `${columnLetter(index)}1`,
+    value: column.header,
+    bold: true,
+  }));
+
+  rows.forEach((row, rowIndex) => {
+    columns.forEach((column, columnIndex) => {
+      cells.push({
+        ref: `${columnLetter(columnIndex)}${rowIndex + 2}`,
+        value: column.value(row),
+        ...(column.numberFormat ? { numberFormat: column.numberFormat } : {}),
+        ...(column.align ? { align: column.align } : {}),
+      });
+    });
+  });
+
+  const columnWidths: Record<string, number> = {};
+  columns.forEach((column, index) => {
+    columnWidths[columnLetter(index)] = column.width ?? DEFAULT_COLUMN_WIDTH;
+  });
+
+  return { name, cells, columnWidths };
+}
+
 /** Pure: builds the workbook in memory. Split out from `exportToExcel` so it's testable without the browser download step. */
 export function buildWorkbook(spec: ExcelWorkbookSpec): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
