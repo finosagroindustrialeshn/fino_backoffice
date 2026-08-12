@@ -17,9 +17,17 @@ import { SelectModule } from 'primeng/select';
 import { Table, TableModule } from 'primeng/table';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
+import { fetchAllPages } from '../../../../core/http/fetch-all-pages';
 import { LazyList } from '../../../../core/http/lazy-list';
 import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
 import { formatDay } from '../../../../shared/utils/date-range';
+import {
+  buildTableSheet,
+  exportToExcel,
+  EXCEL_DATETIME_FORMAT,
+  EXCEL_MONEY_FORMAT,
+  type ExcelColumn,
+} from '../../../../shared/utils/excel-export';
 import { ExpenseCategoryDataClient } from '../../../catalogs/expense-categories/services/expense-category-data';
 import { UserDataClient } from '../../../users/services/user-data';
 import type { Expense } from '../../models/expense.model';
@@ -103,8 +111,90 @@ export class ExpenseList implements OnInit {
     this.list.items().reduce((sum, expense) => sum + Number(expense.amount), 0),
   );
 
+  protected readonly exporting = signal(false);
+  protected readonly exportError = signal<string | null>(null);
+  /** Set when the export hit the row ceiling, so the user knows it is partial. */
+  protected readonly exportNotice = signal<string | null>(null);
+
   ngOnInit(): void {
     void this.loadLookups();
+  }
+
+  /** Exports every expense matching the current filters, not the page on screen. */
+  protected async exportExpenses(): Promise<void> {
+    this.exporting.set(true);
+    this.exportError.set(null);
+    this.exportNotice.set(null);
+    try {
+      const range = this.dateRange();
+      const [expenses, users, categories] = await Promise.all([
+        fetchAllPages((page, pageSize) =>
+          this.expenses.list({
+            page,
+            pageSize,
+            sellerId: this.sellerFilter() ?? undefined,
+            categoryId: this.categoryFilter() ?? undefined,
+            dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
+            dateTo: range?.[1] ? formatDay(range[1]) : undefined,
+          }),
+        ),
+        fetchAllPages((page, pageSize) => this.users.list({ page, pageSize })),
+        fetchAllPages((page, pageSize) =>
+          this.categories.list({ page, pageSize, includeInactive: true }),
+        ),
+      ]);
+
+      const userNames = new Map(users.rows.map((user) => [user.id, user.fullName]));
+      const categoryNames = new Map(
+        categories.rows.map((category) => [category.id, category.name]),
+      );
+
+      const columns: readonly ExcelColumn<Expense>[] = [
+        {
+          header: 'Fecha',
+          value: (expense) => new Date(expense.createdAt),
+          numberFormat: EXCEL_DATETIME_FORMAT,
+          width: 18,
+        },
+        {
+          header: 'Vendedor',
+          // Falls back to the id so an unresolved name stays traceable.
+          value: (expense) => userNames.get(expense.sellerId) ?? expense.sellerId,
+          width: 24,
+        },
+        {
+          header: 'Categoría',
+          value: (expense) =>
+            categoryNames.get(expense.categoryId) ?? expense.categoryId,
+          width: 24,
+        },
+        { header: 'Descripción', value: (expense) => expense.description, width: 36 },
+        {
+          header: 'Monto',
+          value: (expense) => Number(expense.amount),
+          numberFormat: EXCEL_MONEY_FORMAT,
+          align: 'right',
+          width: 16,
+        },
+        // Carried so a spreadsheet can be cross-referenced against Jornadas.
+        { header: 'Jornada', value: (expense) => expense.shiftId, width: 38 },
+      ];
+
+      await exportToExcel({
+        fileName: `gastos-${formatDay(new Date())}`,
+        sheets: [buildTableSheet('Gastos', columns, expenses.rows)],
+      });
+
+      if (expenses.truncated) {
+        this.exportNotice.set(
+          `El archivo incluye los primeros ${expenses.rows.length} de ${expenses.total} gastos. Acotá el rango de fechas para exportarlos todos.`,
+        );
+      }
+    } catch (error) {
+      this.exportError.set(toMessage(error, 'No se pudo generar el archivo.'));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   protected onSellerFilterChange(sellerId: string | null): void {
@@ -157,4 +247,16 @@ export class ExpenseList implements OnInit {
       // Names fall back to a dash if the lookups fail.
     }
   }
+}
+
+function toMessage(error: unknown, fallback: string): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  ) {
+    return (error as { message: string }).message;
+  }
+  return fallback;
 }

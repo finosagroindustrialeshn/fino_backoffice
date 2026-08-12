@@ -18,9 +18,17 @@ import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
+import { fetchAllPages } from '../../../../core/http/fetch-all-pages';
 import { LazyList } from '../../../../core/http/lazy-list';
 import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
 import { formatDay } from '../../../../shared/utils/date-range';
+import {
+  buildTableSheet,
+  exportToExcel,
+  EXCEL_DATETIME_FORMAT,
+  EXCEL_MONEY_FORMAT,
+  type ExcelColumn,
+} from '../../../../shared/utils/excel-export';
 import { UserDataClient } from '../../../users/services/user-data';
 import {
   SHIFT_STATUS_LABELS,
@@ -106,8 +114,106 @@ export class ShiftList implements OnInit {
     });
   }, 'No se pudieron cargar las jornadas.');
 
+  protected readonly exporting = signal(false);
+  protected readonly exportError = signal<string | null>(null);
+  /** Set when the export hit the row ceiling, so the user knows it is partial. */
+  protected readonly exportNotice = signal<string | null>(null);
+
   ngOnInit(): void {
     void this.loadLookups();
+  }
+
+  /**
+   * Exports every shift matching the current filters, not the page on screen.
+   *
+   * Carries what the list endpoint guarantees. The over/short figure lives in
+   * the liquidation summary, which only `GET /shifts/{id}` documents — pulling
+   * it here would mean one request per row, so it stays out until the API
+   * exposes it on the list.
+   */
+  protected async exportShifts(): Promise<void> {
+    this.exporting.set(true);
+    this.exportError.set(null);
+    this.exportNotice.set(null);
+    try {
+      const range = this.dateRange();
+      const [shifts, users] = await Promise.all([
+        fetchAllPages((page, pageSize) =>
+          this.shifts.list({
+            page,
+            pageSize,
+            status: this.statusFilter() ?? undefined,
+            sellerId: this.sellerFilter() ?? undefined,
+            dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
+            dateTo: range?.[1] ? formatDay(range[1]) : undefined,
+          }),
+        ),
+        fetchAllPages((page, pageSize) => this.users.list({ page, pageSize })),
+      ]);
+
+      const userNames = new Map(users.rows.map((user) => [user.id, user.fullName]));
+      // Falls back to the id so an unresolved name stays traceable.
+      const nameOf = (id: string): string => userNames.get(id) ?? id;
+
+      const columns: readonly ExcelColumn<Shift>[] = [
+        {
+          header: 'Apertura',
+          value: (shift) => new Date(shift.openedAt),
+          numberFormat: EXCEL_DATETIME_FORMAT,
+          width: 18,
+        },
+        {
+          header: 'Cierre',
+          value: (shift) => (shift.closedAt ? new Date(shift.closedAt) : null),
+          numberFormat: EXCEL_DATETIME_FORMAT,
+          width: 18,
+        },
+        { header: 'Vendedor', value: (shift) => nameOf(shift.sellerId), width: 24 },
+        {
+          header: 'Estado',
+          value: (shift) => SHIFT_STATUS_LABELS[shift.status],
+          width: 12,
+        },
+        {
+          header: 'Fondo inicial',
+          value: (shift) => Number(shift.openingCash),
+          numberFormat: EXCEL_MONEY_FORMAT,
+          align: 'right',
+          width: 16,
+        },
+        {
+          header: 'Efectivo entregado',
+          // Left blank rather than zeroed while open: nothing was counted yet,
+          // and a 0 would average into the analysis as if it had been.
+          value: (shift) =>
+            shift.closingCash === null ? null : Number(shift.closingCash),
+          numberFormat: EXCEL_MONEY_FORMAT,
+          align: 'right',
+          width: 18,
+        },
+        {
+          header: 'Cerrada por',
+          value: (shift) => (shift.closedById ? nameOf(shift.closedById) : null),
+          width: 24,
+        },
+        { header: 'Notas', value: (shift) => shift.notes, width: 36 },
+      ];
+
+      await exportToExcel({
+        fileName: `jornadas-${formatDay(new Date())}`,
+        sheets: [buildTableSheet('Jornadas', columns, shifts.rows)],
+      });
+
+      if (shifts.truncated) {
+        this.exportNotice.set(
+          `El archivo incluye las primeras ${shifts.rows.length} de ${shifts.total} jornadas. Acotá el rango de fechas para exportarlas todas.`,
+        );
+      }
+    } catch (error) {
+      this.exportError.set(toMessage(error, 'No se pudo generar el archivo.'));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   protected onStatusFilterChange(status: ShiftStatus | null): void {
@@ -153,4 +259,16 @@ export class ShiftList implements OnInit {
       // Names fall back to a dash if the lookup fails.
     }
   }
+}
+
+function toMessage(error: unknown, fallback: string): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  ) {
+    return (error as { message: string }).message;
+  }
+  return fallback;
 }

@@ -1,6 +1,39 @@
 <div class="flex flex-col gap-6">
-  <div class="flex flex-col gap-1">
-    <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Jornadas</h2>
+  <div class="flex flex-col gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Jornadas</h2>
+
+      <!-- Below sm the title and a full-label button would collide, so it
+           falls back to icon-only. -->
+      <div class="ml-auto flex items-center gap-2">
+        <p-button
+          class="sm:hidden"
+          icon="pi pi-download"
+          severity="secondary"
+          [outlined]="true"
+          [rounded]="true"
+          [loading]="exporting()"
+          (onClick)="exportShifts()"
+          ariaLabel="Descargar Excel"
+        />
+        <p-button
+          class="hidden sm:inline-flex"
+          label="Descargar Excel"
+          icon="pi pi-download"
+          severity="secondary"
+          [outlined]="true"
+          [loading]="exporting()"
+          (onClick)="exportShifts()"
+        />
+      </div>
+    </div>
+
+    @if (exportError(); as message) {
+      <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+    }
+    @if (exportNotice(); as message) {
+      <p role="status" class="text-sm text-amber-800">{{ message }}</p>
+    }
     <p class="text-sm text-ink-soft">
       Seguí las jornadas de los vendedores y liquidá las que quedaron abiertas.
     </p>

@@ -18,9 +18,17 @@ import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
+import { fetchAllPages } from '../../../../core/http/fetch-all-pages';
 import { LazyList } from '../../../../core/http/lazy-list';
 import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
 import { formatDay } from '../../../../shared/utils/date-range';
+import {
+  buildTableSheet,
+  exportToExcel,
+  EXCEL_DATETIME_FORMAT,
+  EXCEL_MONEY_FORMAT,
+  type ExcelColumn,
+} from '../../../../shared/utils/excel-export';
 import { ClientDataClient } from '../../../clients/services/client-data';
 import { UserDataClient } from '../../../users/services/user-data';
 import {
@@ -135,8 +143,126 @@ export class SaleList implements OnInit {
     });
   }, 'No se pudieron cargar las ventas.');
 
+  protected readonly exporting = signal(false);
+  protected readonly exportError = signal<string | null>(null);
+  /** Set when the export hit the row ceiling, so the user knows it is partial. */
+  protected readonly exportNotice = signal<string | null>(null);
+
   ngOnInit(): void {
     void this.loadLookups();
+  }
+
+  /**
+   * Exports every sale matching the current filters — not the page on screen.
+   *
+   * Names are resolved from full lookups fetched here rather than from the
+   * bounded ones the table uses: a spreadsheet built for analysis cannot have
+   * a client column that degrades to a dash past row 200.
+   */
+  protected async exportSales(): Promise<void> {
+    this.exporting.set(true);
+    this.exportError.set(null);
+    this.exportNotice.set(null);
+    try {
+      const range = this.dateRange();
+      const [sales, users, clients] = await Promise.all([
+        fetchAllPages((page, pageSize) =>
+          this.sales.list({
+            page,
+            pageSize,
+            status: this.statusFilter() ?? undefined,
+            channel: this.channelFilter() ?? undefined,
+            paymentType: this.paymentTypeFilter() ?? undefined,
+            sellerId: this.sellerFilter() ?? undefined,
+            dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
+            dateTo: range?.[1] ? formatDay(range[1]) : undefined,
+          }),
+        ),
+        fetchAllPages((page, pageSize) => this.users.list({ page, pageSize })),
+        fetchAllPages((page, pageSize) => this.clients.list({ page, pageSize })),
+      ]);
+
+      const userNames = new Map(users.rows.map((user) => [user.id, user.fullName]));
+      const clientNames = new Map(
+        clients.rows.map((client) => [client.id, client.name]),
+      );
+
+      const columns: readonly ExcelColumn<Sale>[] = [
+        {
+          header: 'Fecha',
+          value: (sale) => new Date(sale.createdAt),
+          numberFormat: EXCEL_DATETIME_FORMAT,
+          width: 18,
+        },
+        {
+          header: 'Cliente',
+          // Falls back to the id, never to a dash: an unresolved name still
+          // has to be traceable in the spreadsheet.
+          value: (sale) =>
+            sale.clientId
+              ? (clientNames.get(sale.clientId) ?? sale.clientId)
+              : 'Consumidor final',
+          width: 28,
+        },
+        {
+          header: 'Vendedor',
+          value: (sale) => userNames.get(sale.sellerId) ?? sale.sellerId,
+          width: 24,
+        },
+        {
+          header: 'Canal',
+          value: (sale) => SALE_CHANNEL_LABELS[sale.channel],
+          width: 12,
+        },
+        {
+          header: 'Tipo de pago',
+          value: (sale) => PAYMENT_TYPE_LABELS[sale.paymentType],
+          width: 14,
+        },
+        {
+          header: 'Estado',
+          value: (sale) => SALE_STATUS_LABELS[sale.status],
+          width: 12,
+        },
+        {
+          header: 'Total',
+          value: (sale) => Number(sale.total),
+          numberFormat: EXCEL_MONEY_FORMAT,
+          align: 'right',
+          width: 16,
+        },
+        {
+          header: 'Abonado',
+          value: (sale) => Number(sale.amountPaid),
+          numberFormat: EXCEL_MONEY_FORMAT,
+          align: 'right',
+          width: 16,
+        },
+        {
+          header: 'Saldo',
+          value: (sale) => Number(sale.balanceDue),
+          numberFormat: EXCEL_MONEY_FORMAT,
+          align: 'right',
+          width: 16,
+        },
+        { header: 'Notas', value: (sale) => sale.notes, width: 32 },
+      ];
+
+      await exportToExcel({
+        fileName: `ventas-${formatDay(new Date())}`,
+        sheets: [buildTableSheet('Ventas', columns, sales.rows)],
+      });
+
+      if (sales.truncated) {
+        this.exportNotice.set(
+          `El archivo incluye las primeras ${sales.rows.length} de ${sales.total} ventas. Acotá el rango de fechas para exportarlas todas.`,
+        );
+      }
+    } catch (error) {
+      this.exportError.set(toMessage(error, 'No se pudo generar el archivo.'));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   protected onStatusFilterChange(status: SaleStatus | null): void {
@@ -218,4 +344,16 @@ export class SaleList implements OnInit {
       // Names fall back to a dash if the lookups fail.
     }
   }
+}
+
+function toMessage(error: unknown, fallback: string): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  ) {
+    return (error as { message: string }).message;
+  }
+  return fallback;
 }
