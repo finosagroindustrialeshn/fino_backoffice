@@ -9,6 +9,7 @@ import type {
 import type {
   CreateReturnPayload,
   Return,
+  ReturnDetail,
   ReturnStatus,
 } from '../models/return.model';
 
@@ -53,14 +54,21 @@ export class ReturnDataClient {
     return this.api.get<Paginated<Return>>('/returns', params as QueryParams);
   }
 
-  get(id: string): Observable<Return> {
-    return this.api.get<Return>(`/returns/${id}`);
+  /** The only endpoint documented to carry the line items. */
+  get(id: string): Observable<ReturnDetail> {
+    return this.api.get<ReturnDetail>(`/returns/${id}`);
   }
 
   create(payload: CreateReturnPayload): Observable<Return> {
     return this.api.post<Return>('/returns', payload);
   }
 
+  /**
+   * Confirm and cancel return the updated header. They are typed as `Return`
+   * rather than `ReturnDetail` because the spec does not promise the lines
+   * back — callers that need them refetch through `get()` instead of trusting
+   * a shape that may not arrive.
+   */
   confirm(id: string): Observable<Return> {
     return this.api.post<Return>(`/returns/${id}/confirm`);
   }

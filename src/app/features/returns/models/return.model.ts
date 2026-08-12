@@ -27,7 +27,14 @@ export interface ReturnItem {
   readonly reasonId: string | null;
 }
 
-/** Stock a seller hands back. Stock only moves once it is CONFIRMED. */
+/**
+ * Stock a seller hands back, as the list endpoint returns it. Stock only
+ * moves once it is CONFIRMED.
+ *
+ * Carries NO line items: `GET /returns` returns the headers only. Declaring
+ * them here anyway is what made the list blow up the first time it had rows
+ * to render — the type promised an array that was never in the payload.
+ */
 export interface Return {
   readonly id: string;
   readonly sellerId: string;
@@ -35,10 +42,14 @@ export interface Return {
   readonly date: string;
   readonly status: ReturnStatus;
   readonly notes: string | null;
-  readonly items: readonly ReturnItem[];
   readonly createdById: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/** A single return with its lines, as documented by `GET /returns/{id}`. */
+export interface ReturnDetail extends Return {
+  readonly items: readonly ReturnItem[];
 }
 
 /** A product line in the create payload. */

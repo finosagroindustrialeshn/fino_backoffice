@@ -31,6 +31,7 @@ import {
   RETURN_STATUS_LABELS,
   RETURN_STATUS_SEVERITY,
   type Return,
+  type ReturnDetail,
   type ReturnStatus,
 } from '../../models/return.model';
 import { ReturnDataClient } from '../../services/return-data';
@@ -116,7 +117,11 @@ export class ReturnList implements OnInit {
 
   // Detail dialog
   protected readonly detailOpen = signal(false);
-  protected readonly detail = signal<Return | null>(null);
+  /** Header from the row, shown immediately while the lines are fetched. */
+  protected readonly detailHeader = signal<Return | null>(null);
+  protected readonly detail = signal<ReturnDetail | null>(null);
+  protected readonly detailLoading = signal(false);
+  protected readonly detailError = signal<string | null>(null);
   /** Mutable copy of the detail line items for the PrimeNG table. */
   protected readonly detailItems = computed(() => [
     ...(this.detail()?.items ?? []),
@@ -170,18 +175,52 @@ export class ReturnList implements OnInit {
     return this.reasonNames().get(reasonId) ?? reasonId;
   }
 
-  protected totalReturned(ret: Return): number {
-    return ret.items.reduce((sum, item) => sum + item.quantityReturned, 0);
-  }
+  /**
+   * Totals over the fetched lines. Only meaningful once the detail has
+   * loaded — the list rows carry no items to add up.
+   */
+  protected readonly totalReturned = computed(() =>
+    this.detailItems().reduce((sum, item) => sum + item.quantityReturned, 0),
+  );
 
-  protected totalMerma(ret: Return): number {
-    return ret.items.reduce((sum, item) => sum + item.quantityMerma, 0);
-  }
+  protected readonly totalMerma = computed(() =>
+    this.detailItems().reduce((sum, item) => sum + item.quantityMerma, 0),
+  );
 
   protected openDetail(ret: Return): void {
-    this.detail.set(ret);
+    this.detailHeader.set(ret);
+    this.detail.set(null);
     this.actionError.set(null);
+    this.detailError.set(null);
     this.detailOpen.set(true);
+    void this.loadDetail(ret.id);
+  }
+
+  /**
+   * The list endpoint returns headers only, so the lines are fetched here.
+   * Reading them off the row is what used to leave the dialog permanently
+   * empty.
+   */
+  private async loadDetail(id: string): Promise<void> {
+    this.detailLoading.set(true);
+    this.detailError.set(null);
+    try {
+      const detail = await firstValueFrom(this.returns.get(id));
+      // Ignore a response for a row the user already navigated away from.
+      if (this.detailHeader()?.id !== id) {
+        return;
+      }
+      this.detail.set(detail);
+    } catch (error) {
+      if (this.detailHeader()?.id !== id) {
+        return;
+      }
+      this.detailError.set(
+        toMessage(error, 'No se pudo cargar el detalle del retorno.'),
+      );
+    } finally {
+      this.detailLoading.set(false);
+    }
   }
 
   protected async confirm(): Promise<void> {
@@ -195,7 +234,7 @@ export class ReturnList implements OnInit {
   private async runAction(
     action: (id: string) => ReturnType<ReturnDataClient['confirm']>,
   ): Promise<void> {
-    const current = this.detail();
+    const current = this.detailHeader();
     if (!current || this.acting()) {
       return;
     }
@@ -204,8 +243,11 @@ export class ReturnList implements OnInit {
     this.actionError.set(null);
     try {
       const updated = await firstValueFrom(action(current.id));
-      this.detail.set(updated);
+      // The action returns the header only, so the status is refreshed from
+      // it and the lines are refetched rather than assumed to have come back.
+      this.detailHeader.set(updated);
       this.list.reload();
+      await this.loadDetail(current.id);
     } catch (error) {
       this.actionError.set(toMessage(error, 'No se pudo actualizar el retorno.'));
     } finally {
