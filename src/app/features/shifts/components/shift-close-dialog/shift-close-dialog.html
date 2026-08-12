@@ -1,0 +1,173 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="visible.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '32rem' }"
+  [breakpoints]="{ '640px': '94vw' }"
+  header="Cerrar jornada"
+  [dismissableMask]="!saving()"
+  [closable]="!saving()"
+>
+  <form class="flex flex-col gap-5" [formGroup]="form" (ngSubmit)="submit()">
+    @if (error(); as message) {
+      <div
+        role="alert"
+        class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+      >
+        {{ message }}
+      </div>
+    }
+
+    <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+      <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+        Efectivo esperado
+      </span>
+      <span class="text-lg font-bold text-ink">
+        {{ expectedCash() | currency: 'HNL' : 'L ' : '1.2-2' }}
+      </span>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="closing-cash"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Efectivo contado
+      </label>
+      <div class="flex items-start gap-2">
+        <p-inputnumber
+          inputId="closing-cash"
+          formControlName="closingCash"
+          mode="decimal"
+          locale="en-US"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          [min]="0"
+          aria-describedby="closing-cash-help"
+          styleClass="flex-1"
+          inputStyleClass="w-full"
+        />
+        <p-button
+          type="button"
+          label="Cuadrar"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="saving()"
+          (onClick)="matchExpected()"
+        />
+      </div>
+      <p id="closing-cash-help" class="text-xs text-ink-soft">
+        Ingresá el efectivo que el vendedor entregó, no el esperado.
+      </p>
+    </div>
+
+    <!-- Live reconciliation. Announced politely so a screen reader hears the
+         over/short update as the amount is typed, without interrupting. -->
+    <div aria-live="polite">
+      @switch (differenceKind()) {
+        @case ('exact') {
+          <div
+            class="flex items-baseline justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3"
+          >
+            <span class="text-sm font-semibold text-emerald-800">
+              {{ differenceLabel() }}
+            </span>
+            <span class="text-sm text-emerald-700">
+              La jornada cierra sin diferencia.
+            </span>
+          </div>
+        }
+        @case ('over') {
+          <div
+            class="flex flex-col gap-1 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
+          >
+            <div class="flex items-baseline justify-between">
+              <span class="text-sm font-semibold text-amber-900">
+                {{ differenceLabel() }}
+              </span>
+              <span class="text-lg font-bold text-amber-900">
+                {{ differenceAmount() | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </span>
+            </div>
+            <p class="text-xs text-amber-800">
+              Hay más efectivo del esperado. Explicá el origen en la nota.
+            </p>
+          </div>
+        }
+        @case ('short') {
+          <div
+            class="flex flex-col gap-1 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+          >
+            <div class="flex items-baseline justify-between">
+              <span class="text-sm font-semibold text-red-800">
+                {{ differenceLabel() }}
+              </span>
+              <span class="text-lg font-bold text-red-800">
+                {{ differenceAmount() | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </span>
+            </div>
+            <p class="text-xs text-red-700">
+              Falta efectivo contra lo esperado. Explicá el faltante en la nota.
+            </p>
+          </div>
+        }
+      }
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="closing-notes"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Nota
+        @if (!balances()) {
+          <span class="text-red-700">*</span>
+        }
+      </label>
+      <textarea
+        id="closing-notes"
+        pTextarea
+        formControlName="notes"
+        rows="3"
+        class="w-full"
+        [attr.aria-required]="!balances()"
+        aria-describedby="closing-notes-help"
+        [placeholder]="
+          balances()
+            ? 'Opcional'
+            : 'Explicá a qué se debe la diferencia'
+        "
+      ></textarea>
+      <p id="closing-notes-help" class="text-xs text-ink-soft">
+        @if (needsNote()) {
+          <span role="alert" class="font-medium text-red-700">
+            Una jornada que no cuadra necesita una nota que explique la
+            diferencia.
+          </span>
+        } @else {
+          Queda registrada junto a la liquidación.
+        }
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <p-button
+        type="button"
+        label="Cancelar"
+        severity="secondary"
+        [text]="true"
+        [disabled]="saving()"
+        (onClick)="cancel()"
+      />
+      <p-button
+        type="submit"
+        label="Cerrar jornada"
+        icon="pi pi-check"
+        [loading]="saving()"
+        [disabled]="saving() || !canSubmit()"
+      />
+    </div>
+  </form>
+</p-dialog>

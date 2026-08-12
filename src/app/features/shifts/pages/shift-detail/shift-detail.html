@@ -1,0 +1,281 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-3">
+    <p-button
+      label="Volver a jornadas"
+      icon="pi pi-arrow-left"
+      severity="secondary"
+      [text]="true"
+      routerLink="/jornadas"
+      styleClass="self-start"
+    />
+    <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+      Detalle de jornada
+    </h2>
+  </div>
+
+  @switch (state().status) {
+    @case ('loading') {
+      <div class="flex flex-col gap-3" aria-busy="true">
+        <span class="sr-only">Cargando la jornada…</span>
+        @for (row of skeletonRows; track row) {
+          <p-skeleton width="100%" height="3rem" />
+        }
+      </div>
+    }
+
+    @case ('error') {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ errorMessage() }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="retry()"
+        />
+      </div>
+    }
+
+    @case ('success') {
+      @if (shift(); as current) {
+        <!-- Summary -->
+        <section
+          class="flex flex-col gap-5 rounded-2xl border border-ink/10 bg-white p-6"
+          aria-label="Resumen de la jornada"
+        >
+          <div class="flex flex-wrap items-center gap-2">
+            <p-tag
+              [value]="statusLabel(current.status)"
+              [severity]="statusSeverity(current.status)"
+            />
+            @if (differenceLabel(); as label) {
+              <p-tag [value]="label" [severity]="differenceSeverity()!" />
+            }
+          </div>
+
+          <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div class="flex flex-col gap-0.5">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Vendedor
+              </dt>
+              <dd class="text-sm font-medium text-ink">{{ displaySeller() }}</dd>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Apertura
+              </dt>
+              <dd class="text-sm text-ink">
+                {{ current.openedAt | date: 'dd/MM/yyyy HH:mm' }}
+              </dd>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Cierre
+              </dt>
+              <dd class="text-sm text-ink">
+                @if (current.closedAt) {
+                  {{ current.closedAt | date: 'dd/MM/yyyy HH:mm' }}
+                } @else {
+                  <span class="text-ink-soft">Jornada abierta</span>
+                }
+              </dd>
+            </div>
+            @if (current.closedById) {
+              <div class="flex flex-col gap-0.5">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Cerrada por
+                </dt>
+                <dd class="text-sm text-ink">{{ displayClosedBy() }}</dd>
+              </div>
+            }
+          </dl>
+
+          @if (current.notes) {
+            <p class="rounded-xl bg-ink/5 px-4 py-3 text-sm text-ink-soft">
+              {{ current.notes }}
+            </p>
+          }
+
+          @if (isOpen()) {
+            <div class="flex justify-end">
+              <p-button
+                label="Cerrar jornada"
+                icon="pi pi-lock"
+                (onClick)="openCloseDialog()"
+              />
+            </div>
+          }
+        </section>
+
+        <!-- Liquidation -->
+        @if (liquidation(); as summary) {
+          <section
+            class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6"
+            aria-label="Liquidación"
+          >
+            <h3 class="font-heading text-lg font-semibold text-ink">Liquidación</h3>
+            @if (isOpen()) {
+              <p class="text-sm text-ink-soft">
+                La jornada sigue abierta: estos montos se mueven con cada venta y
+                cada gasto.
+              </p>
+            }
+
+            <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Ventas ({{ summary.salesCount }})
+                </dt>
+                <dd class="text-lg font-bold text-ink">
+                  {{ summary.totalSales | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+              <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Cobrado en efectivo
+                </dt>
+                <dd class="text-lg font-semibold text-emerald-700">
+                  {{ summary.cashCollected | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+              <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Crédito pendiente
+                </dt>
+                <dd class="text-lg font-semibold text-ink">
+                  {{ summary.creditOutstanding | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+              <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Fondo inicial
+                </dt>
+                <dd class="text-lg text-ink">
+                  {{ current.openingCash | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+              <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Gastos
+                </dt>
+                <dd class="text-lg font-semibold text-amber-800">
+                  −{{ summary.expenses | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+              <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Efectivo esperado
+                </dt>
+                <dd class="text-lg font-bold text-ink">
+                  {{ summary.expectedCash | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </dd>
+              </div>
+            </dl>
+
+            <!-- Reconciliation: only meaningful once the cash was counted. -->
+            @if (summary.closingCash !== null) {
+              <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div
+                  class="flex items-baseline justify-between rounded-xl border border-ink/10 px-4 py-3"
+                >
+                  <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    Efectivo entregado
+                  </dt>
+                  <dd class="text-lg font-bold text-ink">
+                    {{ summary.closingCash | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </dd>
+                </div>
+                <div
+                  class="flex items-baseline justify-between rounded-xl border px-4 py-3"
+                  [class.border-emerald-200]="differenceSeverity() === 'success'"
+                  [class.bg-emerald-50]="differenceSeverity() === 'success'"
+                  [class.border-amber-200]="differenceSeverity() === 'warn'"
+                  [class.bg-amber-50]="differenceSeverity() === 'warn'"
+                  [class.border-red-200]="differenceSeverity() === 'danger'"
+                  [class.bg-red-50]="differenceSeverity() === 'danger'"
+                >
+                  <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    {{ differenceLabel() }}
+                  </dt>
+                  <dd
+                    class="text-lg font-bold"
+                    [class.text-emerald-800]="differenceSeverity() === 'success'"
+                    [class.text-amber-900]="differenceSeverity() === 'warn'"
+                    [class.text-red-800]="differenceSeverity() === 'danger'"
+                  >
+                    {{ differenceAmount() | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </dd>
+                </div>
+              </dl>
+            }
+          </section>
+        }
+
+        <!-- Field expenses charged to this shift -->
+        <section
+          class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6"
+          aria-label="Gastos de la jornada"
+        >
+          <h3 class="font-heading text-lg font-semibold text-ink">Gastos</h3>
+          @if (expensesLoading()) {
+            <p class="text-sm text-ink-soft" aria-busy="true">Cargando gastos…</p>
+          } @else if (shiftExpenses().length === 0) {
+            <p
+              class="rounded-2xl border border-dashed border-ink/15 px-6 py-8 text-center text-sm text-ink-soft"
+            >
+              No se registraron gastos en esta jornada.
+            </p>
+          } @else {
+            <!-- No border of its own: the section already provides the surface. -->
+            <div class="overflow-x-auto">
+              <p-table [value]="shiftExpenses()" tableStyleClass="w-full min-w-[32rem]">
+                <ng-template #header>
+                  <tr>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Categoría</th>
+                    <th scope="col">Descripción</th>
+                    <th scope="col" class="text-right">Monto</th>
+                  </tr>
+                </ng-template>
+                <ng-template #body let-expense>
+                  <tr>
+                    <td class="whitespace-nowrap text-sm text-ink">
+                      {{ expense.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                    </td>
+                    <td class="text-sm text-ink">
+                      {{ categoryName(expense.categoryId) }}
+                    </td>
+                    <td class="text-sm text-ink-soft">
+                      {{ expense.description || '—' }}
+                    </td>
+                    <td class="text-right font-semibold text-amber-800">
+                      {{ expense.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            </div>
+            <p class="text-right text-sm text-ink-soft">
+              <span class="font-semibold text-ink">{{ shiftExpenses().length }}</span>
+              gasto(s) ·
+              <span class="font-semibold text-ink">
+                {{ expensesTotal() | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </span>
+            </p>
+          }
+        </section>
+
+        <app-shift-close-dialog
+          [(visible)]="closeOpen"
+          [expectedCash]="current.liquidation.expectedCash"
+          [saving]="closing()"
+          [error]="closeError()"
+          (submitted)="closeShift($event)"
+        />
+      }
+    }
+  }
+</div>

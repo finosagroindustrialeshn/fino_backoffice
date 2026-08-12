@@ -80,6 +80,30 @@ export const routes: Routes = [
         data: { title: 'Vendedores' },
       },
       {
+        path: 'jornadas',
+        loadComponent: () =>
+          import('./features/shifts/pages/shift-list/shift-list').then(
+            (m) => m.ShiftList,
+          ),
+        data: { title: 'Jornadas' },
+      },
+      {
+        path: 'jornadas/:id',
+        loadComponent: () =>
+          import('./features/shifts/pages/shift-detail/shift-detail').then(
+            (m) => m.ShiftDetail,
+          ),
+        data: { title: 'Detalle de jornada' },
+      },
+      {
+        path: 'gastos',
+        loadComponent: () =>
+          import('./features/expenses/pages/expense-list/expense-list').then(
+            (m) => m.ExpenseList,
+          ),
+        data: { title: 'Gastos' },
+      },
+      {
         path: 'ventas',
         loadComponent: () =>
           import('./features/sales/pages/sale-list/sale-list').then(

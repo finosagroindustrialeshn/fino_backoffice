@@ -48,6 +48,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         route: '/vendedores',
         roles: ['ADMIN', 'SUPERVISOR'],
       },
+      // No role filter: the API already scopes a SELLER to their own shifts.
+      { label: 'Jornadas', icon: 'pi pi-clock', route: '/jornadas' },
+      // Same scoping applies to expenses.
+      { label: 'Gastos', icon: 'pi pi-receipt', route: '/gastos' },
       {
         label: 'Caja',
         icon: 'pi pi-wallet',

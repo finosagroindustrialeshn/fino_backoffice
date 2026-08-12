@@ -1,0 +1,227 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-1">
+    <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Gastos</h2>
+    <p class="text-sm text-ink-soft">
+      Gastos de campo pagados del fondo de los vendedores. Se registran desde la
+      app de ruta y se descuentan del efectivo esperado al cerrar la jornada.
+    </p>
+  </div>
+
+  <!-- Filters -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+    aria-label="Filtros de gasto"
+  >
+    @if (canFilterBySeller()) {
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="seller-filter"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Vendedor
+        </label>
+        <p-select
+          inputId="seller-filter"
+          [options]="sellerFilterOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="sellerFilter()"
+          (onChange)="onSellerFilterChange($event.value)"
+          appendTo="body"
+          placeholder="Todos los vendedores"
+          styleClass="w-full sm:w-52"
+        />
+      </div>
+    }
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="category-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Categoría
+      </label>
+      <p-select
+        inputId="category-filter"
+        [options]="categoryFilterOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="categoryFilter()"
+        (onChange)="onCategoryFilterChange($event.value)"
+        appendTo="body"
+        placeholder="Todas las categorías"
+        styleClass="w-full sm:w-52"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="date-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Rango de fechas
+      </label>
+      <p-datepicker
+        inputId="date-filter"
+        selectionMode="range"
+        [ngModel]="dateRange()"
+        (ngModelChange)="onDateRangeChange($event)"
+        [readonlyInput]="true"
+        [showClear]="true"
+        dateFormat="dd/mm/yy"
+        appendTo="body"
+        placeholder="Todas las fechas"
+        styleClass="w-full sm:w-72"
+      />
+    </div>
+
+    <app-date-range-presets (rangeSelected)="onDateRangeChange($event)" />
+  </section>
+
+  @if (list.error(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+    >
+      <p class="text-sm">{{ message }}</p>
+      <p-button
+        label="Reintentar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="list.reload()"
+      />
+    </div>
+  }
+
+  <div class="md:overflow-x-auto md:rounded-2xl md:border md:border-ink/10 md:bg-white">
+    <p-table
+      #dt
+      [value]="list.items()"
+      [lazy]="true"
+      (onLazyLoad)="list.onLazyLoad($event)"
+      [loading]="list.loading()"
+      [paginator]="true"
+      [rows]="10"
+      [totalRecords]="list.total()"
+      [rowsPerPageOptions]="rowsPerPageOptions"
+      tableStyleClass="min-w-full md:min-w-[52rem]"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+      [showCurrentPageReport]="true"
+    >
+      <!-- Column headers only make sense once fields sit side by side; below
+           md each row renders as a stacked card with its own inline labels. -->
+      <ng-template #header>
+        <tr class="hidden md:table-row">
+          <th scope="col">Fecha</th>
+          <th scope="col">Vendedor</th>
+          <th scope="col">Categoría</th>
+          <th scope="col">Descripción</th>
+          <th scope="col" class="text-right">Monto</th>
+          <th scope="col">Jornada</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-expense>
+        <tr
+          class="mb-3 block rounded-2xl border border-ink/10 bg-white p-4 last:mb-0 md:table-row md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+        >
+          <!-- Desktop columns -->
+          <td class="hidden md:table-cell">
+            <span class="whitespace-nowrap text-sm text-ink">
+              {{ expense.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+            </span>
+          </td>
+          <td class="hidden md:table-cell">
+            <span class="font-medium text-ink">{{ sellerName(expense.sellerId) }}</span>
+          </td>
+          <td class="hidden md:table-cell">
+            <span class="text-sm text-ink">{{ categoryName(expense.categoryId) }}</span>
+          </td>
+          <td class="hidden md:table-cell">
+            <span class="text-sm text-ink-soft">{{ expense.description || '—' }}</span>
+          </td>
+          <td class="hidden text-right md:table-cell">
+            <span class="whitespace-nowrap font-semibold text-amber-800">
+              {{ expense.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </span>
+          </td>
+          <td class="hidden md:table-cell">
+            <p-button
+              label="Ver jornada"
+              icon="pi pi-external-link"
+              size="small"
+              severity="secondary"
+              [text]="true"
+              [routerLink]="['/jornadas', expense.shiftId]"
+            />
+          </td>
+
+          <!-- Mobile card: one cell, everything laid out by hand -->
+          <td class="block md:hidden">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex flex-col gap-0.5">
+                <span class="font-medium text-ink">
+                  {{ categoryName(expense.categoryId) }}
+                </span>
+                <span class="text-xs text-ink-soft">
+                  {{ sellerName(expense.sellerId) }}
+                </span>
+              </div>
+              <span class="whitespace-nowrap font-semibold text-amber-800">
+                {{ expense.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </span>
+            </div>
+
+            @if (expense.description) {
+              <p class="mt-2 text-sm text-ink-soft">{{ expense.description }}</p>
+            }
+
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+              >
+                <i class="pi pi-calendar text-[10px]" aria-hidden="true"></i>
+                {{ expense.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+              </span>
+            </div>
+
+            <div class="mt-3 flex justify-end">
+              <p-button
+                label="Ver jornada"
+                icon="pi pi-external-link"
+                size="small"
+                severity="secondary"
+                [text]="true"
+                [routerLink]="['/jornadas', expense.shiftId]"
+              />
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="6">
+            <p class="py-8 text-center text-sm text-ink-soft">
+              @if (list.loading()) {
+                Cargando gastos…
+              } @else {
+                No hay gastos registrados con estos filtros.
+              }
+            </p>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+
+  @if (list.items().length > 0) {
+    <p class="text-right text-sm text-ink-soft">
+      Suma de los gastos en pantalla:
+      <span class="font-semibold text-ink">
+        {{ pageTotal() | currency: 'HNL' : 'L ' : '1.2-2' }}
+      </span>
+    </p>
+  }
+</div>

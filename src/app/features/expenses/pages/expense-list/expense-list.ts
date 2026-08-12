@@ -1,0 +1,160 @@
+import { CurrencyPipe, DatePipe } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { ButtonModule } from 'primeng/button';
+import { DatePickerModule } from 'primeng/datepicker';
+import { SelectModule } from 'primeng/select';
+import { Table, TableModule } from 'primeng/table';
+
+import { AuthSession } from '../../../../core/auth/auth-session';
+import { LazyList } from '../../../../core/http/lazy-list';
+import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
+import { formatDay } from '../../../../shared/utils/date-range';
+import { ExpenseCategoryDataClient } from '../../../catalogs/expense-categories/services/expense-category-data';
+import { UserDataClient } from '../../../users/services/user-data';
+import type { Expense } from '../../models/expense.model';
+import { ExpenseDataClient } from '../../services/expense-data';
+
+/** Users and expense categories are bounded lookups joined to the page. */
+const LOOKUP_SIZE = 100;
+
+@Component({
+  selector: 'app-expense-list',
+  imports: [
+    CurrencyPipe,
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    DatePickerModule,
+    DateRangePresets,
+    SelectModule,
+    TableModule,
+  ],
+  templateUrl: './expense-list.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class ExpenseList implements OnInit {
+  private readonly expenses = inject(ExpenseDataClient);
+  private readonly users = inject(UserDataClient);
+  private readonly categories = inject(ExpenseCategoryDataClient);
+  private readonly auth = inject(AuthSession);
+  private readonly table = viewChild.required<Table>('dt');
+
+  protected readonly rowsPerPageOptions = [5, 10, 20, 50];
+
+  /** A SELLER only ever sees their own expenses, so the seller filter is noise. */
+  protected readonly canFilterBySeller = computed(() => {
+    const role = this.auth.role();
+    return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'ACCOUNTANT';
+  });
+
+  protected readonly sellerFilter = signal<string | null>(null);
+  protected readonly categoryFilter = signal<string | null>(null);
+  /** [start, end] from the range datepicker; either end may be null mid-select. */
+  protected readonly dateRange = signal<Date[] | null>(null);
+
+  private readonly userNames = signal<ReadonlyMap<string, string>>(new Map());
+  private readonly categoryNames = signal<ReadonlyMap<string, string>>(
+    new Map(),
+  );
+
+  protected readonly sellerFilterOptions = computed(() => [
+    { label: 'Todos los vendedores', value: null as string | null },
+    ...[...this.userNames()].map(([id, name]) => ({ label: name, value: id })),
+  ]);
+
+  protected readonly categoryFilterOptions = computed(() => [
+    { label: 'Todas las categorías', value: null as string | null },
+    ...[...this.categoryNames()].map(([id, name]) => ({
+      label: name,
+      value: id,
+    })),
+  ]);
+
+  protected readonly list = new LazyList<Expense>((page, pageSize) => {
+    const range = this.dateRange();
+    return this.expenses.list({
+      page,
+      pageSize,
+      sellerId: this.sellerFilter() ?? undefined,
+      categoryId: this.categoryFilter() ?? undefined,
+      dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
+      dateTo: range?.[1] ? formatDay(range[1]) : undefined,
+    });
+  }, 'No se pudieron cargar los gastos.');
+
+  /**
+   * Total for the rows on screen, NOT for the whole filtered set — the list
+   * endpoint paginates and reports no aggregate. The template labels it as
+   * such so it is never mistaken for the period's total spend.
+   */
+  protected readonly pageTotal = computed(() =>
+    this.list.items().reduce((sum, expense) => sum + Number(expense.amount), 0),
+  );
+
+  ngOnInit(): void {
+    void this.loadLookups();
+  }
+
+  protected onSellerFilterChange(sellerId: string | null): void {
+    this.sellerFilter.set(sellerId);
+    // reset() jumps to page 1 and re-fires onLazyLoad with the new filter.
+    this.table().reset();
+  }
+
+  protected onCategoryFilterChange(categoryId: string | null): void {
+    this.categoryFilter.set(categoryId);
+    this.table().reset();
+  }
+
+  protected onDateRangeChange(range: Date[] | null): void {
+    this.dateRange.set(range);
+    // Refetch once the range is complete (both ends) or cleared.
+    if (!range || range.length === 0 || (range[0] && range[1])) {
+      this.table().reset();
+    }
+  }
+
+  protected sellerName(sellerId: string): string {
+    return this.userNames().get(sellerId) ?? '—';
+  }
+
+  protected categoryName(categoryId: string): string {
+    return this.categoryNames().get(categoryId) ?? '—';
+  }
+
+  private async loadLookups(): Promise<void> {
+    try {
+      // Inactive categories are included: an old expense still points at the
+      // category it was filed under, even after it was retired.
+      const [users, categories] = await Promise.all([
+        firstValueFrom(this.users.list({ pageSize: LOOKUP_SIZE })),
+        firstValueFrom(
+          this.categories.list({
+            pageSize: LOOKUP_SIZE,
+            includeInactive: true,
+          }),
+        ),
+      ]);
+      this.userNames.set(
+        new Map(users.items.map((user) => [user.id, user.fullName])),
+      );
+      this.categoryNames.set(
+        new Map(categories.items.map((category) => [category.id, category.name])),
+      );
+    } catch {
+      // Names fall back to a dash if the lookups fail.
+    }
+  }
+}
