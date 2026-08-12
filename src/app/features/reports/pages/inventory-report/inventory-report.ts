@@ -253,8 +253,8 @@ export class InventoryReport implements OnInit {
               pageSize,
               lowStockThreshold: this.lowStockOnly() ? LOW_STOCK_THRESHOLD : undefined,
             }),
-          EXPORT_PAGE_SIZE,
-        ),
+          { pageSize: EXPORT_PAGE_SIZE },
+        ).then((result) => result.rows),
         fetchAllPages(
           (page, pageSize) =>
             this.reports.sellerStock({
@@ -262,8 +262,8 @@ export class InventoryReport implements OnInit {
               pageSize,
               sellerId: this.sellerFilter() ?? undefined,
             }),
-          EXPORT_PAGE_SIZE,
-        ),
+          { pageSize: EXPORT_PAGE_SIZE },
+        ).then((result) => result.rows),
         productId ? this.fetchAllKardex(productId) : Promise.resolve(null),
       ]);
 
@@ -286,9 +286,9 @@ export class InventoryReport implements OnInit {
     }
   }
 
-  private fetchAllKardex(productId: string): Promise<readonly KardexEntry[]> {
+  private async fetchAllKardex(productId: string): Promise<readonly KardexEntry[]> {
     const range = this.kardexRange();
-    return fetchAllPages(
+    const { rows } = await fetchAllPages(
       (page, pageSize) =>
         this.reports.kardex({
           page,
@@ -297,8 +297,9 @@ export class InventoryReport implements OnInit {
           dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
           dateTo: range?.[1] ? formatDay(range[1]) : undefined,
         }),
-      EXPORT_PAGE_SIZE,
+      { pageSize: EXPORT_PAGE_SIZE },
     );
+    return rows;
   }
 
   private buildStockSheet(rows: readonly StockReportRow[]): ExcelSheetSpec {

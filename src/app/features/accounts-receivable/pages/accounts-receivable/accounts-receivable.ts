@@ -140,7 +140,7 @@ export class AccountsReceivable implements OnInit {
     this.exporting.set(true);
     this.exportError.set(null);
     try {
-      const debtors = await fetchAllPages(
+      const { rows: debtors } = await fetchAllPages(
         (page, pageSize) =>
           this.receivables.debtors({
             page,
@@ -148,7 +148,7 @@ export class AccountsReceivable implements OnInit {
             sortBy: this.debtorSortBy(),
             sortDir: this.debtors.sortOrder() ?? 'desc',
           }),
-        EXPORT_PAGE_SIZE,
+        { pageSize: EXPORT_PAGE_SIZE },
       );
       const summary = this.summaryState();
 

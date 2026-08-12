@@ -265,8 +265,8 @@ export class SalesReport implements OnInit {
     }
   }
 
-  private fetchAllProducts(): Promise<readonly ProductSalesRow[]> {
-    return fetchAllPages(
+  private async fetchAllProducts(): Promise<readonly ProductSalesRow[]> {
+    const { rows } = await fetchAllPages(
       (page, pageSize) =>
         this.reports.byProduct({
           page,
@@ -275,12 +275,13 @@ export class SalesReport implements OnInit {
           sortBy: this.productSortBy(),
           sortDir: this.productList.sortOrder() ?? 'desc',
         }),
-      EXPORT_PAGE_SIZE,
+      { pageSize: EXPORT_PAGE_SIZE },
     );
+    return rows;
   }
 
-  private fetchAllSellers(): Promise<readonly SellerSalesRow[]> {
-    return fetchAllPages(
+  private async fetchAllSellers(): Promise<readonly SellerSalesRow[]> {
+    const { rows } = await fetchAllPages(
       (page, pageSize) =>
         this.reports.bySeller({
           page,
@@ -288,8 +289,9 @@ export class SalesReport implements OnInit {
           ...this.range(),
           sortDir: this.sellerList.sortOrder() ?? 'desc',
         }),
-      EXPORT_PAGE_SIZE,
+      { pageSize: EXPORT_PAGE_SIZE },
     );
+    return rows;
   }
 
   private buildSummarySheet(summary: SalesSummary | null): ExcelSheetSpec {

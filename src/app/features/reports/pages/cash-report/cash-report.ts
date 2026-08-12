@@ -171,12 +171,12 @@ export class CashReport {
       const [daily, sessions] = await Promise.all([
         fetchAllPages(
           (page, pageSize) => this.reports.daily({ page, pageSize, ...this.range() }),
-          EXPORT_PAGE_SIZE,
-        ),
+          { pageSize: EXPORT_PAGE_SIZE },
+        ).then((result) => result.rows),
         fetchAllPages(
           (page, pageSize) => this.reports.sessions({ page, pageSize, ...this.range() }),
-          EXPORT_PAGE_SIZE,
-        ),
+          { pageSize: EXPORT_PAGE_SIZE },
+        ).then((result) => result.rows),
       ]);
 
       await exportToExcel({
