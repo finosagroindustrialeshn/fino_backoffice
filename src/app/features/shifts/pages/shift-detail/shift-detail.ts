@@ -16,6 +16,8 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
+import type { ApiErrorCode } from '../../../../core/http/api-error-codes';
+import { isApiError } from '../../../../core/http/api-error';
 import { parseUuid } from '../../../../shared/utils/query-params';
 import { ExpenseCategoryDataClient } from '../../../catalogs/expense-categories/services/expense-category-data';
 import type { Expense } from '../../../expenses/models/expense.model';
@@ -123,7 +125,19 @@ export class ShiftDetail {
   protected readonly closeOpen = signal(false);
   protected readonly closing = signal(false);
   protected readonly closeError = signal<string | null>(null);
+  private readonly closeErrorCode = signal<ApiErrorCode | null>(null);
   private pendingClose: PendingClose | null = null;
+
+  /**
+   * A close blocked by a pending stock return is not a dead end: the return
+   * has to be confirmed first, so point at where that happens instead of
+   * leaving the supervisor to work out which screen they need.
+   */
+  protected readonly closeErrorAction = computed(() =>
+    this.closeErrorCode() === 'SHIFT_RETURN_PENDING'
+      ? { label: 'Ir a Retornos', route: '/retorno' }
+      : null,
+  );
 
   protected readonly isOpen = computed(() => this.shift()?.status === 'OPEN');
 
@@ -195,6 +209,7 @@ export class ShiftDetail {
 
   protected openCloseDialog(): void {
     this.closeError.set(null);
+    this.closeErrorCode.set(null);
     this.closeDialog()?.reset();
     this.closeOpen.set(true);
   }
@@ -214,6 +229,7 @@ export class ShiftDetail {
 
     this.closing.set(true);
     this.closeError.set(null);
+    this.closeErrorCode.set(null);
     try {
       const updated = await firstValueFrom(
         this.shifts.close(shift.id, payload, this.pendingClose.key),
@@ -223,7 +239,21 @@ export class ShiftDetail {
       this.closeOpen.set(false);
       void this.loadParties(updated);
     } catch (error) {
+      const code = isApiError(error) ? (error.code ?? null) : null;
       this.closeError.set(toMessage(error, CLOSE_ERROR_MESSAGE));
+      this.closeErrorCode.set(code);
+
+      // A close rejected by a precondition never happened, so the key must
+      // not be replayed: once the block is cleared, the retry is a genuinely
+      // new operation and reusing the key risks replaying the original 409.
+      //
+      // IDEMPOTENCY_IN_PROGRESS is the exception the spec calls out by name —
+      // there the original request IS still running, and the instruction is
+      // to back off and retry with the SAME key. Minting a new one there
+      // would run the close a second time.
+      if (code && code !== 'IDEMPOTENCY_IN_PROGRESS' && isRejection(code)) {
+        this.pendingClose = null;
+      }
     } finally {
       this.closing.set(false);
     }
@@ -308,6 +338,24 @@ export class ShiftDetail {
       // Names fall back to a dash if the lookup fails.
     }
   }
+}
+
+/**
+ * Codes that mean the close was refused outright, so nothing was recorded and
+ * the next attempt starts clean. Deliberately an allow-list: an unrecognised
+ * code keeps the key, because replaying a request that may have gone through
+ * is safe while re-running one that did is not.
+ */
+const REJECTION_CODES: ReadonlySet<ApiErrorCode> = new Set<ApiErrorCode>([
+  'SHIFT_RETURN_PENDING',
+  'SHIFT_ALREADY_CLOSED',
+  'SHIFT_NOT_FOUND',
+  'VALIDATION_FAILED',
+  'FORBIDDEN',
+]);
+
+function isRejection(code: ApiErrorCode): boolean {
+  return REJECTION_CODES.has(code);
 }
 
 function toMessage(error: unknown, fallback: string): string {

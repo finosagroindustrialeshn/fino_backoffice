@@ -273,6 +273,7 @@
           [expectedCash]="current.liquidation.expectedCash"
           [saving]="closing()"
           [error]="closeError()"
+          [errorAction]="closeErrorAction()"
           (submitted)="closeShift($event)"
         />
       }

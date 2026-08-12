@@ -14,6 +14,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -28,6 +29,12 @@ import {
   type CloseShiftPayload,
   type ShiftTagSeverity,
 } from '../../models/shift.model';
+
+/** A link offered alongside an error, pointing at whatever unblocks it. */
+export interface ErrorAction {
+  readonly label: string;
+  readonly route: string;
+}
 
 /**
  * Liquidates a shift: the supervisor enters the cash actually counted and the
@@ -47,6 +54,7 @@ import {
   imports: [
     CurrencyPipe,
     ReactiveFormsModule,
+    RouterLink,
     ButtonModule,
     DialogModule,
     InputNumberModule,
@@ -63,6 +71,13 @@ export class ShiftCloseDialog {
   readonly expectedCash = input.required<number>();
   readonly saving = input(false);
   readonly error = input<string | null>(null);
+  /**
+   * Optional way out of the current error. Some close failures are blocked by
+   * a precondition the user can actually go and satisfy (a pending stock
+   * return, say) — telling them what is wrong without offering the door is
+   * half an error message.
+   */
+  readonly errorAction = input<ErrorAction | null>(null);
 
   readonly submitted = output<CloseShiftPayload>();
 

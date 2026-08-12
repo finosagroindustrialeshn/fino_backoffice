@@ -14,9 +14,20 @@
     @if (error(); as message) {
       <div
         role="alert"
-        class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        class="flex flex-col items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
       >
-        {{ message }}
+        <p>{{ message }}</p>
+        @if (errorAction(); as action) {
+          <p-button
+            [label]="action.label"
+            icon="pi pi-arrow-right"
+            iconPos="right"
+            size="small"
+            severity="danger"
+            [text]="true"
+            [routerLink]="action.route"
+          />
+        }
       </div>
     }
 
