@@ -8,6 +8,12 @@
     Volver a productos
   </a>
 
+  <!-- Outside the load/error block: the page names itself even when the
+       product never arrives. Wording matches the route's declared title. -->
+  <h1 class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+    {{ isEdit() ? 'Editar producto' : 'Nuevo producto' }}
+  </h1>
+
   @if (loadError(); as message) {
     <div
       role="alert"

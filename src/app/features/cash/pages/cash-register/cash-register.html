@@ -1,4 +1,9 @@
 <div class="flex flex-col gap-6">
+  <!-- The page had no title of its own: it opened straight into the "Caja
+       abierta" card, which is a state, not a name. Those headings are now
+       sections under it. Wording matches the route's declared title. -->
+  <h1 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Caja</h1>
+
   @if (loadError(); as message) {
     <div
       role="alert"

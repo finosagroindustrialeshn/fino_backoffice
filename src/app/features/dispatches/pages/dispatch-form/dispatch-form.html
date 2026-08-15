@@ -8,6 +8,12 @@
     Volver a despacho
   </a>
 
+  <!-- Outside the load/error block: the page names itself even when the
+       form data never arrives. Wording matches the route's declared title. -->
+  <h1 class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+    Nuevo despacho
+  </h1>
+
   @if (loadError(); as message) {
     <div
       role="alert"
