@@ -30,15 +30,16 @@
     <section
       class="animate-fade-in-up hidden [animation-delay:80ms] flex-col justify-between bg-brand p-10 text-white lg:flex lg:w-2/5 lg:p-12"
     >
-      <span
-        class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15"
-        aria-hidden="true"
-      >
-        <svg viewBox="0 0 24 24" fill="currentColor" class="h-6 w-6">
-          <path
-            d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"
-          />
-        </svg>
+      <!-- White tile, not a translucent one: the isotype's dark navy gear
+           would sink into the brand green otherwise. -->
+      <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white">
+        <img
+          ngSrc="logoSinTexto.png"
+          width="26"
+          height="36"
+          priority
+          alt="Fino Agroindustriales"
+        />
       </span>
 
       <div class="flex flex-col gap-4">
@@ -56,19 +57,16 @@
       <p class="text-xs text-white/50">© 2026 Fino Agroindustriales</p>
     </section>
 
-    <!-- Compact brand mark — shown below lg, where the brand panel is hidden -->
-    <div class="flex items-center gap-2.5 px-6 pt-8 sm:px-8 lg:hidden">
-      <span
-        class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white"
-        aria-hidden="true"
-      >
-        <svg viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
-          <path
-            d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"
-          />
-        </svg>
-      </span>
-      <span class="font-heading text-sm font-extrabold text-ink">Fino Agroindustriales</span>
+    <!-- Full lockup — shown below lg, where the brand panel is hidden. It gets
+         the room here that it never gets inside app chrome. -->
+    <div class="flex justify-center px-6 pt-6 sm:px-8 lg:hidden">
+      <img
+        ngSrc="logo_de_finos.png"
+        width="160"
+        height="160"
+        priority
+        alt="Fino Agroindustriales"
+      />
     </div>
 
     <!-- Form panel -->

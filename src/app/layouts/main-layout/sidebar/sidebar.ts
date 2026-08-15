@@ -6,7 +6,7 @@ import {
   model,
   signal,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
+import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { DrawerModule } from 'primeng/drawer';
 
@@ -15,7 +15,13 @@ import { NAV_GROUPS } from '../nav-items';
 
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, RouterLinkActive, NgTemplateOutlet, DrawerModule],
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    NgOptimizedImage,
+    NgTemplateOutlet,
+    DrawerModule,
+  ],
   templateUrl: './sidebar.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

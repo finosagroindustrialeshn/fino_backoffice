@@ -9,6 +9,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
+import { NgOptimizedImage } from '@angular/common';
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -37,6 +38,7 @@ const BACKGROUND_LEAVES: readonly string[] = [
 @Component({
   selector: 'app-login',
   imports: [
+    NgOptimizedImage,
     ReactiveFormsModule,
     InputTextModule,
     PasswordModule,

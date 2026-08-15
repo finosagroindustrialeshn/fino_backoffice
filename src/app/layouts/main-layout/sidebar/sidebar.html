@@ -1,16 +1,15 @@
 <ng-template #navContent let-collapsed="collapsed">
   <!-- Brand -->
   <div class="flex items-center gap-2.5 px-2.5 pb-5" [class.justify-center]="collapsed">
-    <span
-      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-white"
-      aria-hidden="true"
-    >
-      <svg viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
-        <path
-          d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"
-        />
-      </svg>
-    </span>
+    <!-- The isotype carries its own colours, so it needs no tinted tile. -->
+    <img
+      ngSrc="logoSinTexto.png"
+      width="26"
+      height="36"
+      priority
+      [alt]="collapsed ? 'Fino Agroindustriales' : ''"
+      class="shrink-0"
+    />
     @if (!collapsed) {
       <div class="flex flex-col leading-tight">
         <span class="font-heading text-sm font-extrabold text-ink">Fino Agroindustriales</span>
