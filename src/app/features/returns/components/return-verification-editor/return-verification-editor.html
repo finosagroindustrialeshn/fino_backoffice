@@ -1,0 +1,116 @@
+<section class="flex flex-col gap-3" aria-label="Verificación del retorno">
+  <p class="text-sm text-ink-soft">
+    Anotá cuánto de cada producto se da de baja. Lo que dejes sin merma vuelve
+    completo a bodega.
+  </p>
+
+  <div class="overflow-x-auto rounded-xl border border-ink/10">
+    <p-table [value]="rows()" tableStyleClass="w-full">
+      <ng-template #header>
+        <tr>
+          <th scope="col">Producto</th>
+          <th scope="col" class="text-right">Declarado</th>
+          <th scope="col" class="text-right">Merma</th>
+          <th scope="col">Motivo</th>
+        </tr>
+      </ng-template>
+      <ng-template #body let-row>
+        <tr>
+          <td>
+            <div class="flex flex-col gap-0.5">
+              <span class="flex items-center gap-2 text-ink">
+                {{ row.name }}
+                @if (row.flaggedBySeller) {
+                  <p-tag value="Marcado" severity="warn" icon="pi pi-flag" />
+                }
+              </span>
+              @if (row.sellerNote) {
+                <span class="text-xs italic text-ink-soft">
+                  “{{ row.sellerNote }}”
+                </span>
+              }
+            </div>
+          </td>
+          <td class="text-right font-semibold text-ink">{{ row.declared }}</td>
+          <td class="text-right">
+            <p-inputnumber
+              [inputId]="'merma-' + row.productId"
+              [ngModel]="row.quantityMerma"
+              (ngModelChange)="setMerma(row.productId, $event)"
+              [min]="0"
+              [max]="row.declared"
+              [step]="1"
+              [maxFractionDigits]="0"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              styleClass="w-32"
+              inputStyleClass="w-12 text-right"
+              [ariaLabel]="'Merma de ' + row.name"
+            />
+          </td>
+          <td>
+            <p-select
+              [inputId]="'reason-' + row.productId"
+              [options]="reasonOptions()"
+              optionLabel="name"
+              optionValue="id"
+              [ngModel]="row.reasonId"
+              (ngModelChange)="setReason(row.productId, $event)"
+              [disabled]="row.quantityMerma === 0"
+              placeholder="Motivo"
+              appendTo="body"
+              styleClass="w-full min-w-40"
+              [showClear]="true"
+              [ariaLabel]="'Motivo de merma de ' + row.name"
+            />
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="4">
+            <p class="py-6 text-center text-sm text-ink-soft">
+              Este retorno no tiene líneas registradas.
+            </p>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+
+  @if (rows().length > 0) {
+    <dl class="flex flex-wrap justify-end gap-6 text-sm">
+      <div class="flex items-baseline gap-2">
+        <dt class="text-ink-soft">Declarado</dt>
+        <dd class="text-base font-semibold text-ink">{{ declared() }}</dd>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <dt class="text-ink-soft">Vuelve a bodega</dt>
+        <dd class="text-base font-semibold text-ink">{{ returned() }}</dd>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <dt class="text-ink-soft">Merma</dt>
+        <dd
+          class="text-base font-semibold"
+          [class.text-red-600]="merma() > 0"
+          [class.text-ink-soft]="merma() === 0"
+        >
+          {{ merma() }}
+        </dd>
+      </div>
+    </dl>
+  }
+
+  @if (errors().length > 0) {
+    <ul
+      role="alert"
+      class="flex list-disc flex-col gap-1 rounded-xl border border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700"
+    >
+      @for (message of errors(); track message) {
+        <li>{{ message }}</li>
+      }
+    </ul>
+  }
+</section>

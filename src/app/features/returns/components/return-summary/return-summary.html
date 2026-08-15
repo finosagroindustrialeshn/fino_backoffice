@@ -1,0 +1,55 @@
+@let view = summary();
+
+<dl class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+  <div class="flex flex-col gap-0.5">
+    <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+      Vendedor
+    </dt>
+    <dd class="text-sm font-medium text-ink">{{ view.sellerName }}</dd>
+  </div>
+  <div class="flex flex-col gap-0.5">
+    <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+      Fecha
+    </dt>
+    <dd class="text-sm text-ink">{{ view.date | date: 'dd/MM/yyyy' }}</dd>
+  </div>
+  <div class="flex flex-col gap-0.5">
+    <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+      Estado
+    </dt>
+    <dd>
+      <p-tag
+        [value]="statusLabel(view.status)"
+        [severity]="statusSeverity(view.status)"
+      />
+    </dd>
+  </div>
+  <div class="flex flex-col gap-0.5">
+    <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+      Declarado por
+    </dt>
+    <dd class="text-sm text-ink">{{ view.declaredBy }}</dd>
+  </div>
+  @if (view.confirmedBy || view.confirmedAt) {
+    <div class="flex flex-col gap-0.5">
+      <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+        Verificado por
+      </dt>
+      <dd class="text-sm text-ink">{{ view.confirmedBy ?? '—' }}</dd>
+    </div>
+    <div class="flex flex-col gap-0.5">
+      <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+        Verificado el
+      </dt>
+      <dd class="text-sm text-ink">
+        {{ view.confirmedAt ? (view.confirmedAt | date: 'dd/MM/yyyy HH:mm') : '—' }}
+      </dd>
+    </div>
+  }
+</dl>
+
+@if (view.notes) {
+  <p class="rounded-xl bg-ink/5 px-4 py-3 text-sm text-ink-soft">
+    {{ view.notes }}
+  </p>
+}

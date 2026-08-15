@@ -1,0 +1,66 @@
+<section
+  class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+  aria-label="Filtros de retorno"
+>
+  <div class="flex flex-col gap-1.5">
+    <label
+      for="status-filter"
+      class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+    >
+      Estado
+    </label>
+    <p-select
+      inputId="status-filter"
+      [options]="statusOptions()"
+      optionLabel="label"
+      optionValue="value"
+      [ngModel]="status()"
+      (ngModelChange)="onStatusChange($event)"
+      appendTo="body"
+      styleClass="w-full sm:w-48"
+    />
+  </div>
+
+  <div class="flex flex-col gap-1.5">
+    <label
+      for="seller-filter"
+      class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+    >
+      Vendedor
+    </label>
+    <p-select
+      inputId="seller-filter"
+      [options]="sellerOptions()"
+      optionLabel="label"
+      optionValue="value"
+      [ngModel]="sellerId()"
+      (onChange)="onSellerChange($event.value)"
+      appendTo="body"
+      placeholder="Todos los vendedores"
+      styleClass="w-full sm:w-52"
+    />
+  </div>
+
+  <div class="flex flex-col gap-1.5">
+    <label
+      for="date-filter"
+      class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+    >
+      Rango de fechas
+    </label>
+    <p-datepicker
+      inputId="date-filter"
+      selectionMode="range"
+      [ngModel]="dateRange()"
+      (ngModelChange)="onDateRangeChange($event)"
+      [readonlyInput]="true"
+      [showClear]="true"
+      dateFormat="dd/mm/yy"
+      appendTo="body"
+      placeholder="Todas las fechas"
+      styleClass="w-full sm:w-72"
+    />
+  </div>
+
+  <app-date-range-presets (rangeSelected)="onDateRangeChange($event)" />
+</section>

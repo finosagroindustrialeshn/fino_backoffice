@@ -1,0 +1,74 @@
+<div class="overflow-x-auto rounded-xl border border-ink/10">
+  <p-table [value]="rows()" tableStyleClass="w-full">
+    <ng-template #header>
+      <tr>
+        <th scope="col">Producto</th>
+        <th scope="col" class="text-right">Retornado</th>
+        <th scope="col" class="text-right">Merma</th>
+        <th scope="col">Motivo merma</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-line>
+      <tr>
+        <td>
+          <div class="flex flex-col gap-0.5">
+            <span class="flex items-center gap-2 text-ink">
+              {{ line.name }}
+              @if (line.flaggedBySeller) {
+                <p-tag value="Marcado" severity="warn" icon="pi pi-flag" />
+              }
+            </span>
+            @if (line.sellerNote) {
+              <span class="text-xs italic text-ink-soft">
+                “{{ line.sellerNote }}”
+              </span>
+            }
+          </div>
+        </td>
+        <td class="text-right font-semibold text-ink">
+          {{ line.quantityReturned }}
+        </td>
+        <td
+          class="text-right font-semibold"
+          [class.text-red-600]="line.quantityMerma > 0"
+          [class.text-ink-soft]="line.quantityMerma === 0"
+        >
+          {{ line.quantityMerma }}
+        </td>
+        <td>
+          <span class="text-sm text-ink-soft">
+            {{ line.quantityMerma > 0 ? (line.reason ?? '—') : '—' }}
+          </span>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr>
+        <td colspan="4">
+          <p class="py-6 text-center text-sm text-ink-soft">
+            Este retorno no tiene líneas registradas.
+          </p>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+@if (rows().length > 0) {
+  <dl class="flex flex-wrap justify-end gap-6 text-sm">
+    <div class="flex items-baseline gap-2">
+      <dt class="text-ink-soft">Total retornado</dt>
+      <dd class="text-base font-semibold text-ink">{{ totalReturned() }}</dd>
+    </div>
+    <div class="flex items-baseline gap-2">
+      <dt class="text-ink-soft">Total merma</dt>
+      <dd
+        class="text-base font-semibold"
+        [class.text-red-600]="totalMerma() > 0"
+        [class.text-ink-soft]="totalMerma() === 0"
+      >
+        {{ totalMerma() }}
+      </dd>
+    </div>
+  </dl>
+}
