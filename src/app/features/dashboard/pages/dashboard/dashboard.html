@@ -3,24 +3,18 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">Dashboard</h2>
 
-      <!-- Below sm the title + full-label button collide; icon-only there. -->
-      <p-button
-        class="ml-auto sm:hidden"
-        icon="pi pi-refresh"
-        severity="secondary"
-        [outlined]="true"
-        [rounded]="true"
-        (onClick)="refreshAll()"
-        ariaLabel="Actualizar"
-      />
-      <p-button
-        class="hidden sm:inline-flex"
-        label="Actualizar"
-        icon="pi pi-refresh"
-        severity="secondary"
-        [outlined]="true"
-        (onClick)="refreshAll()"
-      />
+      <!-- Native button, not p-button: `severity="secondary"` + outlined
+           resolves to a muted taupe in this theme that all but disappears on
+           the cream background. Below sm the label collapses to the icon but
+           stays readable to screen readers, so one button covers both. -->
+      <button
+        type="button"
+        (click)="refreshAll()"
+        class="ml-auto flex h-10 shrink-0 items-center gap-2 rounded-full bg-brand-mist px-4 text-sm font-semibold text-ink transition-colors hover:bg-brand hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      >
+        <i class="pi pi-refresh" aria-hidden="true"></i>
+        <span class="sr-only sm:not-sr-only">Actualizar</span>
+      </button>
     </div>
     <p class="text-sm text-ink-soft">
       Resumen ejecutivo de ventas, caja, cartera e inventario.

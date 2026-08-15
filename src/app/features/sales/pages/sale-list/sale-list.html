@@ -6,11 +6,12 @@
       <!-- Below sm the title and a full-label button would collide, so it
            falls back to icon-only. -->
       <div class="ml-auto flex items-center gap-2">
+        <!-- Solid primary, matching the download in reports and accounts
+             receivable: it is this page's only action, and `secondary` +
+             outlined resolves to a taupe that vanishes on the cream page. -->
         <p-button
           class="sm:hidden"
           icon="pi pi-download"
-          severity="secondary"
-          [outlined]="true"
           [rounded]="true"
           [loading]="exporting()"
           (onClick)="exportSales()"
@@ -20,8 +21,6 @@
           class="hidden sm:inline-flex"
           label="Descargar Excel"
           icon="pi pi-download"
-          severity="secondary"
-          [outlined]="true"
           [loading]="exporting()"
           (onClick)="exportSales()"
         />
