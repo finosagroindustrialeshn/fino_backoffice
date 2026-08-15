@@ -9,18 +9,19 @@
           icon="pi pi-plus"
           [rounded]="true"
           routerLink="/retorno/nuevo"
-          ariaLabel="Nuevo retorno"
+          ariaLabel="Generar retorno"
         />
         <p-button
           class="hidden sm:block"
-          label="Nuevo retorno"
+          label="Generar retorno"
           icon="pi pi-plus"
           routerLink="/retorno/nuevo"
         />
       }
     </div>
     <p class="text-sm text-ink-soft">
-      Registrá y controlá los retornos de producto y su merma.
+      Verificá lo que el vendedor entrega y decidí qué vuelve a bodega y qué se
+      da de baja como merma.
     </p>
   </div>
 
@@ -161,8 +162,8 @@
           </td>
           <td class="hidden md:table-cell">
             <p-button
-              label="Ver detalle"
-              icon="pi pi-eye"
+              [label]="ret.status === 'DRAFT' ? 'Verificar' : 'Ver detalle'"
+              [icon]="ret.status === 'DRAFT' ? 'pi pi-check-square' : 'pi pi-eye'"
               size="small"
               severity="secondary"
               [text]="true"
@@ -175,8 +176,8 @@
             <div class="flex items-center justify-between gap-3">
               <span class="font-medium text-ink">{{ sellerName(ret.sellerId) }}</span>
               <p-button
-                label="Ver detalle"
-                icon="pi pi-eye"
+                [label]="ret.status === 'DRAFT' ? 'Verificar' : 'Ver detalle'"
+                [icon]="ret.status === 'DRAFT' ? 'pi pi-check-square' : 'pi pi-eye'"
                 size="small"
                 severity="secondary"
                 [text]="true"
@@ -228,9 +229,9 @@
   [modal]="true"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: '46rem' }"
+  [style]="{ width: '52rem' }"
   [breakpoints]="{ '768px': '90vw', '640px': '94vw' }"
-  header="Detalle del retorno"
+  [header]="isDraft() && canManage() ? 'Verificar retorno' : 'Detalle del retorno'"
   [dismissableMask]="true"
 >
   <!-- Header comes from the row so the dialog paints instantly; the lines
@@ -274,6 +275,32 @@
             />
           </dd>
         </div>
+        <div class="flex flex-col gap-0.5">
+          <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            Declarado por
+          </dt>
+          <dd class="text-sm text-ink">{{ userName(current.createdById) }}</dd>
+        </div>
+        @if (current.confirmedById || current.confirmedAt) {
+          <div class="flex flex-col gap-0.5">
+            <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              Verificado por
+            </dt>
+            <dd class="text-sm text-ink">{{ userName(current.confirmedById) }}</dd>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              Verificado el
+            </dt>
+            <dd class="text-sm text-ink">
+              {{
+                current.confirmedAt
+                  ? (current.confirmedAt | date: 'dd/MM/yyyy HH:mm')
+                  : '—'
+              }}
+            </dd>
+          </div>
+        }
       </dl>
 
       @if (current.notes) {
@@ -305,7 +332,138 @@
             (onClick)="openDetail(current)"
           />
         </div>
+      } @else if (isDraft() && canManage()) {
+        <!-- Verification editor: the merma is decided HERE, not when the
+             return was declared. Whatever is not written off goes back to
+             the warehouse; the line total never changes. -->
+        <section class="flex flex-col gap-3" aria-label="Verificación del retorno">
+          <p class="text-sm text-ink-soft">
+            Anotá cuánto de cada producto se da de baja. Lo que dejes sin merma
+            vuelve completo a bodega.
+          </p>
+
+          <div class="overflow-x-auto rounded-xl border border-ink/10">
+            <p-table [value]="incidents()" tableStyleClass="w-full">
+              <ng-template #header>
+                <tr>
+                  <th scope="col">Producto</th>
+                  <th scope="col" class="text-right">Declarado</th>
+                  <th scope="col" class="text-right">Merma</th>
+                  <th scope="col">Motivo</th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-row>
+                <tr>
+                  <td>
+                    <div class="flex flex-col gap-0.5">
+                      <span class="flex items-center gap-2 text-ink">
+                        {{ productName(row.productId) }}
+                        @if (row.flaggedBySeller) {
+                          <p-tag
+                            value="Marcado"
+                            severity="warn"
+                            icon="pi pi-flag"
+                          />
+                        }
+                      </span>
+                      @if (row.sellerNote) {
+                        <span class="text-xs italic text-ink-soft">
+                          “{{ row.sellerNote }}”
+                        </span>
+                      }
+                    </div>
+                  </td>
+                  <td class="text-right font-semibold text-ink">
+                    {{ row.declared }}
+                  </td>
+                  <td class="text-right">
+                    <p-inputnumber
+                      [inputId]="'merma-' + row.productId"
+                      [ngModel]="row.quantityMerma"
+                      (ngModelChange)="setMerma(row.productId, $event)"
+                      [min]="0"
+                      [max]="row.declared"
+                      [step]="1"
+                      [maxFractionDigits]="0"
+                      [showButtons]="true"
+                      buttonLayout="horizontal"
+                      incrementButtonIcon="pi pi-plus"
+                      decrementButtonIcon="pi pi-minus"
+                      styleClass="w-32"
+                      inputStyleClass="w-12 text-right"
+                      [ariaLabel]="'Merma de ' + productName(row.productId)"
+                    />
+                  </td>
+                  <td>
+                    <p-select
+                      [inputId]="'reason-' + row.productId"
+                      [options]="reasonOptions()"
+                      optionLabel="name"
+                      optionValue="id"
+                      [ngModel]="row.reasonId"
+                      (ngModelChange)="setReason(row.productId, $event)"
+                      [disabled]="row.quantityMerma === 0"
+                      placeholder="Motivo"
+                      appendTo="body"
+                      styleClass="w-full min-w-40"
+                      [showClear]="true"
+                      [ariaLabel]="'Motivo de merma de ' + productName(row.productId)"
+                    />
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template #emptymessage>
+                <tr>
+                  <td colspan="4">
+                    <p class="py-6 text-center text-sm text-ink-soft">
+                      Este retorno no tiene líneas registradas.
+                    </p>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+
+          @if (incidents().length > 0) {
+            <dl class="flex flex-wrap justify-end gap-6 text-sm">
+              <div class="flex items-baseline gap-2">
+                <dt class="text-ink-soft">Declarado</dt>
+                <dd class="text-base font-semibold text-ink">
+                  {{ totalDeclared() }}
+                </dd>
+              </div>
+              <div class="flex items-baseline gap-2">
+                <dt class="text-ink-soft">Vuelve a bodega</dt>
+                <dd class="text-base font-semibold text-ink">
+                  {{ draftReturned() }}
+                </dd>
+              </div>
+              <div class="flex items-baseline gap-2">
+                <dt class="text-ink-soft">Merma</dt>
+                <dd
+                  class="text-base font-semibold"
+                  [class.text-red-600]="draftMerma() > 0"
+                  [class.text-ink-soft]="draftMerma() === 0"
+                >
+                  {{ draftMerma() }}
+                </dd>
+              </div>
+            </dl>
+          }
+
+          @if (incidentErrors().length > 0) {
+            <ul
+              role="alert"
+              class="flex list-disc flex-col gap-1 rounded-xl border border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700"
+            >
+              @for (message of incidentErrors(); track message) {
+                <li>{{ message }}</li>
+              }
+            </ul>
+          }
+        </section>
       } @else {
+        <!-- Confirmed (or read-only): the split is history now. -->
         <div class="overflow-x-auto rounded-xl border border-ink/10">
           <p-table [value]="detailItems()" tableStyleClass="w-full">
             <ng-template #header>
@@ -318,7 +476,21 @@
             </ng-template>
             <ng-template #body let-item>
               <tr>
-                <td>{{ productName(item.productId) }}</td>
+                <td>
+                  <div class="flex flex-col gap-0.5">
+                    <span class="flex items-center gap-2 text-ink">
+                      {{ productName(item.productId) }}
+                      @if (item.flaggedBySeller) {
+                        <p-tag value="Marcado" severity="warn" icon="pi pi-flag" />
+                      }
+                    </span>
+                    @if (item.sellerNote) {
+                      <span class="text-xs italic text-ink-soft">
+                        “{{ item.sellerNote }}”
+                      </span>
+                    }
+                  </div>
+                </td>
                 <td class="text-right font-semibold text-ink">
                   {{ item.quantityReturned }}
                 </td>
@@ -373,7 +545,7 @@
         <div class="flex flex-wrap items-center justify-end gap-2">
           <p-button
             type="button"
-            label="Cancelar"
+            label="Cancelar retorno"
             icon="pi pi-times"
             severity="danger"
             [outlined]="true"
@@ -385,13 +557,13 @@
             label="Confirmar"
             icon="pi pi-check"
             [loading]="acting()"
-            [disabled]="acting()"
+            [disabled]="acting() || detailLoading() || !canConfirm()"
             (onClick)="confirm()"
           />
         </div>
         <p class="text-xs text-ink-soft">
-          Confirmar devuelve el stock retornado a bodega y descuenta la merma. No
-          se puede deshacer.
+          Confirmar devuelve {{ draftReturned() }} unidades a bodega y da de baja
+          {{ draftMerma() }} como merma. No se puede deshacer.
         </p>
       }
     </div>

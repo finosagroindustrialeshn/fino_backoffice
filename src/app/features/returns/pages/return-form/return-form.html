@@ -8,6 +8,17 @@
     Volver a retorno
   </a>
 
+  <div class="flex flex-col gap-1">
+    <h1 class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+      Generar retorno
+    </h1>
+    <p class="text-sm text-ink-soft">
+      Para un vendedor que cerró el día sin entregar. El sistema arma las líneas
+      con el stock que el vendedor todavía carga — no se digita ninguna
+      cantidad. La merma se decide después, al confirmar.
+    </p>
+  </div>
+
   @if (loadError(); as message) {
     <div
       role="alert"
@@ -22,7 +33,7 @@
     >
       <span class="sr-only">Cargando…</span>
       <p-skeleton width="14rem" height="1.25rem" />
-      <p-skeleton width="100%" height="12rem" />
+      <p-skeleton width="100%" height="8rem" />
     </div>
   } @else {
     @if (formError(); as message) {
@@ -35,52 +46,79 @@
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-6">
-      <!-- Header fields -->
+      <!-- Shift to reconcile -->
       <div class="flex flex-col gap-5 rounded-2xl border border-ink/10 bg-white p-6">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="flex flex-col gap-1.5">
             <label
-              for="return-seller"
+              for="seller-filter"
               class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
             >
               Vendedor
             </label>
             <p-select
-              inputId="return-seller"
-              formControlName="sellerId"
-              [options]="sellerOptions()"
-              optionLabel="fullName"
-              optionValue="id"
-              placeholder="Seleccioná un vendedor"
+              inputId="seller-filter"
+              [options]="sellerFilterOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="sellerFilter()"
+              [ngModelOptions]="{ standalone: true }"
+              (onChange)="onSellerFilterChange($event.value)"
+              placeholder="Todos los vendedores"
               appendTo="body"
               styleClass="w-full"
               [filter]="true"
-              filterBy="fullName"
+              filterBy="label"
             />
-            @if (
-              form.controls.sellerId.touched && form.controls.sellerId.invalid
-            ) {
-              <span class="text-xs text-red-600" role="alert">
-                Elegí un vendedor.
-              </span>
-            }
+            <span class="text-xs text-ink-soft">
+              Solo filtra la lista de jornadas.
+            </span>
           </div>
 
           <div class="flex flex-col gap-1.5">
             <label
-              for="return-date"
+              for="return-shift"
               class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
             >
-              Fecha
+              Jornada a liquidar
             </label>
-            <p-datepicker
-              inputId="return-date"
-              formControlName="date"
-              dateFormat="dd/mm/yy"
+            <p-select
+              inputId="return-shift"
+              formControlName="shiftId"
+              [options]="shiftOptions()"
+              optionValue="id"
+              [loading]="shiftsLoading()"
+              placeholder="Seleccioná una jornada abierta"
+              emptyMessage="No hay jornadas abiertas."
               appendTo="body"
               styleClass="w-full"
-              [showIcon]="true"
-            />
+            >
+              <ng-template #selectedItem let-shift>
+                <span class="text-sm">
+                  {{ sellerName(shift.sellerId) }} ·
+                  {{ shift.openedAt | date: 'dd/MM/yyyy HH:mm' }}
+                </span>
+              </ng-template>
+              <ng-template #item let-shift>
+                <div class="flex flex-col">
+                  <span class="text-sm font-medium text-ink">
+                    {{ sellerName(shift.sellerId) }}
+                  </span>
+                  <span class="text-xs text-ink-soft">
+                    Abierta el {{ shift.openedAt | date: 'dd/MM/yyyy HH:mm' }}
+                  </span>
+                </div>
+              </ng-template>
+            </p-select>
+            @if (form.controls.shiftId.touched && form.controls.shiftId.invalid) {
+              <span class="text-xs text-red-600" role="alert">
+                Elegí la jornada que se va a liquidar.
+              </span>
+            }
+            <span class="text-xs text-ink-soft">
+              Solo se listan jornadas abiertas: una jornada cerrada ya no se
+              puede liquidar.
+            </span>
           </div>
         </div>
 
@@ -101,127 +139,88 @@
         </div>
       </div>
 
-      <!-- Line items -->
+      <!-- Flagged products (optional) -->
       <div class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-ink">Productos retornados</h2>
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="flex flex-col gap-1">
+            <h2 class="text-sm font-semibold text-ink">
+              Productos con problema
+            </h2>
+            <p class="text-xs text-ink-soft">
+              Opcional. Marca un producto para quien lo cuente. No lleva
+              cantidad ni motivo — eso se define al confirmar.
+            </p>
+          </div>
           <p-button
             type="button"
-            label="Agregar línea"
-            icon="pi pi-plus"
+            label="Marcar producto"
+            icon="pi pi-flag"
             size="small"
             [outlined]="true"
-            (onClick)="addItem()"
+            (onClick)="addFlag()"
           />
         </div>
 
-        <div class="flex flex-col gap-4" formArrayName="items">
-          @for (item of items.controls; track $index) {
+        @if (flags.length === 0) {
+          <p class="text-sm text-ink-soft">Ningún producto marcado.</p>
+        }
+
+        <div class="flex flex-col gap-4" formArrayName="flags">
+          @for (flag of flags.controls; track $index) {
             <div
-              class="flex flex-col gap-2 rounded-xl border border-ink/10 p-4"
+              class="grid grid-cols-1 gap-3 rounded-xl border border-ink/10 p-4 sm:grid-cols-[1fr_1.5fr_auto] sm:items-end"
               [formGroupName]="$index"
             >
-              <div
-                class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_7rem_7rem_1fr_auto] sm:items-end"
-              >
-                <div class="flex flex-col gap-1.5">
-                  <label
-                    [for]="'item-product-' + $index"
-                    class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-                  >
-                    Producto
-                  </label>
-                  <p-select
-                    [inputId]="'item-product-' + $index"
-                    formControlName="productId"
-                    [options]="productOptions()"
-                    optionLabel="name"
-                    optionValue="id"
-                    placeholder="Producto"
-                    appendTo="body"
-                    styleClass="w-full"
-                    [filter]="true"
-                    filterBy="name"
-                  />
-                </div>
+              <div class="flex flex-col gap-1.5">
+                <label
+                  [for]="'flag-product-' + $index"
+                  class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+                >
+                  Producto
+                </label>
+                <p-select
+                  [inputId]="'flag-product-' + $index"
+                  formControlName="productId"
+                  [options]="productOptions()"
+                  optionLabel="name"
+                  optionValue="id"
+                  placeholder="Producto"
+                  appendTo="body"
+                  styleClass="w-full"
+                  [filter]="true"
+                  filterBy="name"
+                />
+                @if (flag.touched && flag.controls.productId.invalid) {
+                  <span class="text-xs text-red-600" role="alert">
+                    Elegí el producto.
+                  </span>
+                }
+              </div>
 
-                <div class="flex flex-col gap-1.5">
-                  <label
-                    [for]="'item-returned-' + $index"
-                    class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-                  >
-                    Retornado
-                  </label>
-                  <p-inputnumber
-                    [inputId]="'item-returned-' + $index"
-                    formControlName="quantityReturned"
-                    [min]="0"
-                    [step]="1"
-                    [maxFractionDigits]="0"
-                    styleClass="w-full"
-                    inputStyleClass="w-full"
-                  />
-                </div>
-
-                <div class="flex flex-col gap-1.5">
-                  <label
-                    [for]="'item-merma-' + $index"
-                    class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-                  >
-                    Merma
-                  </label>
-                  <p-inputnumber
-                    [inputId]="'item-merma-' + $index"
-                    formControlName="quantityMerma"
-                    [min]="0"
-                    [step]="1"
-                    [maxFractionDigits]="0"
-                    styleClass="w-full"
-                    inputStyleClass="w-full"
-                  />
-                </div>
-
-                <div class="flex flex-col gap-1.5">
-                  <label
-                    [for]="'item-reason-' + $index"
-                    class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
-                  >
-                    Motivo merma
-                  </label>
-                  <p-select
-                    [inputId]="'item-reason-' + $index"
-                    formControlName="reasonId"
-                    [options]="reasonOptions()"
-                    optionLabel="name"
-                    optionValue="id"
-                    placeholder="Motivo"
-                    appendTo="body"
-                    styleClass="w-full"
-                    [showClear]="true"
-                  />
-                </div>
-
-                <p-button
-                  type="button"
-                  icon="pi pi-trash"
-                  severity="danger"
-                  [text]="true"
-                  ariaLabel="Quitar línea"
-                  [disabled]="items.length <= 1"
-                  (onClick)="removeItem($index)"
+              <div class="flex flex-col gap-1.5">
+                <label
+                  [for]="'flag-note-' + $index"
+                  class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+                >
+                  Nota
+                </label>
+                <input
+                  pInputText
+                  [id]="'flag-note-' + $index"
+                  formControlName="note"
+                  class="w-full"
+                  placeholder="Qué se dijo de este producto"
                 />
               </div>
 
-              @if (item.touched && item.hasError('emptyLine')) {
-                <span class="text-xs text-red-600" role="alert">
-                  La línea debe mover al menos una unidad (retornado o merma).
-                </span>
-              }
-              @if (item.touched && item.hasError('reasonRequired')) {
-                <span class="text-xs text-red-600" role="alert">
-                  Indicá el motivo de la merma.
-                </span>
-              }
+              <p-button
+                type="button"
+                icon="pi pi-trash"
+                severity="danger"
+                [text]="true"
+                ariaLabel="Quitar producto marcado"
+                (onClick)="removeFlag($index)"
+              />
             </div>
           }
         </div>
@@ -238,7 +237,7 @@
         />
         <p-button
           type="submit"
-          label="Crear retorno"
+          label="Generar retorno"
           [loading]="saving()"
           [disabled]="form.invalid || saving()"
         />

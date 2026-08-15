@@ -1,49 +1,66 @@
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   OnInit,
   signal,
 } from '@angular/core';
 import {
+  FormsModule,
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
-  type AbstractControl,
-  type ValidationErrors,
+  type FormControl,
+  type FormGroup,
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
-import { DatePickerModule } from 'primeng/datepicker';
-import { InputNumberModule } from 'primeng/inputnumber';
+import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TextareaModule } from 'primeng/textarea';
 
 import type { UserProfile } from '../../../../core/auth/user-profile.model';
-import type { ReturnReason } from '../../../catalogs/return-reasons/models/return-reason.model';
-import { ReturnReasonDataClient } from '../../../catalogs/return-reasons/services/return-reason-data';
 import type { Product } from '../../../products/models/product.model';
 import { ProductDataClient } from '../../../products/services/product-data';
+import type { Shift } from '../../../shifts/models/shift.model';
+import { ShiftDataClient } from '../../../shifts/services/shift-data';
 import { UserDataClient } from '../../../users/services/user-data';
 import type {
   CreateReturnPayload,
-  ReturnItemInput,
+  ReturnFlagInput,
 } from '../../models/return.model';
 import { ReturnDataClient } from '../../services/return-data';
 
-/** Sellers, products and reasons are bounded pickers for the return form. */
+/** Sellers, products and shifts are bounded pickers for the return form. */
 const PICKER_SIZE = 100;
 
+/** One flagged product: which one, and what the seller said about it. */
+type FlagGroup = FormGroup<{
+  productId: FormControl<string>;
+  note: FormControl<string>;
+}>;
+
+/**
+ * Generates the return that settles a shift, for a seller who left without
+ * handing anything in.
+ *
+ * There is no line editor: the API computes the lines from the seller's live
+ * carried stock for every product the shift received. Nothing is typed, and
+ * merma is not decided here — that happens when the return is confirmed.
+ */
 @Component({
   selector: 'app-return-form',
   imports: [
+    DatePipe,
+    FormsModule,
     ReactiveFormsModule,
     RouterLink,
     ButtonModule,
-    DatePickerModule,
-    InputNumberModule,
+    InputTextModule,
     SelectModule,
     SkeletonModule,
     TextareaModule,
@@ -54,9 +71,9 @@ const PICKER_SIZE = 100;
 export class ReturnForm implements OnInit {
   private readonly router = inject(Router);
   private readonly returns = inject(ReturnDataClient);
+  private readonly shifts = inject(ShiftDataClient);
   private readonly users = inject(UserDataClient);
   private readonly products = inject(ProductDataClient);
-  private readonly reasons = inject(ReturnReasonDataClient);
   private readonly fb = inject(NonNullableFormBuilder);
 
   protected readonly loading = signal(true);
@@ -64,71 +81,105 @@ export class ReturnForm implements OnInit {
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
 
-  protected readonly sellerOptions = signal<UserProfile[]>([]);
   protected readonly productOptions = signal<Product[]>([]);
-  protected readonly reasonOptions = signal<ReturnReason[]>([]);
+  private readonly sellerNames = signal<ReadonlyMap<string, string>>(new Map());
+  /**
+   * Only OPEN shifts are offered: a return settles the day before it closes,
+   * so a shift that is already CLOSED can no longer be reconciled.
+   */
+  protected readonly shiftOptions = signal<Shift[]>([]);
+  protected readonly shiftsLoading = signal(false);
+
+  /** Narrows the shift picker; not part of the payload. */
+  protected readonly sellerFilter = signal<string | null>(null);
+
+  protected readonly sellerFilterOptions = computed(() => [
+    { label: 'Todos los vendedores', value: null as string | null },
+    ...[...this.sellerNames()].map(([id, name]) => ({ label: name, value: id })),
+  ]);
 
   protected readonly form = this.fb.group({
-    sellerId: this.fb.control('', [Validators.required]),
-    date: this.fb.control<Date>(new Date(), [Validators.required]),
+    shiftId: this.fb.control('', [Validators.required]),
     notes: this.fb.control(''),
-    items: this.fb.array([this.newItem()]),
+    flags: this.fb.array<FlagGroup>([]),
   });
 
-  protected get items() {
-    return this.form.controls.items;
+  protected get flags() {
+    return this.form.controls.flags;
   }
 
   ngOnInit(): void {
     void this.init();
   }
 
-  private newItem() {
-    return this.fb.group(
-      {
-        productId: this.fb.control('', [Validators.required]),
-        quantityReturned: this.fb.control(0, [
-          Validators.required,
-          Validators.min(0),
-        ]),
-        quantityMerma: this.fb.control(0, [
-          Validators.required,
-          Validators.min(0),
-        ]),
-        reasonId: this.fb.control(''),
-      },
-      { validators: [lineValidator] },
-    );
+  protected sellerName(sellerId: string): string {
+    return this.sellerNames().get(sellerId) ?? sellerId;
   }
 
-  protected addItem(): void {
-    this.items.push(this.newItem());
+  private newFlag(): FlagGroup {
+    return this.fb.group({
+      productId: this.fb.control('', [Validators.required]),
+      note: this.fb.control(''),
+    });
   }
 
-  protected removeItem(index: number): void {
-    if (this.items.length > 1) {
-      this.items.removeAt(index);
-    }
+  protected addFlag(): void {
+    this.flags.push(this.newFlag());
+  }
+
+  protected removeFlag(index: number): void {
+    this.flags.removeAt(index);
   }
 
   private async init(): Promise<void> {
     this.loading.set(true);
     this.loadError.set(null);
     try {
-      const [sellers, products, reasons] = await Promise.all([
+      const [sellers, products] = await Promise.all([
         firstValueFrom(
           this.users.list({ role: 'SELLER', pageSize: PICKER_SIZE }),
         ),
         firstValueFrom(this.products.list({ pageSize: PICKER_SIZE })),
-        firstValueFrom(this.reasons.list({ pageSize: PICKER_SIZE })),
       ]);
-      this.sellerOptions.set([...sellers.items]);
+      this.sellerNames.set(
+        new Map(
+          sellers.items.map((user: UserProfile) => [user.id, user.fullName]),
+        ),
+      );
       this.productOptions.set([...products.items]);
-      this.reasonOptions.set([...reasons.items]);
+      await this.loadShifts();
     } catch (error) {
       this.loadError.set(toMessage(error, 'No se pudo cargar el formulario.'));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  protected onSellerFilterChange(sellerId: string | null): void {
+    this.sellerFilter.set(sellerId);
+    // The selected shift may not belong to the new seller — drop it.
+    this.form.controls.shiftId.setValue('');
+    void this.loadShifts();
+  }
+
+  private async loadShifts(): Promise<void> {
+    this.shiftsLoading.set(true);
+    try {
+      const page = await firstValueFrom(
+        this.shifts.list({
+          status: 'OPEN',
+          sellerId: this.sellerFilter() ?? undefined,
+          pageSize: PICKER_SIZE,
+        }),
+      );
+      this.shiftOptions.set([...page.items]);
+    } catch (error) {
+      this.shiftOptions.set([]);
+      this.loadError.set(
+        toMessage(error, 'No se pudieron cargar las jornadas abiertas.'),
+      );
+    } finally {
+      this.shiftsLoading.set(false);
     }
   }
 
@@ -142,20 +193,19 @@ export class ReturnForm implements OnInit {
     this.formError.set(null);
 
     const raw = this.form.getRawValue();
-    const items: ReturnItemInput[] = raw.items.map((item) => ({
-      productId: item.productId,
-      quantityReturned: item.quantityReturned,
-      quantityMerma: item.quantityMerma,
-      // reasonId only travels when there is merma to explain.
-      ...(item.quantityMerma > 0 && item.reasonId
-        ? { reasonId: item.reasonId }
-        : {}),
-    }));
+    // A flag carries no quantity and no reason — only which product came back
+    // with a problem, and what was said about it.
+    const flags: ReturnFlagInput[] = raw.flags.map((flag) => {
+      const note = flag.note.trim();
+      return {
+        productId: flag.productId,
+        ...(note ? { note } : {}),
+      };
+    });
     const notes = raw.notes.trim();
     const payload: CreateReturnPayload = {
-      sellerId: raw.sellerId,
-      date: formatDay(raw.date),
-      items,
+      shiftId: raw.shiftId,
+      ...(flags.length > 0 ? { flags } : {}),
       ...(notes ? { notes } : {}),
     };
 
@@ -163,38 +213,11 @@ export class ReturnForm implements OnInit {
       await firstValueFrom(this.returns.create(payload));
       await this.router.navigate(['/retorno']);
     } catch (error) {
-      this.formError.set(toMessage(error, 'No se pudo crear el retorno.'));
+      this.formError.set(toMessage(error, 'No se pudo generar el retorno.'));
     } finally {
       this.saving.set(false);
     }
   }
-}
-
-/**
- * Line-level rules: a line must move at least one unit, and any merma must
- * carry a reason. Returns keyed errors so the template can target each.
- */
-function lineValidator(control: AbstractControl): ValidationErrors | null {
-  const returned = Number(control.get('quantityReturned')?.value ?? 0);
-  const merma = Number(control.get('quantityMerma')?.value ?? 0);
-  const reasonId = control.get('reasonId')?.value as string;
-
-  const errors: ValidationErrors = {};
-  if (returned + merma <= 0) {
-    errors['emptyLine'] = true;
-  }
-  if (merma > 0 && !reasonId) {
-    errors['reasonRequired'] = true;
-  }
-  return Object.keys(errors).length > 0 ? errors : null;
-}
-
-/** Formats a Date as YYYY-MM-DD using its local calendar day (no UTC shift). */
-function formatDay(date: Date): string {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function toMessage(error: unknown, fallback: string): string {

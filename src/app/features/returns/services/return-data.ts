@@ -1,12 +1,14 @@
 import { inject, Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
 
-import { ApiClient, type QueryParams } from '../../../core/http/api-client';
+import { ApiClient } from '../../../core/http/api-client';
 import type {
   Paginated,
   PaginationQuery,
 } from '../../../core/http/pagination.model';
+import { toQueryParams } from '../../../core/http/query-params';
 import type {
+  ConfirmReturnPayload,
   CreateReturnPayload,
   Return,
   ReturnDetail,
@@ -29,29 +31,10 @@ export class ReturnDataClient {
   private readonly api = inject(ApiClient);
 
   list(query?: ReturnListQuery): Observable<Paginated<Return>> {
-    const params: Record<string, string | number | boolean> = {};
-    if (query?.page) {
-      params['page'] = query.page;
-    }
-    if (query?.pageSize) {
-      params['pageSize'] = query.pageSize;
-    }
-    if (query?.sellerId) {
-      params['sellerId'] = query.sellerId;
-    }
-    if (query?.status) {
-      params['status'] = query.status;
-    }
-    if (query?.date) {
-      params['date'] = query.date;
-    }
-    if (query?.dateFrom) {
-      params['dateFrom'] = query.dateFrom;
-    }
-    if (query?.dateTo) {
-      params['dateTo'] = query.dateTo;
-    }
-    return this.api.get<Paginated<Return>>('/returns', params as QueryParams);
+    return this.api.get<Paginated<Return>>(
+      '/returns',
+      toQueryParams({ ...query }),
+    );
   }
 
   /** The only endpoint documented to carry the line items. */
@@ -59,18 +42,26 @@ export class ReturnDataClient {
     return this.api.get<ReturnDetail>(`/returns/${id}`);
   }
 
+  /**
+   * Generates the draft return reconciling a shift, for a seller who left
+   * without handing anything in. The lines come from their live carried stock
+   * — nothing is typed, and no stock moves until the return is confirmed.
+   */
   create(payload: CreateReturnPayload): Observable<Return> {
     return this.api.post<Return>('/returns', payload);
   }
 
   /**
-   * Confirm and cancel return the updated header. They are typed as `Return`
-   * rather than `ReturnDetail` because the spec does not promise the lines
-   * back — callers that need them refetch through `get()` instead of trusting
-   * a shape that may not arrive.
+   * Verifies the return and decides what goes back to inventory. Each incident
+   * writes off part of a product; whatever is left of that line returns to the
+   * warehouse. Sending none accepts the whole return as clean surplus.
+   *
+   * Typed as `Return` rather than `ReturnDetail` because the spec does not
+   * promise the lines back — callers that need them refetch through `get()`
+   * instead of trusting a shape that may not arrive.
    */
-  confirm(id: string): Observable<Return> {
-    return this.api.post<Return>(`/returns/${id}/confirm`);
+  confirm(id: string, payload?: ConfirmReturnPayload): Observable<Return> {
+    return this.api.post<Return>(`/returns/${id}/confirm`, payload ?? {});
   }
 
   cancel(id: string): Observable<Return> {
