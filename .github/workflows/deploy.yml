@@ -26,9 +26,11 @@ jobs:
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      # main ships to production, develop ships to a preview deployment.
+      # main ships to production, develop ships to a preview deployment. The
+      # same value drives pull, build and deploy so all three agree on the
+      # target: a bare `vercel build` targets development and would look for
+      # .vercel/.env.development.local, which pull never writes.
       VERCEL_TARGET: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
-      PROD_FLAG: ${{ github.ref_name == 'main' && '--prod' || '' }}
       # `vercel pull` only accepts --git-branch together with the preview
       # target; passing it for production is rejected outright. The condition
       # is inverted on purpose: in `a && b || c` an empty `b` is falsy, so it
@@ -63,11 +65,11 @@ jobs:
           grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$file" | tr -d '=' | sort
 
       - name: Build
-        run: vercel build $PROD_FLAG --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --target=$VERCEL_TARGET --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy
         id: deploy
         run: |
-          url=$(vercel deploy --prebuilt $PROD_FLAG --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(vercel deploy --prebuilt --target=$VERCEL_TARGET --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed \`${{ github.ref_name }}\` to $VERCEL_TARGET: $url" >> "$GITHUB_STEP_SUMMARY"
