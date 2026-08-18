@@ -61,7 +61,7 @@ Two GitHub Actions workflows own the pipeline:
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | Pull requests targeting `main` or `develop` | Installs dependencies, runs the unit tests and a production build against the placeholder values in `.env.example`. |
-| `.github/workflows/deploy.yml` | Pushes to `main` or `develop` | Runs the same checks, then builds and deploys through the Vercel CLI. `develop` ships a preview deployment, `main` ships to production. |
+| `.github/workflows/deploy.yml` | Pushes to `main` or `develop` | Runs the same checks, then deploys through the Vercel CLI. `develop` ships a preview deployment, `main` ships to production. |
 
 Deployments run from GitHub Actions rather than from Vercel's Git integration, so
 a red test suite blocks the deploy. Automatic Vercel deployments for `main` and
@@ -82,9 +82,15 @@ Environments > deploy), not as repository secrets.
 ### Application environment variables
 
 The build reads its configuration from environment variables (see
-`.env.example`). CI only needs the placeholders, but the deploy job pulls the
-real values from the Vercel project, so every key in `.env.example` must be set
-in Vercel under both the Production and the Preview environment.
+`.env.example`). CI compiles with the placeholders, but the real build runs on
+Vercel, which injects the variables of the target being deployed. Every key in
+`.env.example` must therefore be set in Vercel under **both** the Production and
+the Preview environment.
+
+The deploy step intentionally does not pass `--prebuilt`: building in the runner
+with `vercel build` does not forward the project variables to the build command,
+so `scripts/generate-env.mjs` fails there even when `vercel pull` downloaded
+them correctly.
 
 ## Additional Resources
 
