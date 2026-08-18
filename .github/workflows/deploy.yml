@@ -26,16 +26,8 @@ jobs:
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      # main ships to production, develop ships to a preview deployment. The
-      # same value drives pull, build and deploy so all three agree on the
-      # target: a bare `vercel build` targets development and would look for
-      # .vercel/.env.development.local, which pull never writes.
+      # main ships to production, develop ships to a preview deployment.
       VERCEL_TARGET: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
-      # `vercel pull` only accepts --git-branch together with the preview
-      # target; passing it for production is rejected outright. The condition
-      # is inverted on purpose: in `a && b || c` an empty `b` is falsy, so it
-      # would fall through to `c` and always emit the flag.
-      GIT_BRANCH_FLAG: ${{ github.ref_name != 'main' && format('--git-branch={0}', github.ref_name) || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,34 +38,14 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # Pulls the project settings and the environment variables configured in
-      # Vercel for this target, so the build gets the real API_URL, Supabase and
-      # Firebase keys instead of the placeholders used in CI.
-      - name: Pull Vercel project settings
-        run: vercel pull --yes --environment=$VERCEL_TARGET $GIT_BRANCH_FLAG --token=${{ secrets.VERCEL_TOKEN }}
-
-      # `vercel build` does not forward the pulled variables to the build
-      # command, so write them where scripts/generate-env.mjs looks first: a
-      # plain .env file, which takes precedence over process.env.
-      - name: Pull application environment into .env
-        run: vercel env pull .env --environment=$VERCEL_TARGET $GIT_BRANCH_FLAG --token=${{ secrets.VERCEL_TOKEN }}
-
-      # Names only, never values: makes a missing variable obvious in the log
-      # without leaking anything.
-      - name: List pulled variable names
-        run: |
-          if [ ! -f .env ]; then
-            echo "no .env was produced"
-            exit 1
-          fi
-          grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' .env | tr -d '=' | sort
-
-      - name: Build
-        run: vercel build --target=$VERCEL_TARGET --token=${{ secrets.VERCEL_TOKEN }}
-
+      # The build runs on Vercel rather than here. scripts/generate-env.mjs
+      # expects the host to inject API_URL, Supabase and Firebase keys as real
+      # environment variables, which Vercel does natively for the target being
+      # deployed. Building locally with `vercel build` does not forward them to
+      # the build command, so the deploy is the only build step.
       - name: Deploy
         id: deploy
         run: |
-          url=$(vercel deploy --prebuilt --target=$VERCEL_TARGET --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(vercel deploy --yes --target=$VERCEL_TARGET --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed \`${{ github.ref_name }}\` to $VERCEL_TARGET: $url" >> "$GITHUB_STEP_SUMMARY"
