@@ -30,8 +30,10 @@ jobs:
       VERCEL_TARGET: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
       PROD_FLAG: ${{ github.ref_name == 'main' && '--prod' || '' }}
       # `vercel pull` only accepts --git-branch together with the preview
-      # target; passing it for production is rejected outright.
-      GIT_BRANCH_FLAG: ${{ github.ref_name == 'main' && '' || format('--git-branch={0}', github.ref_name) }}
+      # target; passing it for production is rejected outright. The condition
+      # is inverted on purpose: in `a && b || c` an empty `b` is falsy, so it
+      # would fall through to `c` and always emit the flag.
+      GIT_BRANCH_FLAG: ${{ github.ref_name != 'main' && format('--git-branch={0}', github.ref_name) || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +49,18 @@ jobs:
       # Firebase keys instead of the placeholders used in CI.
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=$VERCEL_TARGET $GIT_BRANCH_FLAG --token=${{ secrets.VERCEL_TOKEN }}
+
+      # Names only, never values: makes a missing variable obvious in the log
+      # without leaking anything.
+      - name: List pulled variable names
+        run: |
+          file=$(ls .vercel/.env.*.local 2>/dev/null | head -1)
+          if [ -z "$file" ]; then
+            echo "vercel pull produced no env file"
+            exit 0
+          fi
+          echo "From $file:"
+          grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$file" | tr -d '=' | sort
 
       - name: Build
         run: vercel build $PROD_FLAG --token=${{ secrets.VERCEL_TOKEN }}
