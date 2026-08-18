@@ -49,20 +49,24 @@ jobs:
       # Pulls the project settings and the environment variables configured in
       # Vercel for this target, so the build gets the real API_URL, Supabase and
       # Firebase keys instead of the placeholders used in CI.
-      - name: Pull Vercel environment
+      - name: Pull Vercel project settings
         run: vercel pull --yes --environment=$VERCEL_TARGET $GIT_BRANCH_FLAG --token=${{ secrets.VERCEL_TOKEN }}
+
+      # `vercel build` does not forward the pulled variables to the build
+      # command, so write them where scripts/generate-env.mjs looks first: a
+      # plain .env file, which takes precedence over process.env.
+      - name: Pull application environment into .env
+        run: vercel env pull .env --environment=$VERCEL_TARGET $GIT_BRANCH_FLAG --token=${{ secrets.VERCEL_TOKEN }}
 
       # Names only, never values: makes a missing variable obvious in the log
       # without leaking anything.
       - name: List pulled variable names
         run: |
-          file=$(ls .vercel/.env.*.local 2>/dev/null | head -1)
-          if [ -z "$file" ]; then
-            echo "vercel pull produced no env file"
-            exit 0
+          if [ ! -f .env ]; then
+            echo "no .env was produced"
+            exit 1
           fi
-          echo "From $file:"
-          grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$file" | tr -d '=' | sort
+          grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' .env | tr -d '=' | sort
 
       - name: Build
         run: vercel build --target=$VERCEL_TARGET --token=${{ secrets.VERCEL_TOKEN }}
