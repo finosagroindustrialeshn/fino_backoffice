@@ -54,6 +54,38 @@ ng e2e
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
+## CI/CD
+
+Two GitHub Actions workflows own the pipeline:
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `.github/workflows/ci.yml` | Pull requests targeting `main` or `develop` | Installs dependencies, runs the unit tests and a production build against the placeholder values in `.env.example`. |
+| `.github/workflows/deploy.yml` | Pushes to `main` or `develop` | Runs the same checks, then builds and deploys through the Vercel CLI. `develop` ships a preview deployment, `main` ships to production. |
+
+Deployments run from GitHub Actions rather than from Vercel's Git integration, so
+a red test suite blocks the deploy. Automatic Vercel deployments for `main` and
+`develop` are therefore disabled in `vercel.json` (`git.deploymentEnabled`).
+
+### Required secrets
+
+The deploy job runs under the GitHub environment named `deploy`, so these must
+be added as **environment secrets** of that environment (Settings >
+Environments > deploy), not as repository secrets.
+
+| Secret | Where to get it |
+| --- | --- |
+| `VERCEL_TOKEN` | Vercel dashboard > Account Settings > Tokens |
+| `VERCEL_ORG_ID` | `.vercel/project.json` after running `vercel link`, field `orgId` |
+| `VERCEL_PROJECT_ID` | `.vercel/project.json` after running `vercel link`, field `projectId` |
+
+### Application environment variables
+
+The build reads its configuration from environment variables (see
+`.env.example`). CI only needs the placeholders, but the deploy job pulls the
+real values from the Vercel project, so every key in `.env.example` must be set
+in Vercel under both the Production and the Preview environment.
+
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

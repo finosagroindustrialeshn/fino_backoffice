@@ -1,0 +1,60 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, develop]
+
+# Never cancel a running deployment: a half-finished promotion is worse than a
+# queued one.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to Vercel
+    needs: verify
+    runs-on: ubuntu-latest
+    # Holds the Vercel credentials as environment secrets. Both branches share
+    # it; the production/preview split is decided by VERCEL_TARGET below.
+    environment:
+      name: deploy
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # main ships to production, develop ships to a preview deployment.
+      VERCEL_TARGET: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+      PROD_FLAG: ${{ github.ref_name == 'main' && '--prod' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # Pulls the project settings and the environment variables configured in
+      # Vercel for this target, so the build gets the real API_URL, Supabase and
+      # Firebase keys instead of the placeholders used in CI.
+      - name: Pull Vercel environment
+        run: >-
+          vercel pull --yes
+          --environment=$VERCEL_TARGET
+          --git-branch=${{ github.ref_name }}
+          --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build $PROD_FLAG --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt $PROD_FLAG --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed \`${{ github.ref_name }}\` to $VERCEL_TARGET: $url" >> "$GITHUB_STEP_SUMMARY"

@@ -56,6 +56,10 @@ claude-rules.lock.json
 CLAUDE.md
 skills-lock.json
 .atl
+.env.prod
+
+# Vercel CLI local link and pulled env files
+.vercel
 
 # CodeGraph local index
 .codegraph/
