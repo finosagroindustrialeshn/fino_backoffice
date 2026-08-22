@@ -11,6 +11,7 @@ export const API_ERROR_CODES = [
   'SHIFT_REQUIRED',
   'SHIFT_ALREADY_CLOSED',
   'SHIFT_RETURN_PENDING',
+  'SHIFT_RETURN_DECLARED',
   'SHIFT_NOT_FOUND',
   'SHIFT_ROUTE_INVALID',
   'DISPATCH_NOT_ASSIGNED',
@@ -18,6 +19,7 @@ export const API_ERROR_CODES = [
   'DISPATCH_NOT_YOURS',
   'DISPATCH_NOT_FOUND',
   'CANCEL_REASON_REQUIRED',
+  'DISPATCH_ORDER_NUMBER_TAKEN',
   'CASH_SESSION_ALREADY_OPEN',
   'CASH_SESSION_REQUIRED',
   'CASH_SESSION_ALREADY_CLOSED',
@@ -29,8 +31,17 @@ export const API_ERROR_CODES = [
   'SALE_NOT_FOUND',
   'INSUFFICIENT_STOCK',
   'RETURN_NOT_DRAFT',
-  'RETURN_INCOMPLETE',
   'RETURN_NOT_FOUND',
+  'RETURN_ALREADY_DECLARED',
+  'RETURN_NOTHING_TO_RECONCILE',
+  'RETURN_SETTLES_CLOSED_SHIFT',
+  'SALES_ORDER_NOT_FOUND',
+  'SALES_ORDER_EMPTY',
+  'SALES_ORDER_INVALID_STATE',
+  'SALES_ORDER_CLOSED',
+  'SALES_ORDER_OVER_FULFILLED',
+  'SALES_ORDER_CLIENT_MISMATCH',
+  'SALES_ORDER_LINE_BELOW_FULFILLED',
   'CLIENT_NOT_FOUND',
   'CLIENT_REASSIGN_FORBIDDEN',
   'ROUTE_NOT_FOUND',
@@ -73,6 +84,8 @@ export const API_ERROR_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   SHIFT_ALREADY_CLOSED: 'Esta jornada ya fue cerrada.',
   SHIFT_RETURN_PENDING:
     'La jornada salió con carga y el retorno de mercadería todavía no fue confirmado. Confirmá el retorno antes de cerrarla.',
+  SHIFT_RETURN_DECLARED:
+    'El retorno de esta jornada ya fue declarado y está esperando verificación en bodega.',
   SHIFT_NOT_FOUND: 'No se encontró la jornada.',
   SHIFT_ROUTE_INVALID: 'La ruta indicada no es válida para esta jornada.',
 
@@ -82,6 +95,8 @@ export const API_ERROR_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   DISPATCH_NOT_YOURS: 'Este despacho pertenece a otro vendedor.',
   DISPATCH_NOT_FOUND: 'No se encontró el despacho.',
   CANCEL_REASON_REQUIRED: 'Indicá el motivo de la cancelación.',
+  DISPATCH_ORDER_NUMBER_TAKEN:
+    'Ese número de orden ya fue usado en otro despacho. Revisá el número antes de guardar.',
 
   // Cash sessions
   CASH_SESSION_ALREADY_OPEN: 'Ya hay una caja abierta.',
@@ -99,8 +114,22 @@ export const API_ERROR_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
 
   // Returns
   RETURN_NOT_DRAFT: 'Este retorno ya no es un borrador.',
-  RETURN_INCOMPLETE: 'El retorno está incompleto: revisá las cantidades antes de confirmarlo.',
   RETURN_NOT_FOUND: 'No se encontró el retorno.',
+  RETURN_ALREADY_DECLARED: 'Este retorno ya fue declarado por el vendedor.',
+  RETURN_NOTHING_TO_RECONCILE: 'No hay diferencias que conciliar en este retorno.',
+  RETURN_SETTLES_CLOSED_SHIFT:
+    'La jornada de este retorno ya fue cerrada y no admite ajustes.',
+
+  // Sales orders (preventa)
+  SALES_ORDER_NOT_FOUND: 'No se encontró el pedido.',
+  SALES_ORDER_EMPTY: 'El pedido no tiene productos. Agregá al menos uno antes de enviarlo.',
+  SALES_ORDER_INVALID_STATE: 'El pedido no está en un estado que permita esta acción.',
+  SALES_ORDER_CLOSED:
+    'Este pedido ya está cerrado: los pedidos entregados o cancelados no se pueden modificar.',
+  SALES_ORDER_OVER_FULFILLED: 'La venta cubre más de lo que el pedido todavía debe.',
+  SALES_ORDER_CLIENT_MISMATCH: 'El pedido pertenece a otro cliente.',
+  SALES_ORDER_LINE_BELOW_FULFILLED:
+    'No podés reducir ni quitar una línea por debajo de lo ya entregado al cliente.',
 
   // Clients and routes
   CLIENT_NOT_FOUND: 'No se encontró el cliente.',
