@@ -39,10 +39,11 @@ import {
   type RouteStop,
   type RouteStopStatus,
 } from '../../models/route.model';
+import { MAX_PAGE_SIZE } from '../../../../core/http/pagination.model';
 import { RouteDataClient } from '../../services/route-data';
 
 /** Zones are a bounded catalog — one page is enough to name the route's zone. */
-const ZONE_LOOKUP_SIZE = 200;
+const ZONE_LOOKUP_SIZE = MAX_PAGE_SIZE;
 
 /**
  * Each action carries the same severity as the tag of the state it produces,

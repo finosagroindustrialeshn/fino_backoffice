@@ -20,6 +20,7 @@ import { TagModule } from 'primeng/tag';
 import { AuthSession } from '../../../../core/auth/auth-session';
 import { fetchAllPages } from '../../../../core/http/fetch-all-pages';
 import { LazyList } from '../../../../core/http/lazy-list';
+import { MAX_PAGE_SIZE } from '../../../../core/http/pagination.model';
 import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
 import { formatDay } from '../../../../shared/utils/date-range';
 import {
@@ -56,7 +57,7 @@ interface FilterOption<T> {
  * than showing a raw uuid.
  */
 const LOOKUP_SIZE = 100;
-const CLIENT_LOOKUP_SIZE = 200;
+const CLIENT_LOOKUP_SIZE = MAX_PAGE_SIZE;
 
 @Component({
   selector: 'app-sale-list',

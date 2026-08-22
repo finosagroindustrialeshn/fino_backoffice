@@ -1,9 +1,6 @@
 import { firstValueFrom, type Observable } from 'rxjs';
 
-import type { Paginated } from './pagination.model';
-
-/** Longest page the API accepts, used to minimize round-trips. */
-const MAX_PAGE_SIZE = 100;
+import { MAX_PAGE_SIZE, type Paginated } from './pagination.model';
 
 /**
  * Ceiling on how many rows one export will walk.
