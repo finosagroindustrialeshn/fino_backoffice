@@ -1,0 +1,568 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-2">
+    <a
+      routerLink="/pedidos"
+      class="inline-flex w-fit items-center gap-1 text-sm text-ink-soft hover:text-ink"
+    >
+      <i class="pi pi-arrow-left text-xs" aria-hidden="true"></i>
+      Volver a pedidos
+    </a>
+  </div>
+
+  @if (loadError(); as message) {
+    <div
+      role="alert"
+      class="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700"
+    >
+      {{ message }}
+    </div>
+  } @else if (loading()) {
+    <p class="py-12 text-center text-sm text-ink-soft">Cargando pedido…</p>
+  } @else if (order(); as order) {
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+            {{ order.code }}
+          </h2>
+          <p-tag
+            [value]="statusLabel(order.status)"
+            [severity]="statusSeverity(order.status)"
+          />
+        </div>
+
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+          @if (canEdit()) {
+            <p-button
+              label="Editar"
+              icon="pi pi-pencil"
+              severity="secondary"
+              [outlined]="true"
+              [disabled]="acting()"
+              (onClick)="editOrder()"
+            />
+          }
+          @if (canPlace()) {
+            <p-button
+              label="Ingresar a oficina"
+              icon="pi pi-send"
+              [loading]="acting()"
+              (onClick)="place()"
+            />
+          }
+          @if (canAssign()) {
+            <p-button
+              [label]="isReassign() ? 'Cambiar vendedor' : 'Asignar vendedor'"
+              icon="pi pi-user-plus"
+              [disabled]="acting()"
+              (onClick)="openAssignDialog()"
+            />
+          }
+          @if (canUnassign()) {
+            <p-button
+              label="Devolver a la cola"
+              icon="pi pi-undo"
+              severity="secondary"
+              [outlined]="true"
+              [disabled]="acting()"
+              (onClick)="openUnassignDialog()"
+            />
+          }
+          @if (canCancel()) {
+            <p-button
+              label="Cancelar pedido"
+              icon="pi pi-times"
+              severity="danger"
+              [outlined]="true"
+              [disabled]="acting()"
+              (onClick)="openCancelDialog()"
+            />
+          }
+        </div>
+      </div>
+
+      @if (actionError(); as message) {
+        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+      }
+    </div>
+
+    <!-- Client -->
+    <section
+      class="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-6"
+      aria-label="Cliente del pedido"
+    >
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="flex flex-col gap-1">
+          <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            Cliente
+          </span>
+          <span class="text-lg font-bold text-ink">{{ order.client.name }}</span>
+          <span class="text-sm text-ink-soft">{{ order.client.code }}</span>
+        </div>
+
+        <div class="flex flex-col gap-1 text-sm text-ink">
+          @if (order.client.contactName) {
+            <span>
+              <i class="pi pi-user mr-1 text-xs text-ink-soft" aria-hidden="true"></i>
+              {{ order.client.contactName }}
+            </span>
+          }
+          @if (order.client.phone) {
+            <a
+              [href]="'tel:' + order.client.phone"
+              class="hover:underline"
+            >
+              <i class="pi pi-phone mr-1 text-xs text-ink-soft" aria-hidden="true"></i>
+              {{ order.client.phone }}
+            </a>
+          }
+          @if (order.client.address) {
+            <span class="max-w-xs text-ink-soft">
+              <i class="pi pi-map-marker mr-1 text-xs" aria-hidden="true"></i>
+              {{ order.client.address }}
+            </span>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section
+      class="grid gap-4 rounded-2xl border border-ink/10 bg-white p-6 sm:grid-cols-2 lg:grid-cols-4"
+      aria-label="Resumen del pedido"
+    >
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Preventista
+        </span>
+        <span class="text-ink">{{ order.takenBy.fullName }}</span>
+        <span class="text-xs text-ink-soft">
+          {{ order.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+        </span>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Asignado a
+        </span>
+        @if (order.assignedTo) {
+          <span class="text-ink">{{ order.assignedTo.fullName }}</span>
+          @if (order.assignedAt) {
+            <span class="text-xs text-ink-soft">
+              {{ order.assignedAt | date: 'dd/MM/yyyy HH:mm' }}
+            </span>
+          }
+        } @else {
+          <span class="font-medium text-amber-800">Sin asignar</span>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Entrega solicitada
+        </span>
+        @if (order.expectedDeliveryDate) {
+          <span class="text-ink">
+            {{ order.expectedDeliveryDate | date: 'dd/MM/yyyy' }}
+          </span>
+        } @else {
+          <span class="text-ink-soft">El cliente no dio fecha</span>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Unidades
+        </span>
+        <span class="font-semibold text-ink">
+          {{ order.unitsFulfilled }} / {{ order.unitsOrdered }} entregadas
+        </span>
+        @if (order.unitsPending > 0) {
+          <span class="text-xs font-medium text-amber-800">
+            {{ order.unitsPending }} pendientes
+          </span>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Total estimado
+        </span>
+        <span class="text-xl font-bold text-ink">
+          {{ order.estimatedTotal | currency: 'HNL' : 'L ' : '1.2-2' }}
+        </span>
+        <span class="text-xs text-ink-soft">
+          Referencia de planificación. Lo que se cobra es lo que quede escrito
+          en cada venta.
+        </span>
+      </div>
+
+      <div class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Líneas
+        </span>
+        <span class="text-ink">{{ order.lineCount }} productos distintos</span>
+      </div>
+    </section>
+
+    @if (order.unassignReason) {
+      <section
+        class="rounded-2xl border border-amber-200 bg-amber-50 p-6"
+        aria-label="Motivo de devolución"
+      >
+        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-900">
+          Devuelto a la cola
+        </h3>
+        <p class="text-sm text-amber-900">{{ order.unassignReason }}</p>
+        @if (order.unassignedAt) {
+          <p class="mt-1 text-xs text-amber-800">
+            {{ order.unassignedAt | date: 'dd/MM/yyyy HH:mm' }}
+          </p>
+        }
+      </section>
+    }
+
+    @if (order.notes) {
+      <section class="rounded-2xl border border-ink/10 bg-white p-6" aria-label="Notas">
+        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Notas
+        </h3>
+        <p class="text-sm text-ink">{{ order.notes }}</p>
+      </section>
+    }
+
+    @if (order.cancelReason) {
+      <section
+        class="rounded-2xl border border-red-200 bg-red-50 p-6"
+        aria-label="Motivo de cancelación"
+      >
+        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-red-700">
+          Motivo de cancelación
+        </h3>
+        <p class="text-sm text-red-700">{{ order.cancelReason }}</p>
+        @if (order.cancelledAt) {
+          <p class="mt-1 text-xs text-red-700">
+            {{ order.cancelledAt | date: 'dd/MM/yyyy HH:mm' }}
+          </p>
+        }
+      </section>
+    }
+
+    <!-- Lines -->
+    <section class="flex flex-col gap-3" aria-label="Productos del pedido">
+      <h3 class="font-heading text-lg font-bold text-ink">Productos</h3>
+
+      <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+        <table class="min-w-full text-sm">
+          <caption class="sr-only">Líneas del pedido con lo pedido y lo entregado</caption>
+          <thead class="bg-cream">
+            <tr>
+              <th scope="col" class="p-3 text-left font-semibold text-ink">Producto</th>
+              <th scope="col" class="p-3 text-right font-semibold text-ink">Pedido</th>
+              <th scope="col" class="p-3 text-right font-semibold text-ink">Entregado</th>
+              <th scope="col" class="p-3 text-right font-semibold text-ink">Pendiente</th>
+              <th scope="col" class="p-3 text-right font-semibold text-ink">
+                Precio cotizado
+              </th>
+              <th scope="col" class="p-3 text-right font-semibold text-ink">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of order.items; track item.productId) {
+              <tr class="border-t border-ink/10">
+                <td class="p-3">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="font-medium text-ink">{{ item.productName }}</span>
+                    <span class="text-xs text-ink-soft">{{ item.productSku }}</span>
+                  </div>
+                </td>
+                <td class="p-3 text-right text-ink">{{ item.quantity }}</td>
+                <td class="p-3 text-right text-ink">{{ item.quantityFulfilled }}</td>
+                <td class="p-3 text-right">
+                  <span
+                    [class.font-semibold]="item.quantityPending > 0"
+                    [class.text-amber-800]="item.quantityPending > 0"
+                    [class.text-ink-soft]="item.quantityPending === 0"
+                  >
+                    {{ item.quantityPending }}
+                  </span>
+                </td>
+                <td class="p-3 text-right text-ink">
+                  {{ item.unitPriceRef | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </td>
+                <td class="p-3 text-right font-semibold text-ink">
+                  {{ item.lineTotal | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="p-8 text-center text-sm text-ink-soft">
+                  Este pedido todavía no tiene productos.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Fulfillments: where the promise turned into product -->
+    @if (order.fulfillments.length > 0) {
+      <section class="flex flex-col gap-3" aria-label="Entregas del pedido">
+        <h3 class="font-heading text-lg font-bold text-ink">Entregas</h3>
+        <p class="text-sm text-ink-soft">
+          Las ventas que cubrieron este pedido. Acá sí hay dinero de por medio:
+          el precio que se cobró es el de la venta, no el cotizado arriba.
+        </p>
+
+        <div class="flex flex-col gap-3">
+          @for (fulfillment of order.fulfillments; track fulfillment.saleId) {
+            <article class="rounded-2xl border border-ink/10 bg-white p-5">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="flex flex-col gap-0.5">
+                  <span class="font-medium text-ink">
+                    {{ fulfillment.seller.fullName }}
+                  </span>
+                  <span class="text-xs text-ink-soft">
+                    {{ fulfillment.soldAt | date: 'dd/MM/yyyy HH:mm' }}
+                  </span>
+                </div>
+
+                <div class="flex flex-col items-end gap-1">
+                  <span class="font-semibold text-ink">
+                    {{ fulfillment.total | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </span>
+                  @if (fulfillment.balanceDue > 0) {
+                    <span class="text-xs font-semibold text-red-700">
+                      Saldo
+                      {{ fulfillment.balanceDue | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </span>
+                  }
+                </div>
+              </div>
+
+              <ul class="mt-3 flex flex-col gap-1">
+                @for (line of fulfillment.items; track line.productId) {
+                  <li class="flex justify-between gap-3 text-sm">
+                    <span class="text-ink">
+                      {{ line.quantity }}× {{ line.productName }}
+                      <span class="text-xs text-ink-soft">({{ line.productSku }})</span>
+                    </span>
+                    <span class="whitespace-nowrap text-ink-soft">
+                      {{ line.subtotal | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </span>
+                  </li>
+                }
+              </ul>
+
+              <div class="mt-3 flex justify-end">
+                <p-button
+                  label="Ver venta"
+                  icon="pi pi-external-link"
+                  size="small"
+                  severity="secondary"
+                  [text]="true"
+                  [routerLink]="['/ventas', fulfillment.saleId]"
+                />
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Assign dialog -->
+    <p-dialog
+      [visible]="assignDialogOpen()"
+      (visibleChange)="assignDialogOpen.set($event)"
+      [modal]="true"
+      [draggable]="false"
+      [header]="isReassign() ? 'Cambiar vendedor' : 'Asignar vendedor'"
+      styleClass="w-[min(28rem,92vw)]"
+    >
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-ink-soft">
+          @if (isReassign()) {
+            El pedido pasa a otro vendedor sin perder lo ya entregado. Cambiar
+            de vendedor no cancela nada: la promesa al cliente sigue en pie.
+          } @else {
+            El vendedor lo verá entre sus pedidos y lo entregará contra la carga
+            que lleva. Asignar el pedido no le transfiere el cliente.
+          }
+        </p>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="seller-to-assign"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Vendedor
+          </label>
+          <p-select
+            inputId="seller-to-assign"
+            [options]="sellerOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="sellerToAssign()"
+            (ngModelChange)="sellerToAssign.set($event)"
+            [filter]="true"
+            filterBy="label"
+            appendTo="body"
+            placeholder="Elegí un vendedor"
+            emptyMessage="No hay vendedores activos"
+            styleClass="w-full"
+          />
+        </div>
+
+        @if (actionError(); as message) {
+          <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+        }
+      </div>
+
+      <ng-template #footer>
+        <p-button
+          label="Cancelar"
+          severity="secondary"
+          [text]="true"
+          [disabled]="acting()"
+          (onClick)="assignDialogOpen.set(false)"
+        />
+        <p-button
+          label="Asignar"
+          icon="pi pi-check"
+          [loading]="acting()"
+          [disabled]="!sellerToAssign()"
+          (onClick)="confirmAssign()"
+        />
+      </ng-template>
+    </p-dialog>
+
+    <!-- Unassign dialog -->
+    <p-dialog
+      [visible]="unassignDialogOpen()"
+      (visibleChange)="unassignDialogOpen.set($event)"
+      [modal]="true"
+      [draggable]="false"
+      header="Devolver a la cola"
+      styleClass="w-[min(32rem,92vw)]"
+    >
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-ink-soft">
+          El pedido vuelve a la cola sin vendedor, pero la promesa al cliente
+          sigue viva — esto no es cancelar. Escribí por qué vuelve: quien lo
+          tome después necesita saber si el obstáculo fue el vendedor, la ruta
+          o el cliente.
+        </p>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="unassign-reason"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Motivo
+          </label>
+          <textarea
+            pTextarea
+            id="unassign-reason"
+            rows="3"
+            maxlength="500"
+            required
+            [ngModel]="unassignReason()"
+            (ngModelChange)="unassignReason.set($event)"
+            class="w-full"
+            placeholder="Ej. El vendedor se reportó enfermo"
+          ></textarea>
+        </div>
+
+        @if (actionError(); as message) {
+          <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+        }
+      </div>
+
+      <ng-template #footer>
+        <p-button
+          label="Volver"
+          severity="secondary"
+          [text]="true"
+          [disabled]="acting()"
+          (onClick)="unassignDialogOpen.set(false)"
+        />
+        <p-button
+          label="Devolver a la cola"
+          icon="pi pi-undo"
+          [loading]="acting()"
+          [disabled]="!unassignReason().trim()"
+          (onClick)="confirmUnassign()"
+        />
+      </ng-template>
+    </p-dialog>
+
+    <!-- Cancel dialog -->
+    <p-dialog
+      [visible]="cancelDialogOpen()"
+      (visibleChange)="cancelDialogOpen.set($event)"
+      [modal]="true"
+      [draggable]="false"
+      header="Cancelar pedido"
+      styleClass="w-[min(32rem,92vw)]"
+    >
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-ink-soft">
+          @if (needsCancelReason()) {
+            Al cliente ya se le prometió este pedido. Escribí por qué se cancela:
+            dentro de un mes, esa frase es lo único que distingue a un cliente
+            que cambió de opinión de un pedido que nunca fue real.
+          } @else {
+            Todavía es un borrador que nadie más vio. Se puede descartar sin
+            justificación.
+          }
+        </p>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="cancel-reason"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Motivo
+            @if (!needsCancelReason()) {
+              <span class="font-normal normal-case">(opcional)</span>
+            }
+          </label>
+          <textarea
+            pTextarea
+            id="cancel-reason"
+            rows="3"
+            maxlength="500"
+            [ngModel]="cancelReason()"
+            (ngModelChange)="cancelReason.set($event)"
+            class="w-full"
+            [attr.aria-required]="needsCancelReason()"
+            placeholder="Ej. El cliente ya no lo necesita"
+          ></textarea>
+        </div>
+
+        @if (actionError(); as message) {
+          <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+        }
+      </div>
+
+      <ng-template #footer>
+        <p-button
+          label="Volver"
+          severity="secondary"
+          [text]="true"
+          [disabled]="acting()"
+          (onClick)="cancelDialogOpen.set(false)"
+        />
+        <p-button
+          label="Cancelar pedido"
+          icon="pi pi-times"
+          severity="danger"
+          [loading]="acting()"
+          [disabled]="needsCancelReason() && !cancelReason().trim()"
+          (onClick)="confirmCancel()"
+        />
+      </ng-template>
+    </p-dialog>
+  }
+</div>

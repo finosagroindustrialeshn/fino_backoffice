@@ -1,0 +1,175 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-2">
+    <a
+      routerLink="/pedidos"
+      class="inline-flex w-fit items-center gap-1 text-sm text-ink-soft hover:text-ink"
+    >
+      <i class="pi pi-arrow-left text-xs" aria-hidden="true"></i>
+      Volver a pedidos
+    </a>
+
+    <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+      @if (existing(); as order) {
+        Editar pedido {{ order.code }}
+      } @else {
+        Nuevo pedido
+      }
+    </h2>
+
+    <p class="text-sm text-ink-soft">
+      @if (isEdit()) {
+        Corregí lo que se anotó mal. El pedido conserva su código y el cliente no
+        se puede cambiar: prometerle lo mismo a otro cliente es otro pedido.
+      } @else {
+        Anotá lo que el cliente pidió. No se reserva inventario ni se debe dinero
+        hasta que el vendedor registre la venta.
+      }
+    </p>
+  </div>
+
+  @if (loadError(); as message) {
+    <div
+      role="alert"
+      class="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700"
+    >
+      {{ message }}
+    </div>
+  } @else if (loading()) {
+    <div class="flex flex-col gap-4">
+      <p-skeleton height="3rem" />
+      <p-skeleton height="12rem" />
+    </div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-6">
+      <section
+        class="grid gap-4 rounded-2xl border border-ink/10 bg-white p-6 sm:grid-cols-2"
+        aria-label="Datos del pedido"
+      >
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="client-id"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Cliente
+          </label>
+          <p-select
+            inputId="client-id"
+            formControlName="clientId"
+            [options]="clientOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [filter]="true"
+            filterBy="label"
+            appendTo="body"
+            placeholder="Buscá el cliente por nombre o código"
+            emptyMessage="No hay clientes activos"
+            styleClass="w-full"
+            [attr.aria-describedby]="isEdit() ? 'client-locked' : null"
+          />
+          @if (isEdit()) {
+            <span id="client-locked" class="text-xs text-ink-soft">
+              El cliente de un pedido no se cambia.
+            </span>
+          } @else if (
+            form.controls.clientId.touched && form.controls.clientId.invalid
+          ) {
+            <span role="alert" class="text-xs text-red-700">
+              Elegí a qué cliente pertenece el pedido.
+            </span>
+          }
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="expected-delivery"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Entrega solicitada
+          </label>
+          <p-datepicker
+            inputId="expected-delivery"
+            formControlName="expectedDeliveryDate"
+            [readonlyInput]="true"
+            [showClear]="true"
+            dateFormat="dd/mm/yy"
+            appendTo="body"
+            placeholder="El cliente no dio fecha"
+            styleClass="w-full"
+            aria-describedby="delivery-hint"
+          />
+          <span id="delivery-hint" class="text-xs text-ink-soft">
+            Es un día, no una hora. Dejalo vacío si dijo "cuando pasen".
+          </span>
+        </div>
+
+        <div class="flex flex-col gap-1.5 sm:col-span-2">
+          <label
+            for="notes"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Notas
+          </label>
+          <textarea
+            pTextarea
+            id="notes"
+            formControlName="notes"
+            rows="3"
+            maxlength="500"
+            class="w-full"
+            placeholder="Ej. Pasa el viernes por la tarde"
+          ></textarea>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3" aria-label="Productos del pedido">
+        <h3 class="font-heading text-lg font-bold text-ink">Productos</h3>
+
+        <app-sales-order-lines-editor
+          [products]="productOptions()"
+          [fulfilled]="fulfilled()"
+          [(lines)]="lines"
+        />
+      </section>
+
+      @if (formError(); as message) {
+        <div
+          role="alert"
+          class="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 p-4"
+        >
+          <p class="text-sm font-medium text-red-700">{{ message }}</p>
+
+          <!-- The API's own field breakdown. English and developer-facing by
+               design, so it sits under the Spanish copy as detail, not as the
+               headline — but without it a 400 is unfixable. -->
+          @if (formFieldErrors().length > 0) {
+            <ul class="flex flex-col gap-1 text-xs text-red-700">
+              @for (fieldError of formFieldErrors(); track fieldError.field) {
+                <li>
+                  <span class="font-mono font-semibold">{{ fieldError.field }}</span>
+                  — {{ fieldError.messages.join('. ') }}
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+
+      <div class="flex flex-wrap justify-end gap-2">
+        <p-button
+          label="Cancelar"
+          severity="secondary"
+          [text]="true"
+          routerLink="/pedidos"
+          [disabled]="saving()"
+        />
+        <p-button
+          type="submit"
+          [label]="isEdit() ? 'Guardar cambios' : 'Registrar pedido'"
+          icon="pi pi-check"
+          [loading]="saving()"
+          [disabled]="!canSave()"
+        />
+      </div>
+    </form>
+  }
+</div>

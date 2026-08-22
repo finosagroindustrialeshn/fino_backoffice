@@ -65,6 +65,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       // No role filter: the API already scopes a SELLER to their own sales.
       { label: 'Ventas', icon: 'pi pi-shopping-cart', route: '/ventas' },
+      // Same scoping applies to orders: a preventista sees the ones they took
+      // and a seller the ones assigned to them, enforced server-side.
+      { label: 'Pedidos', icon: 'pi pi-clipboard', route: '/pedidos' },
       { label: 'Clientes', icon: 'pi pi-users', route: '/clientes' },
       {
         label: 'Contabilidad',

@@ -119,6 +119,39 @@ export const routes: Routes = [
           ),
         data: { title: 'Detalle de venta' },
       },
+      // Declared BEFORE the :id route so `pedidos/nuevo` is not read as an id.
+      {
+        path: 'pedidos/nuevo',
+        loadComponent: () =>
+          import(
+            './features/sales-orders/pages/sales-order-form/sales-order-form'
+          ).then((m) => m.SalesOrderForm),
+        data: { title: 'Nuevo pedido' },
+      },
+      {
+        path: 'pedidos/:id/editar',
+        loadComponent: () =>
+          import(
+            './features/sales-orders/pages/sales-order-form/sales-order-form'
+          ).then((m) => m.SalesOrderForm),
+        data: { title: 'Editar pedido' },
+      },
+      {
+        path: 'pedidos',
+        loadComponent: () =>
+          import(
+            './features/sales-orders/pages/sales-order-list/sales-order-list'
+          ).then((m) => m.SalesOrderList),
+        data: { title: 'Pedidos' },
+      },
+      {
+        path: 'pedidos/:id',
+        loadComponent: () =>
+          import(
+            './features/sales-orders/pages/sales-order-detail/sales-order-detail'
+          ).then((m) => m.SalesOrderDetail),
+        data: { title: 'Detalle de pedido' },
+      },
       {
         path: 'clientes',
         loadComponent: () =>
