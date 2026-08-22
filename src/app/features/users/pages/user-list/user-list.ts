@@ -29,11 +29,16 @@ interface RoleOption {
 
 const DEFAULT_ROWS = 10;
 
-const ROLE_SEVERITY: Record<Role, 'danger' | 'warn' | 'info' | 'success'> = {
+type RoleSeverity = 'danger' | 'warn' | 'info' | 'success' | 'secondary';
+
+const ROLE_SEVERITY: Record<Role, RoleSeverity> = {
   ADMIN: 'danger',
   SUPERVISOR: 'warn',
   ACCOUNTANT: 'info',
   SELLER: 'success',
+  // Distinct from SELLER on purpose: both work the field, but only one of
+  // them carries stock and collects money.
+  PREVENTISTA: 'secondary',
 };
 
 @Component({
@@ -95,7 +100,7 @@ export class UserList {
     return ROLE_LABELS[role];
   }
 
-  protected roleSeverity(role: Role): 'danger' | 'warn' | 'info' | 'success' {
+  protected roleSeverity(role: Role): RoleSeverity {
     return ROLE_SEVERITY[role];
   }
 }
