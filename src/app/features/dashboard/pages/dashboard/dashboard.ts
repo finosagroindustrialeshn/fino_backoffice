@@ -7,7 +7,7 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
@@ -41,7 +41,7 @@ interface StatTile {
   readonly label: string;
   readonly value: number;
   readonly caption: string;
-  readonly format: 'money' | 'count';
+  readonly format: 'money' | 'count' | 'percent' | 'hours';
 }
 
 type SummaryState =
@@ -57,6 +57,7 @@ const DEFAULT_RANGE_DAYS = 1;
   imports: [
     CurrencyPipe,
     DecimalPipe,
+    PercentPipe,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -172,6 +173,63 @@ export class Dashboard implements OnInit {
       },
     ];
   });
+
+  /**
+   * Preventa over the range. `unassigned` and `overdue` are NOT here: they
+   * are a live queue rather than a measurement of the period, so they get
+   * their own actionable block instead of sitting next to range-scoped stats.
+   */
+  protected readonly preventaTiles = computed<readonly StatTile[]>(() => {
+    const preventa = this.successSummary()?.preventa;
+    if (!preventa) {
+      return [];
+    }
+    return [
+      {
+        label: 'Pedidos tomados',
+        value: preventa.ordersTaken,
+        caption: 'En el rango elegido',
+        format: 'count',
+      },
+      {
+        label: 'Entregados',
+        value: preventa.converted,
+        caption: `${preventa.cancelled} cancelados`,
+        format: 'count',
+      },
+      {
+        // Divides by SETTLED orders, so an order taken this morning and still
+        // open is not counted as a failure.
+        label: 'Conversión',
+        value: preventa.conversionRate ?? 0,
+        caption:
+          preventa.conversionRate === null
+            ? 'Todavía no se resolvió ningún pedido'
+            : 'Entregados sobre pedidos resueltos',
+        format: 'percent',
+      },
+      {
+        label: 'Valor en cola',
+        value: preventa.estimatedValueOpen,
+        caption: `${preventa.open} pedidos abiertos`,
+        format: 'money',
+      },
+      {
+        label: 'Tiempo a entrega',
+        value: preventa.avgHoursToConvert ?? 0,
+        caption:
+          preventa.avgHoursToConvert === null
+            ? 'Sin entregas en el rango'
+            : 'Promedio desde que se tomó el pedido',
+        format: 'hours',
+      },
+    ];
+  });
+
+  /** The live queue: promises nobody is working right now. */
+  protected readonly preventaQueue = computed(
+    () => this.successSummary()?.preventa ?? null,
+  );
 
   /** Contado vs. crédito split of the range's sales, in brand colors. */
   protected readonly channelChartData = computed(() => {

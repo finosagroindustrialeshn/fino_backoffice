@@ -303,6 +303,14 @@ export const routes: Routes = [
               ).then((m) => m.InventoryReport),
             data: { title: 'Reportes' },
           },
+          {
+            path: 'preventa',
+            loadComponent: () =>
+              import(
+                './features/reports/pages/preventa-report/preventa-report'
+              ).then((m) => m.PreventaReport),
+            data: { title: 'Reportes' },
+          },
         ],
       },
       {

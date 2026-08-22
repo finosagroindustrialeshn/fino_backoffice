@@ -81,6 +81,32 @@ export function agingRangeLabel(bucket: AgingBucket): string {
     : `${bucket.fromDays} a ${bucket.toDays} días`;
 }
 
+/**
+ * Preventa over the range, plus the two figures that only mean anything RIGHT
+ * NOW.
+ *
+ * `unassigned` and `overdue` deliberately ignore the date range: they are a
+ * work queue, not a measurement of a period. An order promised for last
+ * Tuesday is overdue today whichever month the dashboard is showing, and
+ * scoping them would hide precisely the ones nobody has looked at in a while.
+ */
+export interface DashboardPreventaSummary {
+  readonly ordersTaken: number;
+  readonly converted: number;
+  readonly cancelled: number;
+  readonly open: number;
+  /** converted / (converted + cancelled). Null until something settles. */
+  readonly conversionRate: number | null;
+  /** Planning value still sitting in open orders — never a receivable. */
+  readonly estimatedValueOpen: number;
+  /** Mean hours from taking an order to the sale that completed it. */
+  readonly avgHoursToConvert: number | null;
+  /** LIVE: open orders with nobody assigned — the queue that needs a person. */
+  readonly unassigned: number;
+  /** LIVE: open orders whose promised day has already gone by. */
+  readonly overdue: number;
+}
+
 /** GET /dashboard/summary */
 export interface DashboardSummary {
   /** Resolved range start (Honduras civil date). */
@@ -92,4 +118,5 @@ export interface DashboardSummary {
   readonly sales: DashboardSalesSummary;
   readonly cash: DashboardCashSummary;
   readonly receivables: DashboardReceivablesSummary;
+  readonly preventa: DashboardPreventaSummary;
 }

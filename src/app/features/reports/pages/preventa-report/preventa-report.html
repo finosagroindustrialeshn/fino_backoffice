@@ -1,0 +1,357 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-heading text-2xl font-bold text-ink sm:text-3xl">
+        Reporte de preventa
+      </h2>
+
+      <div class="ml-auto flex items-center gap-2">
+        <p-button
+          label="Actualizar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="refreshAll()"
+        />
+      </div>
+    </div>
+
+    <p class="text-sm text-ink-soft">
+      Cuántos pedidos se tomaron, en qué terminaron y cuánto tardaron. El rango
+      filtra por la fecha en que se <strong>tomó</strong> el pedido, nunca por
+      cuándo se entregó: el trabajo del preventista es tomarlo.
+    </p>
+  </div>
+
+  <!-- Filters -->
+  <section
+    class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+    aria-label="Filtros del reporte"
+  >
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="range-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Rango de fechas
+      </label>
+      <p-datepicker
+        inputId="range-filter"
+        selectionMode="range"
+        [ngModel]="dateRange()"
+        (ngModelChange)="onDateRangeChange($event)"
+        [readonlyInput]="true"
+        dateFormat="dd/mm/yy"
+        appendTo="body"
+        styleClass="w-full sm:w-72"
+      />
+    </div>
+
+    <app-date-range-presets (rangeSelected)="onDateRangeChange($event)" />
+
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="preventista-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Preventista
+      </label>
+      <p-select
+        inputId="preventista-filter"
+        [options]="preventistaFilterOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="preventistaFilter()"
+        (onChange)="onPreventistaFilterChange($event.value)"
+        appendTo="body"
+        placeholder="Todos los preventistas"
+        styleClass="w-full sm:w-56"
+      />
+    </div>
+  </section>
+
+  <!-- Summary -->
+  @switch (summaryState().status) {
+    @case ('loading') {
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        @for (row of skeletonRows; track row) {
+          <p-skeleton height="6.5rem" borderRadius="1rem" />
+        }
+      </div>
+    }
+    @case ('error') {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">
+          @if (summaryState(); as state) {
+            @if (state.status === 'error') {
+              {{ state.message }}
+            }
+          }
+        </p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="refreshAll()"
+        />
+      </div>
+    }
+    @default {
+      @if (successSummary(); as summary) {
+        <section class="flex flex-col gap-4" aria-labelledby="preventa-totals">
+          <h3 id="preventa-totals" class="text-lg font-semibold text-ink">
+            En el rango
+          </h3>
+
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <article class="rounded-2xl border border-ink/10 bg-white p-5">
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Pedidos tomados
+              </p>
+              <p class="mt-1 text-2xl font-bold text-ink">
+                {{ summary.ordersTaken | number }}
+              </p>
+              <p class="mt-1 text-xs text-ink-soft">
+                {{ summary.open | number }} todavía abiertos
+              </p>
+            </article>
+
+            <article class="rounded-2xl border border-ink/10 bg-white p-5">
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Entregados
+              </p>
+              <p class="mt-1 text-2xl font-bold text-ink">
+                {{ summary.converted | number }}
+              </p>
+              <p class="mt-1 text-xs text-ink-soft">
+                {{ summary.cancelled | number }} cancelados
+              </p>
+            </article>
+
+            <article class="rounded-2xl border border-ink/10 bg-white p-5">
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Conversión
+              </p>
+              <p class="mt-1 text-2xl font-bold text-ink">
+                @if (summary.conversionRate === null) {
+                  —
+                } @else {
+                  {{ summary.conversionRate | percent: '1.0-1' }}
+                }
+              </p>
+              <!-- Divides by SETTLED orders: one taken this morning and still
+                   open is not a failure. -->
+              <p class="mt-1 text-xs text-ink-soft">
+                Sobre pedidos ya resueltos, no sobre todos los tomados
+              </p>
+            </article>
+
+            <article class="rounded-2xl border border-ink/10 bg-white p-5">
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Valor en cola
+              </p>
+              <p class="mt-1 text-2xl font-bold text-ink">
+                {{ summary.estimatedValueOpen | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </p>
+              <p class="mt-1 text-xs text-ink-soft">
+                Valor de planificación, no una cuenta por cobrar
+              </p>
+            </article>
+
+            <article class="rounded-2xl border border-ink/10 bg-white p-5">
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Tiempo a entrega
+              </p>
+              <p class="mt-1 text-2xl font-bold text-ink">
+                @if (summary.avgHoursToConvert === null) {
+                  —
+                } @else {
+                  {{ summary.avgHoursToConvert | number: '1.0-1' }} h
+                }
+              </p>
+              <p class="mt-1 text-xs text-ink-soft">
+                Promedio desde que se tomó hasta que se completó
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <!-- The live queue: not scoped to the range on purpose -->
+        <section class="flex flex-col gap-4" aria-labelledby="preventa-queue">
+          <h3 id="preventa-queue" class="text-lg font-semibold text-ink">
+            La cola, ahora mismo
+          </h3>
+          <p class="-mt-2 text-sm text-ink-soft">
+            Estos dos números ignoran el rango de fechas a propósito: un pedido
+            prometido para el martes pasado está vencido hoy, sin importar qué
+            mes esté mostrando el reporte.
+          </p>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <article
+              class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5"
+              [class]="
+                summary.unassigned > 0
+                  ? 'border-amber-300 bg-amber-50'
+                  : 'border-ink/10 bg-white'
+              "
+            >
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Sin asignar
+                </p>
+                <p class="mt-1 text-2xl font-bold text-ink">
+                  {{ summary.unassigned | number }}
+                </p>
+                <p class="mt-1 text-xs text-ink-soft">
+                  Pedidos abiertos que nadie está trabajando
+                </p>
+              </div>
+              <a
+                routerLink="/pedidos"
+                class="text-sm font-medium text-brand hover:underline"
+              >
+                Trabajar la cola
+              </a>
+            </article>
+
+            <article
+              class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5"
+              [class]="
+                summary.overdue > 0
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-ink/10 bg-white'
+              "
+            >
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Vencidos
+                </p>
+                <p
+                  class="mt-1 text-2xl font-bold"
+                  [class]="summary.overdue > 0 ? 'text-red-700' : 'text-ink'"
+                >
+                  {{ summary.overdue | number }}
+                </p>
+                <p class="mt-1 text-xs text-ink-soft">
+                  El día prometido al cliente ya pasó
+                </p>
+              </div>
+              <a
+                routerLink="/pedidos"
+                class="text-sm font-medium text-brand hover:underline"
+              >
+                Ver vencidos
+              </a>
+            </article>
+          </div>
+        </section>
+      }
+    }
+  }
+
+  <!-- Per preventista -->
+  <section class="flex flex-col gap-4" aria-labelledby="preventa-by-person">
+    <h3 id="preventa-by-person" class="text-lg font-semibold text-ink">
+      Por preventista
+    </h3>
+
+    @if (list.error(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700"
+      >
+        <p class="text-sm">{{ message }}</p>
+        <p-button
+          label="Reintentar"
+          icon="pi pi-refresh"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="list.reload()"
+        />
+      </div>
+    }
+
+    <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
+      <p-table
+        #preventistaTable
+        [value]="list.items()"
+        [lazy]="true"
+        (onLazyLoad)="list.onLazyLoad($event)"
+        [loading]="list.loading()"
+        [paginator]="true"
+        [rows]="10"
+        [totalRecords]="list.total()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
+        tableStyleClass="min-w-full md:min-w-[52rem]"
+        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords}"
+        [showCurrentPageReport]="true"
+      >
+        <ng-template #header>
+          <tr>
+            <th scope="col">Preventista</th>
+            <th scope="col" pSortableColumn="ordersTaken" class="text-right">
+              Tomados
+              <p-sortIcon field="ordersTaken" />
+            </th>
+            <th scope="col" class="text-right">Entregados</th>
+            <th scope="col" class="text-right">Cancelados</th>
+            <th scope="col" class="text-right">Abiertos</th>
+            <th scope="col" class="text-right">Conversión</th>
+            <th scope="col" class="text-right">Tiempo</th>
+            <th scope="col" class="text-right">Valor estimado</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-row>
+          <tr>
+            <td class="font-medium text-ink">{{ row.preventistaName }}</td>
+            <td class="text-right text-ink">{{ row.ordersTaken | number }}</td>
+            <td class="text-right text-ink">{{ row.converted | number }}</td>
+            <td class="text-right text-ink">{{ row.cancelled | number }}</td>
+            <td class="text-right text-ink">{{ row.open | number }}</td>
+            <td class="text-right">
+              @if (conversionOf(row) === null) {
+                <span class="text-ink-soft">—</span>
+              } @else {
+                <span class="font-semibold text-ink">
+                  {{ row.conversionRate | percent: '1.0-1' }}
+                </span>
+              }
+            </td>
+            <td class="text-right">
+              @if (row.avgHoursToConvert === null) {
+                <span class="text-ink-soft">—</span>
+              } @else {
+                <span class="text-ink">
+                  {{ row.avgHoursToConvert | number: '1.0-1' }} h
+                </span>
+              }
+            </td>
+            <td class="whitespace-nowrap text-right font-semibold text-ink">
+              {{ row.estimatedValue | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="8">
+              <p class="py-8 text-center text-sm text-ink-soft">
+                @if (list.loading()) {
+                  Cargando preventistas…
+                } @else {
+                  Nadie tomó pedidos en este rango.
+                }
+              </p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </section>
+</div>

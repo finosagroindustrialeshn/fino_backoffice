@@ -205,6 +205,105 @@
         }
       </section>
 
+      <!-- Preventa -->
+      <section class="flex flex-col gap-4" aria-labelledby="dash-preventa-heading">
+        <h3 id="dash-preventa-heading" class="text-lg font-semibold text-ink">
+          Preventa
+        </h3>
+
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          @for (tile of preventaTiles(); track tile.label) {
+            <article class="rounded-2xl border border-ink/10 bg-white p-5">
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                {{ tile.label }}
+              </p>
+              <p class="mt-1 text-2xl font-bold text-ink">
+                @switch (tile.format) {
+                  @case ('count') {
+                    {{ tile.value | number }}
+                  }
+                  @case ('percent') {
+                    {{ tile.value | percent: '1.0-1' }}
+                  }
+                  @case ('hours') {
+                    {{ tile.value | number: '1.0-1' }} h
+                  }
+                  @default {
+                    {{ tile.value | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  }
+                }
+              </p>
+              <p class="mt-1 text-xs text-ink-soft">{{ tile.caption }}</p>
+            </article>
+          }
+        </div>
+
+        <!-- The live queue. Not scoped to the date range on purpose: an order
+             promised for last Tuesday is overdue today whichever month is on
+             screen, and scoping it would hide the ones nobody has touched. -->
+        @if (preventaQueue(); as queue) {
+          <div class="grid gap-4 sm:grid-cols-2">
+            <article
+              class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5"
+              [class]="
+                queue.unassigned > 0
+                  ? 'border-amber-300 bg-amber-50'
+                  : 'border-ink/10 bg-white'
+              "
+            >
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Sin asignar ahora
+                </p>
+                <p class="mt-1 text-2xl font-bold text-ink">
+                  {{ queue.unassigned | number }}
+                </p>
+                <p class="mt-1 text-xs text-ink-soft">
+                  Pedidos abiertos que nadie está trabajando
+                </p>
+              </div>
+              <a
+                routerLink="/pedidos"
+                class="text-sm font-medium text-brand hover:underline"
+              >
+                Trabajar la cola
+              </a>
+            </article>
+
+            <article
+              class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5"
+              [class]="
+                queue.overdue > 0
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-ink/10 bg-white'
+              "
+            >
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Vencidos ahora
+                </p>
+                <p
+                  class="mt-1 text-2xl font-bold"
+                  [class.text-red-700]="queue.overdue > 0"
+                  [class.text-ink]="queue.overdue === 0"
+                >
+                  {{ queue.overdue | number }}
+                </p>
+                <p class="mt-1 text-xs text-ink-soft">
+                  El día prometido al cliente ya pasó
+                </p>
+              </div>
+              <a
+                routerLink="/pedidos"
+                class="text-sm font-medium text-brand hover:underline"
+              >
+                Ver vencidos
+              </a>
+            </article>
+          </div>
+        }
+      </section>
+
       <!-- Inventory -->
       <section class="flex flex-col gap-4" aria-labelledby="dash-inventory-heading">
         <h3 id="dash-inventory-heading" class="text-lg font-semibold text-ink">
