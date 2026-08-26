@@ -10,11 +10,14 @@ import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
+  type AbstractControl,
+  type ValidationErrors,
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TextareaModule } from 'primeng/textarea';
@@ -24,13 +27,15 @@ import {
   ProductQuantityPicker,
   type ProductQuantities,
 } from '../../../../shared/components/product-quantity-picker/product-quantity-picker';
+import { formatDay } from '../../../../shared/utils/date-range';
 import type { Product } from '../../../products/models/product.model';
 import { ProductDataClient } from '../../../products/services/product-data';
 import { ReportsInventoryDataClient } from '../../../reports/services/reports-inventory-data';
 import { UserDataClient } from '../../../users/services/user-data';
-import type {
-  CreateDispatchPayload,
-  DispatchItemInput,
+import {
+  MIN_DELIVERY_ORDER_NUMBER,
+  type CreateDispatchPayload,
+  type DispatchItemInput,
 } from '../../models/dispatch.model';
 import { DispatchDataClient } from '../../services/dispatch-data';
 
@@ -45,6 +50,7 @@ const PICKER_SIZE = 100;
     ProductQuantityPicker,
     ButtonModule,
     DatePickerModule,
+    InputNumberModule,
     SelectModule,
     SkeletonModule,
     TextareaModule,
@@ -95,9 +101,21 @@ export class DispatchForm implements OnInit {
     });
   });
 
+  protected readonly minOrderNumber = MIN_DELIVERY_ORDER_NUMBER;
+
   protected readonly form = this.fb.group({
     sellerId: this.fb.control('', [Validators.required]),
     date: this.fb.control<Date>(new Date(), [Validators.required]),
+    /**
+     * The number on the physical delivery order. Required by the API, an
+     * integer >= 1, and unique across dispatches — a duplicate comes back as
+     * DISPATCH_ORDER_NUMBER_TAKEN, which only a different number can fix.
+     */
+    deliveryOrderNumber: this.fb.control<number | null>(null, [
+      Validators.required,
+      Validators.min(MIN_DELIVERY_ORDER_NUMBER),
+      integerValidator,
+    ]),
     notes: this.fb.control(''),
   });
 
@@ -167,6 +185,9 @@ export class DispatchForm implements OnInit {
     const payload: CreateDispatchPayload = {
       sellerId: raw.sellerId,
       date: formatDay(raw.date),
+      // Non-null: the control is `Validators.required` and the guard above
+      // returns on an invalid form, so submit is unreachable without it.
+      deliveryOrderNumber: raw.deliveryOrderNumber as number,
       items,
       ...(notes ? { notes } : {}),
     };
@@ -182,12 +203,16 @@ export class DispatchForm implements OnInit {
   }
 }
 
-/** Formats a Date as YYYY-MM-DD using its local calendar day (no UTC shift). */
-function formatDay(date: Date): string {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
+/**
+ * The API types the delivery order number as an integer. A decimal would be
+ * rejected server-side, so it is caught here rather than after a round trip.
+ */
+function integerValidator(control: AbstractControl): ValidationErrors | null {
+  const value: unknown = control.value;
+  if (value === null || value === '') {
+    return null;
+  }
+  return Number.isInteger(value) ? null : { integer: true };
 }
 
 function toMessage(error: unknown, fallback: string): string {

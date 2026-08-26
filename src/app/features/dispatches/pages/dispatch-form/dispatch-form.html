@@ -43,7 +43,7 @@
     <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-6">
       <!-- Header fields -->
       <div class="flex flex-col gap-5 rounded-2xl border border-ink/10 bg-white p-6">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div class="flex flex-col gap-1.5">
             <label
               for="dispatch-seller"
@@ -87,6 +87,38 @@
               styleClass="w-full"
               [showIcon]="true"
             />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="dispatch-order-number"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              N.° de orden de entrega
+            </label>
+            <p-inputnumber
+              inputId="dispatch-order-number"
+              formControlName="deliveryOrderNumber"
+              [min]="minOrderNumber"
+              [useGrouping]="false"
+              placeholder="Ej. 4821"
+              styleClass="w-full"
+              inputStyleClass="w-full"
+              aria-describedby="dispatch-order-number-hint"
+            />
+            @if (
+              form.controls.deliveryOrderNumber.touched &&
+              form.controls.deliveryOrderNumber.invalid
+            ) {
+              <span class="text-xs text-red-600" role="alert">
+                Escribí el número entero de la orden de entrega, desde
+                {{ minOrderNumber }}.
+              </span>
+            } @else {
+              <span id="dispatch-order-number-hint" class="text-xs text-ink-soft">
+                El del papel que viaja con la carga. No se puede repetir.
+              </span>
+            }
           </div>
         </div>
 
