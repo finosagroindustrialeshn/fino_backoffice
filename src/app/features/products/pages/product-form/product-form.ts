@@ -23,6 +23,7 @@ import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TextareaModule } from 'primeng/textarea';
 
+import { fetchAllPages } from '../../../../core/http/fetch-all-pages';
 import { FileDropzone } from '../../../../shared/components/file-dropzone/file-dropzone';
 import { ImageDropzone } from '../../../../shared/components/image-dropzone/image-dropzone';
 import { FileSelection } from '../../../../shared/forms/file-selection';
@@ -37,6 +38,9 @@ import {
   type ProductChange,
   type ProductPayload,
 } from '../../models/product.model';
+import { formatDay } from '../../../../shared/utils/date-range';
+import { exportToExcel } from '../../../../shared/utils/excel-export';
+import { buildProductChangesSheet } from '../../utils/product-changes-export';
 import { ProductDataClient } from '../../services/product-data';
 import { ProductImageStorage } from '../../services/product-image-storage';
 import {
@@ -53,6 +57,9 @@ type CompositionRow = FormGroup<{
 
 /** Recent history only — the form is not a full audit browser. */
 const CHANGES_PAGE_SIZE = 20;
+
+/** The export walks every page; a bigger page means fewer round trips. */
+const EXPORT_PAGE_SIZE = 100;
 
 @Component({
   selector: 'app-product-form',
@@ -96,6 +103,10 @@ export class ProductForm implements OnInit {
    */
   protected readonly changes = signal<readonly ProductChange[]>([]);
   protected readonly changesLoading = signal(false);
+  protected readonly exporting = signal(false);
+  protected readonly exportError = signal<string | null>(null);
+  /** Set when the export hit the row ceiling and the file is incomplete. */
+  protected readonly exportTruncated = signal(false);
 
   protected readonly categoryOptions = signal<ProductCategory[]>([]);
   protected readonly presentationOptions = signal<ProductPresentation[]>([]);
@@ -292,6 +303,41 @@ export class ProductForm implements OnInit {
       this.changes.set([]);
     } finally {
       this.changesLoading.set(false);
+    }
+  }
+
+  /**
+   * Exports the WHOLE history, not the page shown on screen — an export that
+   * silently covers 20 of 300 edits is worse than no export, because the file
+   * gets read as if it were the full record.
+   */
+  protected async exportChanges(): Promise<void> {
+    const id = this.productId();
+    if (!id || this.exporting()) {
+      return;
+    }
+    this.exporting.set(true);
+    this.exportError.set(null);
+    this.exportTruncated.set(false);
+    try {
+      const result = await fetchAllPages(
+        (page, pageSize) => this.products.changes(id, { page, pageSize }),
+        { pageSize: EXPORT_PAGE_SIZE },
+      );
+      // Surfaced, never swallowed: the caller of fetchAllPages owns telling
+      // the user when rows are missing.
+      this.exportTruncated.set(result.truncated);
+      const sku = this.form.controls.sku.value.trim() || id;
+      await exportToExcel({
+        fileName: `historial-${sku}-${formatDay(new Date())}`,
+        sheets: [buildProductChangesSheet(result.rows)],
+      });
+    } catch (error) {
+      this.exportError.set(
+        this.toMessage(error, 'No se pudo generar el historial.'),
+      );
+    } finally {
+      this.exporting.set(false);
     }
   }
 
