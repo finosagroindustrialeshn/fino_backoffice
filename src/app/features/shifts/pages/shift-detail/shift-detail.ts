@@ -31,6 +31,7 @@ import {
   SHIFT_STATUS_SEVERITY,
   cashDifferenceKind,
   type CloseShiftPayload,
+  type ShiftClosing,
   type ShiftDetail as ShiftDetailModel,
   type ShiftStatus,
   type ShiftTagSeverity,
@@ -126,6 +127,12 @@ export class ShiftDetail {
   protected readonly closing = signal(false);
   protected readonly closeError = signal<string | null>(null);
   private readonly closeErrorCode = signal<ApiErrorCode | null>(null);
+  /**
+   * The day's summary, available only from the close response. Null on a
+   * shift that was closed in an earlier session, since re-fetching the shift
+   * does not bring it back.
+   */
+  protected readonly closingSummary = signal<ShiftClosing | null>(null);
   private pendingClose: PendingClose | null = null;
 
   /**
@@ -235,6 +242,9 @@ export class ShiftDetail {
         this.shifts.close(shift.id, payload, this.pendingClose.key),
       );
       this.state.set({ status: 'success', shift: updated });
+      // Only the close response carries these — a later reload of this page
+      // fetches GET /shifts/{id}, which has neither.
+      this.closingSummary.set(updated);
       this.pendingClose = null;
       this.closeOpen.set(false);
       void this.loadParties(updated);

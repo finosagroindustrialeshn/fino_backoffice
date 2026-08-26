@@ -10,6 +10,7 @@ import { toQueryParams } from '../../../core/http/query-params';
 import type {
   CloseShiftPayload,
   Shift,
+  ShiftClosing,
   ShiftDetail,
   ShiftStatus,
 } from '../models/shift.model';
@@ -46,7 +47,8 @@ export class ShiftDataClient {
   }
 
   /**
-   * Closes a shift and returns it with the settled liquidation.
+   * Closes a shift and returns it with the settled liquidation, the day's
+   * payment breakdown and its best sellers.
    *
    * `idempotencyKey` is required, not optional. Closing is the last thing a
    * tired seller does on the worst connection of the day, and a retry after a
@@ -58,8 +60,8 @@ export class ShiftDataClient {
     id: string,
     payload: CloseShiftPayload,
     idempotencyKey: string,
-  ): Observable<ShiftDetail> {
-    return this.api.post<ShiftDetail>(`/shifts/${id}/close`, payload, {
+  ): Observable<ShiftClosing> {
+    return this.api.post<ShiftClosing>(`/shifts/${id}/close`, payload, {
       idempotencyKey,
     });
   }
