@@ -90,6 +90,20 @@ export class ClientList implements OnInit {
     const selected = this.sellerFilter();
     return selected && selected !== UNASSIGNED ? selected : undefined;
   });
+  protected readonly presellerFilter = signal<string | null>(null);
+  /**
+   * The API applies `assignedPresellerId` ONLY when no seller filter is in
+   * play, so the two are mutually exclusive rather than combinable. Narrowing
+   * it here keeps the request honest; the picker is disabled to match.
+   */
+  protected readonly presellerFilterDisabled = computed(
+    () => this.sellerFilter() !== null,
+  );
+  private readonly assignedPresellerFilter = computed(() =>
+    this.presellerFilterDisabled()
+      ? undefined
+      : (this.presellerFilter() ?? undefined),
+  );
   protected readonly activeFilter = signal<boolean | null>(null);
   private searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
@@ -99,6 +113,10 @@ export class ClientList implements OnInit {
       { label: 'Sin asignar', value: UNASSIGNED },
     ],
   );
+  protected readonly presellerFilterOptions = signal<
+    SelectOption<string | null>[]
+  >([{ label: 'Todos los preventistas', value: null }]);
+
   protected readonly activeFilterOptions: SelectOption<boolean | null>[] = [
     { label: 'Todos los estados', value: null },
     { label: 'Activos', value: true },
@@ -112,6 +130,7 @@ export class ClientList implements OnInit {
         pageSize,
         search: this.appliedSearch() || undefined,
         assignedSellerId: this.assignedSellerFilter(),
+        assignedPresellerId: this.assignedPresellerFilter(),
         unassignedOnly: this.sellerFilter() === UNASSIGNED || undefined,
         isActive: this.activeFilter() ?? undefined,
         sortBy: (this.list.sortField() as ClientSortBy | null) ?? undefined,
@@ -127,6 +146,14 @@ export class ClientList implements OnInit {
   protected readonly detailVisible = signal(false);
   protected readonly detailClientId = signal<string | null>(null);
   /** Seller names by id, so the dialog shows a name instead of a uuid. */
+  protected readonly presellerNames = computed(() =>
+    Object.fromEntries(
+      this.presellerFilterOptions()
+        .filter((option) => option.value !== null)
+        .map((option) => [option.value as string, option.label]),
+    ),
+  );
+
   protected readonly sellerNames = computed(() =>
     Object.fromEntries(
       this.sellerFilterOptions()
@@ -157,6 +184,16 @@ export class ClientList implements OnInit {
 
   protected onSellerFilterChange(sellerId: string | null): void {
     this.sellerFilter.set(sellerId);
+    // Picking a seller makes the preseller filter inert on the API side;
+    // clearing it keeps the screen from showing a filter that does nothing.
+    if (sellerId !== null) {
+      this.presellerFilter.set(null);
+    }
+    this.table().reset();
+  }
+
+  protected onPresellerFilterChange(presellerId: string | null): void {
+    this.presellerFilter.set(presellerId);
     this.table().reset();
   }
 
@@ -165,21 +202,36 @@ export class ClientList implements OnInit {
     this.table().reset();
   }
 
+  /**
+   * Both owner lookups. Settled independently so one role's request failing
+   * does not strip the other filter of its options.
+   */
   private async loadSellers(): Promise<void> {
-    try {
-      const result = await firstValueFrom(
-        this.users.list({ role: 'SELLER', pageSize: LOOKUP_SIZE }),
-      );
+    const [sellers, presellers] = await Promise.allSettled([
+      firstValueFrom(this.users.list({ role: 'SELLER', pageSize: LOOKUP_SIZE })),
+      firstValueFrom(
+        this.users.list({ role: 'PRESELLER', pageSize: LOOKUP_SIZE }),
+      ),
+    ]);
+    // A filter simply keeps only its "all" option if its lookup fails.
+    if (sellers.status === 'fulfilled') {
       this.sellerFilterOptions.set([
         { label: 'Todos los vendedores', value: null },
         { label: 'Sin asignar', value: UNASSIGNED },
-        ...result.items.map((user) => ({
+        ...sellers.value.items.map((user) => ({
           label: user.fullName,
           value: user.id,
         })),
       ]);
-    } catch {
-      // Filter simply keeps only the "all sellers" option if the lookup fails.
+    }
+    if (presellers.status === 'fulfilled') {
+      this.presellerFilterOptions.set([
+        { label: 'Todos los preventistas', value: null },
+        ...presellers.value.items.map((user) => ({
+          label: user.fullName,
+          value: user.id,
+        })),
+      ]);
     }
   }
 
