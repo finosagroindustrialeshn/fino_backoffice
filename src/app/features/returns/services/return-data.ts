@@ -13,6 +13,7 @@ import type {
   Return,
   ReturnDetail,
   ReturnStatus,
+  ReturnSummary,
 } from '../models/return.model';
 
 export interface ReturnListQuery extends PaginationQuery {
@@ -30,8 +31,8 @@ export interface ReturnListQuery extends PaginationQuery {
 export class ReturnDataClient {
   private readonly api = inject(ApiClient);
 
-  list(query?: ReturnListQuery): Observable<Paginated<Return>> {
-    return this.api.get<Paginated<Return>>(
+  list(query?: ReturnListQuery): Observable<Paginated<ReturnSummary>> {
+    return this.api.get<Paginated<ReturnSummary>>(
       '/returns',
       toQueryParams({ ...query }),
     );
