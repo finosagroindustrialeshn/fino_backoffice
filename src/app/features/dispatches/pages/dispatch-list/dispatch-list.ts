@@ -18,6 +18,7 @@ import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { TextareaModule } from 'primeng/textarea';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
 import { LazyList } from '../../../../core/http/lazy-list';
@@ -29,6 +30,9 @@ import { UserDataClient } from '../../../users/services/user-data';
 import {
   DISPATCH_STATUS_LABELS,
   DISPATCH_STATUS_SEVERITY,
+  MAX_CANCEL_REASON_LENGTH,
+  MIN_CANCEL_REASON_LENGTH,
+  type CancelDispatchPayload,
   type Dispatch,
   type DispatchStatus,
   type DispatchSummary,
@@ -58,6 +62,7 @@ const LOOKUP_SIZE = 100;
     SkeletonModule,
     TableModule,
     TagModule,
+    TextareaModule,
   ],
   templateUrl: './dispatch-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -136,6 +141,31 @@ export class DispatchList implements OnInit {
     return this.canManage() && (status === 'DRAFT' || status === 'ASSIGNED');
   });
 
+  // Cancellation. The API demands a written reason once a dispatch is
+  // ASSIGNED, because from there cancelling is one party refusing another's
+  // load. On a DRAFT the back office is only discarding its own work, so the
+  // reason stays optional.
+  protected readonly minReasonLength = MIN_CANCEL_REASON_LENGTH;
+  protected readonly maxReasonLength = MAX_CANCEL_REASON_LENGTH;
+  protected readonly cancelOpen = signal(false);
+  protected readonly cancelReason = signal('');
+
+  protected readonly isCancelReasonRequired = computed(
+    () => this.detail()?.status === 'ASSIGNED',
+  );
+
+  protected readonly canConfirmCancel = computed(() => {
+    const reason = this.cancelReason().trim();
+    if (reason.length > MAX_CANCEL_REASON_LENGTH) {
+      return false;
+    }
+    if (this.isCancelReasonRequired()) {
+      return reason.length >= MIN_CANCEL_REASON_LENGTH;
+    }
+    // Optional, but a reason typed too short would still be rejected.
+    return reason.length === 0 || reason.length >= MIN_CANCEL_REASON_LENGTH;
+  });
+
   ngOnInit(): void {
     void this.loadLookups();
   }
@@ -167,6 +197,20 @@ export class DispatchList implements OnInit {
     return DISPATCH_STATUS_SEVERITY[status];
   }
 
+  /** Dispatches created before the API required the field carry no number. */
+  protected orderNumber(value: number | null | undefined): string {
+    return value === null || value === undefined ? '—' : `${value}`;
+  }
+
+  /**
+   * Line count for a list row. The LIST endpoint sends `itemsCount` (list
+   * rows carry no `items` to count), so a missing value means the API did not
+   * report one — shown as a dash rather than a misleading zero.
+   */
+  protected itemsCount(value: number | null | undefined): string {
+    return value === null || value === undefined ? '—' : `${value}`;
+  }
+
   protected sellerName(sellerId: string): string {
     return this.sellerNames().get(sellerId) ?? '—';
   }
@@ -186,6 +230,8 @@ export class DispatchList implements OnInit {
   protected openDetail(dispatch: DispatchSummary): void {
     this.detail.set(null);
     this.actionError.set(null);
+    this.cancelOpen.set(false);
+    this.cancelReason.set('');
     this.detailOpen.set(true);
     void this.loadDetail(dispatch.id);
   }
@@ -211,8 +257,24 @@ export class DispatchList implements OnInit {
     await this.runAction((id) => this.dispatches.receive(id));
   }
 
-  protected async cancel(): Promise<void> {
-    await this.runAction((id) => this.dispatches.cancel(id));
+  /** Opens the reason prompt rather than cancelling straight away. */
+  protected openCancel(): void {
+    this.cancelReason.set('');
+    this.cancelOpen.set(true);
+  }
+
+  protected async confirmCancel(): Promise<void> {
+    if (!this.canConfirmCancel()) {
+      return;
+    }
+    const reason = this.cancelReason().trim();
+    const payload: CancelDispatchPayload = reason ? { reason } : {};
+    await this.runAction((id) => this.dispatches.cancel(id, payload));
+    // Only close once it actually went through; on failure the dialog stays
+    // open with the text the user typed, next to the error explaining why.
+    if (!this.actionError()) {
+      this.cancelOpen.set(false);
+    }
   }
 
   private async runAction(
