@@ -1,7 +1,7 @@
 export type CashSessionStatus = 'OPEN' | 'CLOSED';
 
 /** Live reconciliation of a till: what the system expects vs what was counted. */
-export interface Arqueo {
+export interface CashCount {
   /** Store sales total for the session. */
   readonly totalSales: number;
   readonly salesCount: number;
@@ -28,7 +28,11 @@ export interface CashSession {
   readonly closedAt: string | null;
   readonly closedById: string | null;
   readonly notes: string | null;
-  readonly arqueo?: Arqueo;
+  /**
+   * Live reconciliation of the till. The API calls this `cashCount`; the UI
+   * still says "arqueo", which is the word used at the counter.
+   */
+  readonly cashCount?: CashCount;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

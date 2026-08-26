@@ -39,6 +39,7 @@ import {
   type RouteStop,
   type RouteStopStatus,
 } from '../../models/route.model';
+import { moveInOrder, type MoveDirection } from '../../models/route-order';
 import { MAX_PAGE_SIZE } from '../../../../core/http/pagination.model';
 import { RouteDataClient } from '../../services/route-data';
 
@@ -234,6 +235,32 @@ export class RouteDetail implements OnInit {
     return `Parada ${stop.sortOrder} seleccionada: ${stop.client?.name ?? 'cliente sin datos'}.`;
   });
 
+  // ── Reordering ─────────────────────────────────────────────────────────
+  /**
+   * Stop ids in the order the user is arranging, or null when nothing is
+   * pending. Held as a draft rather than saved per move because the API
+   * replaces the WHOLE order in one atomic write — one request per nudge
+   * would leave the agenda half-renumbered between calls.
+   */
+  protected readonly draftOrder = signal<readonly string[] | null>(null);
+  protected readonly isReordering = computed(() => this.draftOrder() !== null);
+  protected readonly reorderPending = signal(false);
+
+  /** The stops as currently arranged: the pending draft, else the server's. */
+  protected readonly orderedStops = computed<readonly RouteStop[]>(() => {
+    const draft = this.draftOrder();
+    const stops = this.stops();
+    if (!draft) {
+      return stops;
+    }
+    const byId = new Map(stops.map((stop) => [stop.id, stop]));
+    // Drops ids the route no longer has, so a stop deleted mid-reorder
+    // cannot make the saved list fail ROUTE_STOP_ORDER_INVALID.
+    return draft
+      .map((id) => byId.get(id))
+      .filter((stop): stop is RouteStop => stop !== undefined);
+  });
+
   protected readonly addDialogVisible = signal(false);
   protected readonly addPending = signal(false);
   protected readonly statusPending = signal(false);
@@ -391,6 +418,50 @@ export class RouteDetail implements OnInit {
       this.actionError.set(this.toMessage(error, 'No se pudo cambiar el estado de la ruta.'));
     } finally {
       this.statusPending.set(false);
+    }
+  }
+
+  protected moveStop(index: number, direction: MoveDirection): void {
+    if (this.isClosed() || this.reorderPending()) {
+      return;
+    }
+    const current = this.orderedStops().map((stop) => stop.id);
+    const next = moveInOrder(current, index, direction);
+    // Same reference means the move was a no-op (either end of the list).
+    if (next !== current) {
+      this.draftOrder.set(next);
+    }
+  }
+
+  protected cancelReorder(): void {
+    this.draftOrder.set(null);
+    this.actionError.set(null);
+  }
+
+  /**
+   * Sends the complete order in one request, as the API requires: the list
+   * must name every stop on the route exactly once.
+   */
+  protected async saveOrder(): Promise<void> {
+    const id = this.routeId();
+    const draft = this.draftOrder();
+    if (!id || !draft || this.reorderPending()) {
+      return;
+    }
+    this.reorderPending.set(true);
+    this.actionError.set(null);
+    try {
+      await firstValueFrom(this.routes.reorderStops(id, draft));
+      // Refetch rather than trusting the response: the stops come back with
+      // their new sortOrder, and the map redraws from the refreshed route.
+      await this.refresh();
+      this.draftOrder.set(null);
+    } catch (error) {
+      this.actionError.set(
+        this.toMessage(error, 'No se pudo guardar el orden de las paradas.'),
+      );
+    } finally {
+      this.reorderPending.set(false);
     }
   }
 

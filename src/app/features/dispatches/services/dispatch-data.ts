@@ -7,6 +7,7 @@ import type {
   PaginationQuery,
 } from '../../../core/http/pagination.model';
 import type {
+  CancelDispatchPayload,
   CreateDispatchPayload,
   Dispatch,
   DispatchStatus,
@@ -81,8 +82,16 @@ export class DispatchDataClient {
     return this.api.post<Dispatch>(`/dispatches/${id}/confirm`);
   }
 
-  cancel(id: string): Observable<Dispatch> {
-    return this.api.post<Dispatch>(`/dispatches/${id}/cancel`);
+  /**
+   * Cancels a DRAFT or ASSIGNED dispatch, releasing any warehouse reservation.
+   *
+   * The API requires `reason` once the dispatch is ASSIGNED — cancelling from
+   * there is one party refusing another's load — and answers
+   * CANCEL_REASON_REQUIRED without it. It stays optional on a DRAFT, which is
+   * the back office simply discarding its own unassigned work.
+   */
+  cancel(id: string, payload: CancelDispatchPayload = {}): Observable<Dispatch> {
+    return this.api.post<Dispatch>(`/dispatches/${id}/cancel`, payload);
   }
 
   /** What a given seller currently carries (ADMIN/SUPERVISOR). */

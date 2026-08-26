@@ -9,12 +9,12 @@ import type {
 } from '../../../core/http/pagination.model';
 import { toQueryParams } from '../../../core/http/query-params';
 import type {
-  PreventaSummary,
-  PreventistaOrdersRow,
+  PresalesSummary,
+  PresellerOrdersRow,
 } from '../models/preventa-report.model';
 
 /** Date bounds shared by both preventa reports, YYYY-MM-DD (day granularity). */
-export interface PreventaReportQuery extends PaginationQuery {
+export interface PresalesReportQuery extends PaginationQuery {
   readonly dateFrom?: string;
   readonly dateTo?: string;
   /** Narrow the report to a single preventista. */
@@ -28,18 +28,18 @@ export interface PreventaReportQuery extends PaginationQuery {
 export class ReportsPreventaDataClient {
   private readonly api = inject(ApiClient);
 
-  summary(query?: PreventaReportQuery): Observable<PreventaSummary> {
-    return this.api.get<PreventaSummary>(
-      '/reports/preventa/summary',
+  summary(query?: PresalesReportQuery): Observable<PresalesSummary> {
+    return this.api.get<PresalesSummary>(
+      '/reports/presales/summary',
       toQueryParams({ ...query }),
     );
   }
 
-  byPreventista(
-    query?: PreventaReportQuery,
-  ): Observable<Paginated<PreventistaOrdersRow>> {
-    return this.api.get<Paginated<PreventistaOrdersRow>>(
-      '/reports/preventa/by-preventista',
+  byPreseller(
+    query?: PresalesReportQuery,
+  ): Observable<Paginated<PresellerOrdersRow>> {
+    return this.api.get<Paginated<PresellerOrdersRow>>(
+      '/reports/presales/by-preseller',
       toQueryParams({ ...query }),
     );
   }

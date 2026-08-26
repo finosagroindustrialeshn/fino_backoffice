@@ -27,7 +27,17 @@ export interface ClientListQuery extends PaginationQuery {
   readonly createdById?: string;
   /** Filter by the seller who owns the client. Ignored by the API for a SELLER. */
   readonly assignedSellerId?: string;
-  /** Only clients with no seller assigned yet. Takes precedence over assignedSellerId. */
+  /**
+   * Filter by the preseller who owns the client — the second, independent
+   * client book. Applied by the API only when `assignedSellerId` and
+   * `unassignedOnly` are both absent.
+   */
+  readonly assignedPresellerId?: string;
+  /**
+   * Only clients with no SELLER assigned yet. A preseller having already
+   * claimed a client does not make it assigned in this sense. Takes
+   * precedence over both `assignedSellerId` and `assignedPresellerId`.
+   */
   readonly unassignedOnly?: boolean;
   readonly isActive?: boolean;
   readonly sortBy?: ClientSortBy;
@@ -54,6 +64,9 @@ export class ClientDataClient {
     }
     if (query.assignedSellerId) {
       params['assignedSellerId'] = query.assignedSellerId;
+    }
+    if (query.assignedPresellerId) {
+      params['assignedPresellerId'] = query.assignedPresellerId;
     }
     if (query.unassignedOnly) {
       params['unassignedOnly'] = true;

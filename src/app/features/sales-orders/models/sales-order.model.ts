@@ -247,7 +247,7 @@ export function canEditOrder(
   if (role === 'ADMIN' || role === 'SUPERVISOR') {
     return true;
   }
-  if (role === 'PREVENTISTA') {
+  if (role === 'PRESELLER') {
     return order.status === 'DRAFT' && order.takenById === currentUserId;
   }
   return false;

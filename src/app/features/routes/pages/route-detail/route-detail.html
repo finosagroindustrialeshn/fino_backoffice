@@ -162,13 +162,41 @@
           >
             Paradas ({{ stops().length }})
           </h3>
-          <p-button
-            label="Agregar cliente"
-            icon="pi pi-plus"
-            [disabled]="isClosed()"
-            (onClick)="addDialogVisible.set(true)"
-          />
+          <div class="flex flex-wrap items-center gap-2">
+            @if (isReordering()) {
+              <p-button
+                label="Descartar"
+                severity="secondary"
+                [text]="true"
+                [disabled]="reorderPending()"
+                (onClick)="cancelReorder()"
+              />
+              <p-button
+                label="Guardar orden"
+                icon="pi pi-check"
+                [loading]="reorderPending()"
+                [disabled]="reorderPending()"
+                (onClick)="saveOrder()"
+              />
+            }
+            <p-button
+              label="Agregar cliente"
+              icon="pi pi-plus"
+              [disabled]="isClosed()"
+              (onClick)="addDialogVisible.set(true)"
+            />
+          </div>
         </div>
+
+        @if (isReordering()) {
+          <p
+            class="mx-6 rounded-xl bg-amber-50 px-4 py-2 text-xs text-amber-900"
+            role="status"
+          >
+            El nuevo orden todavía no se guardó. Guardalo para que el vendedor
+            lo vea.
+          </p>
+        }
 
         <p class="sr-only" aria-live="polite">{{ selectionAnnouncement() }}</p>
 
@@ -176,7 +204,7 @@
              status actions only appear for the selected one: the same row the
              map highlights, so the detail lives in exactly one place. -->
         <ol class="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          @for (stop of stops(); track stop.id) {
+          @for (stop of orderedStops(); track stop.id; let index = $index) {
             <li
               [id]="'stop-row-' + stop.id"
               class="border-b border-ink/10 transition-colors last:border-b-0"
@@ -215,9 +243,48 @@
                     [class.bg-brand]="selectedStopId() === stop.id"
                     aria-hidden="true"
                   >
-                    {{ stop.sortOrder }}
+                    <!-- Position in the arrangement on screen, not the
+                         stored sortOrder: during a pending reorder those two
+                         disagree, and the badge must follow what the user
+                         just moved. The API renumbers 1..n on save. -->
+                    {{ index + 1 }}
                   </span>
                 </span>
+
+                <!-- Buttons rather than drag-and-drop: the order has to be
+                     changeable from a keyboard, and a drag target inside a
+                     scrolling list is awkward on a touch screen too. -->
+                @if (!isClosed()) {
+                  <span class="flex shrink-0 flex-col">
+                    <button
+                      type="button"
+                      class="flex h-6 w-6 items-center justify-center rounded text-ink-soft hover:bg-ink/5 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      [disabled]="index === 0 || reorderPending()"
+                      [attr.aria-label]="
+                        'Subir ' + (stop.client?.name ?? 'la parada')
+                      "
+                      (click)="moveStop(index, 'up')"
+                    >
+                      <i class="pi pi-chevron-up text-xs" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="flex h-6 w-6 items-center justify-center rounded text-ink-soft hover:bg-ink/5 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      [disabled]="
+                        index === orderedStops().length - 1 || reorderPending()
+                      "
+                      [attr.aria-label]="
+                        'Bajar ' + (stop.client?.name ?? 'la parada')
+                      "
+                      (click)="moveStop(index, 'down')"
+                    >
+                      <i
+                        class="pi pi-chevron-down text-xs"
+                        aria-hidden="true"
+                      ></i>
+                    </button>
+                  </span>
+                }
 
                 <button
                   type="button"

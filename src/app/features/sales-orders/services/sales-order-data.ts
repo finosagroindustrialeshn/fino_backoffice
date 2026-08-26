@@ -68,7 +68,7 @@ export class SalesOrderDataClient {
   /**
    * Takes an order. Nothing moves: no stock is reserved and no money is owed.
    *
-   * A PREVENTISTA needs an open shift (409 SHIFT_REQUIRED otherwise);
+   * A PRESELLER needs an open shift (409 SHIFT_REQUIRED otherwise);
    * ADMIN/SUPERVISOR do not, because an order taken over the phone is not
    * field work.
    *

@@ -222,6 +222,86 @@
           </section>
         }
 
+        <!-- Only available straight after closing: the close response carries
+             the day's breakdown, a later reload of this page does not. -->
+        @if (closingSummary(); as closed) {
+          <section
+            class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6"
+            aria-label="Resumen del día"
+          >
+            <h3 class="font-heading text-lg font-semibold text-ink">
+              Resumen del día
+            </h3>
+
+            <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div class="flex flex-col gap-0.5">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Cobrado
+                </dt>
+                <dd class="text-sm font-semibold text-ink">
+                  {{
+                    closed.paymentBreakdown.cash
+                      | currency: 'HNL' : 'L ' : '1.2-2'
+                  }}
+                </dd>
+              </div>
+              <div class="flex flex-col gap-0.5">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Al crédito
+                </dt>
+                <dd class="text-sm font-semibold text-ink">
+                  {{
+                    closed.paymentBreakdown.credit
+                      | currency: 'HNL' : 'L ' : '1.2-2'
+                  }}
+                </dd>
+              </div>
+              <div class="flex flex-col gap-0.5">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Total vendido
+                </dt>
+                <dd class="text-sm font-semibold text-ink">
+                  {{
+                    closed.paymentBreakdown.total
+                      | currency: 'HNL' : 'L ' : '1.2-2'
+                  }}
+                </dd>
+              </div>
+            </dl>
+
+            <p class="text-xs text-ink-soft">
+              Cobrado y al crédito corresponden a las ventas de hoy. No
+              coinciden con la liquidación, que además cuenta los abonos
+              recibidos hoy por ventas de días anteriores.
+            </p>
+
+            @if (closed.topSellingProducts.length > 0) {
+              <div class="flex flex-col gap-2">
+                <h4 class="text-sm font-semibold text-ink">Lo más vendido</h4>
+                <ul class="flex flex-col divide-y divide-ink/10">
+                  @for (
+                    product of closed.topSellingProducts;
+                    track product.productId
+                  ) {
+                    <li class="flex items-center justify-between gap-3 py-2">
+                      <span class="text-sm text-ink">{{ product.name }}</span>
+                      <span class="whitespace-nowrap text-sm text-ink-soft">
+                        {{ product.quantitySold }} u. ·
+                        <span class="font-semibold text-ink">
+                          {{
+                            product.totalAmount
+                              | currency: 'HNL' : 'L ' : '1.2-2'
+                          }}
+                        </span>
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+        }
+
         <!-- Field expenses charged to this shift -->
         <section
           class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6"

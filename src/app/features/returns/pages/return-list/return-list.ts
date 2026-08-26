@@ -31,6 +31,7 @@ import {
   type ReturnDetail,
   type ReturnIncidentInput,
   type ReturnStatus,
+  type ReturnSummary,
 } from '../../models/return.model';
 import { ReturnDataClient } from '../../services/return-data';
 import { ReturnLookups } from '../../services/return-lookups';
@@ -79,7 +80,7 @@ export class ReturnList implements OnInit {
   protected readonly sellerFilter = signal<string | null>(null);
   protected readonly dateRange = signal<Date[] | null>(null);
 
-  protected readonly list = new LazyList<Return>(
+  protected readonly list = new LazyList<ReturnSummary>(
     (page, pageSize) => {
       const range = this.dateRange();
       return this.returns.list({

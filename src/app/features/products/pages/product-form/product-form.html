@@ -325,6 +325,95 @@
         </div>
       </div>
 
+      <!-- Edit history: only an existing product has one -->
+      @if (isEdit()) {
+        <section
+          class="flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6"
+          aria-label="Historial de cambios"
+        >
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex flex-col gap-1">
+              <h2 class="text-sm font-semibold text-ink">Historial de cambios</h2>
+              <p class="text-xs text-ink-soft">
+                Qué se editó en este producto, lo más reciente primero.
+              </p>
+            </div>
+            <p-button
+              type="button"
+              label="Descargar Excel"
+              icon="pi pi-file-excel"
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              [loading]="exporting()"
+              [disabled]="exporting() || changesLoading()"
+              (onClick)="exportChanges()"
+            />
+          </div>
+
+          @if (exportError(); as message) {
+            <div
+              role="alert"
+              class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {{ message }}
+            </div>
+          }
+
+          @if (exportTruncated()) {
+            <div
+              role="alert"
+              class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+              El historial es muy largo y el archivo quedó incompleto: contiene
+              solo los cambios más recientes.
+            </div>
+          }
+
+          @if (changesLoading()) {
+            <div class="flex flex-col gap-2" aria-busy="true">
+              <span class="sr-only">Cargando historial…</span>
+              <p-skeleton width="100%" height="2rem" />
+              <p-skeleton width="100%" height="2rem" />
+            </div>
+          } @else if (changes().length === 0) {
+            <p class="text-sm text-ink-soft">
+              Este producto no registra cambios todavía.
+            </p>
+          } @else {
+            <ul class="flex flex-col divide-y divide-ink/10">
+              @for (change of changes(); track change.id) {
+                <li class="flex flex-col gap-1 py-3">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <span class="text-sm font-semibold text-ink">
+                      {{ fieldLabel(change.field) }}
+                    </span>
+                    <span class="text-xs text-ink-soft">
+                      {{ change.changedAt | date: 'dd/MM/yyyy HH:mm' }}
+                      @if (change.changedByName) {
+                        · {{ change.changedByName }}
+                      }
+                    </span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <span class="text-ink-soft line-through">
+                      {{ changeValue(change.oldValue) }}
+                    </span>
+                    <i
+                      class="pi pi-arrow-right text-[10px] text-ink-soft"
+                      aria-hidden="true"
+                    ></i>
+                    <span class="font-medium text-ink">
+                      {{ changeValue(change.newValue) }}
+                    </span>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      }
+
       <!-- Actions -->
       <div class="flex items-center justify-end gap-2">
         <p-button

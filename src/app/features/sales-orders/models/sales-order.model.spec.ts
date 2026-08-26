@@ -16,7 +16,7 @@ import {
   type SalesOrderStatus,
 } from './sales-order.model';
 
-const PREVENTISTA_ID = '11111111-1111-4111-8111-111111111111';
+const PRESELLER_ID = '11111111-1111-4111-8111-111111111111';
 const OTHER_USER_ID = '22222222-2222-4222-8222-222222222222';
 const SELLER_ID = '88888888-8888-4888-8888-888888888888';
 
@@ -52,8 +52,8 @@ function order(overrides: Partial<SalesOrder> = {}): SalesOrder {
       latitude: 14.1,
       longitude: -87.2,
     },
-    takenById: PREVENTISTA_ID,
-    takenBy: { id: PREVENTISTA_ID, fullName: 'Juan Pérez' },
+    takenById: PRESELLER_ID,
+    takenBy: { id: PRESELLER_ID, fullName: 'Juan Pérez' },
     assignedToId: null,
     assignedTo: null,
     assignedById: null,
@@ -125,17 +125,17 @@ describe('canEditOrder', () => {
 
   it('lets a preventista fix only their own DRAFT', () => {
     const editable = ALL_STATUSES.filter((status) =>
-      canEditOrder(order({ status }), 'PREVENTISTA', PREVENTISTA_ID),
+      canEditOrder(order({ status }), 'PRESELLER', PRESELLER_ID),
     );
     expect(editable).toEqual(['DRAFT']);
   });
 
   it('refuses a preventista editing a draft somebody else took', () => {
-    expect(canEditOrder(order(), 'PREVENTISTA', OTHER_USER_ID)).toBe(false);
+    expect(canEditOrder(order(), 'PRESELLER', OTHER_USER_ID)).toBe(false);
   });
 
   it('refuses roles that never correct orders', () => {
-    expect(canEditOrder(order(), 'SELLER', PREVENTISTA_ID)).toBe(false);
+    expect(canEditOrder(order(), 'SELLER', PRESELLER_ID)).toBe(false);
     expect(canEditOrder(order(), 'ACCOUNTANT', OTHER_USER_ID)).toBe(false);
   });
 

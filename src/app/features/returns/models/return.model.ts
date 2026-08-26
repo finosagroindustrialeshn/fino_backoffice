@@ -69,6 +69,27 @@ export interface Return {
   readonly updatedAt: string;
 }
 
+/**
+ * A list row from `GET /returns`, which carries counts the detail does not.
+ *
+ * Split from {@link ReturnDetail} for the same reason the line items were:
+ * the two endpoints answer with genuinely different shapes, and a single
+ * type that promises both makes one of them a lie.
+ */
+export interface ReturnSummary extends Return {
+  /** Seller's name, denormalized by the list endpoint — no lookup needed. */
+  readonly sellerName: string;
+  /** Product lines the return has. */
+  readonly lineCount: number;
+  /** Units coming back across every line. */
+  readonly totalUnits: number;
+  /**
+   * Lines the seller flagged as coming back with a problem. Greater than
+   * zero is the reason to open this one first.
+   */
+  readonly flaggedCount: number;
+}
+
 /** A single return with its lines, as documented by `GET /returns/{id}`. */
 export interface ReturnDetail extends Return {
   readonly items: readonly ReturnItem[];

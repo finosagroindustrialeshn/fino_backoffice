@@ -38,7 +38,7 @@ const ROLE_SEVERITY: Record<Role, RoleSeverity> = {
   SELLER: 'success',
   // Distinct from SELLER on purpose: both work the field, but only one of
   // them carries stock and collects money.
-  PREVENTISTA: 'secondary',
+  PRESELLER: 'secondary',
 };
 
 @Component({

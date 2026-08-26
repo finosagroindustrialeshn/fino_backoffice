@@ -7,7 +7,11 @@ import type {
   PaginationQuery,
   SortOrder,
 } from '../../../core/http/pagination.model';
-import type { Product, ProductPayload } from '../models/product.model';
+import type {
+  Product,
+  ProductChange,
+  ProductPayload,
+} from '../models/product.model';
 
 /** Fields the API can sort the product list by. */
 export type ProductSortBy = 'name' | 'price' | 'cost' | 'createdAt';
@@ -73,5 +77,27 @@ export class ProductDataClient {
 
   remove(id: string): Observable<void> {
     return this.api.delete(`/products/${id}`);
+  }
+
+  /**
+   * What has been edited on this product, newest first — one row per field
+   * changed. Backoffice only: a field seller reads the catalog as it is
+   * today, and how the price got there is an accounting question.
+   */
+  changes(
+    id: string,
+    query?: PaginationQuery,
+  ): Observable<Paginated<ProductChange>> {
+    const params: Record<string, string | number | boolean> = {};
+    if (query?.page) {
+      params['page'] = query.page;
+    }
+    if (query?.pageSize) {
+      params['pageSize'] = query.pageSize;
+    }
+    return this.api.get<Paginated<ProductChange>>(
+      `/products/${id}/changes`,
+      params as QueryParams,
+    );
   }
 }

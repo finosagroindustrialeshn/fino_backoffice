@@ -81,6 +81,13 @@ export interface Client {
    * client registered from the backoffice and not yet handed to a seller.
    */
   readonly assignedSellerId: string | null;
+  /**
+   * Preseller who owns this client — a SECOND owner, independent of
+   * {@link Client.assignedSellerId}: the preseller takes the order ahead of
+   * the visit and the seller carries the product, so both are normally set.
+   * Null means no preseller works this client.
+   */
+  readonly assignedPresellerId: string | null;
   /** Most recent sale, or null when the client has never bought. */
   readonly lastPurchase: LastPurchaseSummary | null;
   readonly createdAt: string;
@@ -117,4 +124,9 @@ export interface ClientPayload {
    * themselves and cannot assign. Omit to leave the client unassigned.
    */
   readonly assignedSellerId?: string | null;
+  /**
+   * Preseller who owns this client, independent of `assignedSellerId`.
+   * ADMIN/SUPERVISOR only — a PRESELLER always gets themselves.
+   */
+  readonly assignedPresellerId?: string | null;
 }

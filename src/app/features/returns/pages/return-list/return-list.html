@@ -73,6 +73,7 @@
         <tr class="hidden md:table-row">
           <th scope="col">Fecha</th>
           <th scope="col">Vendedor</th>
+          <th scope="col">Productos</th>
           <th scope="col">Notas</th>
           <th scope="col">Estado</th>
           <th scope="col">Acciones</th>
@@ -91,17 +92,31 @@
           </td>
           <td class="hidden md:table-cell">
             <span class="font-medium text-ink">
-              {{ lookups.userName(ret.sellerId) }}
+              {{ ret.sellerName || lookups.userName(ret.sellerId) }}
+            </span>
+          </td>
+          <td class="hidden md:table-cell">
+            <span class="whitespace-nowrap text-sm text-ink-soft">
+              {{ ret.lineCount }} ({{ ret.totalUnits }} u.)
             </span>
           </td>
           <td class="hidden md:table-cell">
             <span class="text-sm text-ink-soft">{{ ret.notes || '—' }}</span>
           </td>
           <td class="hidden md:table-cell">
-            <p-tag
-              [value]="statusLabel(ret.status)"
-              [severity]="statusSeverity(ret.status)"
-            />
+            <div class="flex flex-wrap items-center gap-1.5">
+              <p-tag
+                [value]="statusLabel(ret.status)"
+                [severity]="statusSeverity(ret.status)"
+              />
+              @if (ret.flaggedCount > 0) {
+                <p-tag
+                  severity="danger"
+                  [value]="ret.flaggedCount + ' con novedad'"
+                  icon="pi pi-flag"
+                />
+              }
+            </div>
           </td>
           <td class="hidden md:table-cell">
             <p-button
@@ -118,7 +133,7 @@
           <td class="block md:hidden">
             <div class="flex items-center justify-between gap-3">
               <span class="font-medium text-ink">
-                {{ lookups.userName(ret.sellerId) }}
+                {{ ret.sellerName || lookups.userName(ret.sellerId) }}
               </span>
               <p-button
                 [label]="ret.status === 'DRAFT' ? 'Verificar' : 'Ver detalle'"
@@ -141,10 +156,24 @@
                 <i class="pi pi-calendar text-[10px]" aria-hidden="true"></i>
                 {{ ret.date | date: 'dd/MM/yyyy' }}
               </span>
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-xs font-medium text-ink-soft"
+              >
+                <i class="pi pi-box text-[10px]" aria-hidden="true"></i>
+                <span class="sr-only">Productos</span>
+                {{ ret.lineCount }} ({{ ret.totalUnits }} u.)
+              </span>
               <p-tag
                 [value]="statusLabel(ret.status)"
                 [severity]="statusSeverity(ret.status)"
               />
+              @if (ret.flaggedCount > 0) {
+                <p-tag
+                  severity="danger"
+                  [value]="ret.flaggedCount + ' con novedad'"
+                  icon="pi pi-flag"
+                />
+              }
             </div>
           </td>
         </tr>
@@ -152,7 +181,7 @@
 
       <ng-template #emptymessage>
         <tr>
-          <td colspan="5">
+          <td colspan="6">
             <p class="py-8 text-center text-sm text-ink-soft">
               @if (list.loading()) {
                 Cargando retornos…

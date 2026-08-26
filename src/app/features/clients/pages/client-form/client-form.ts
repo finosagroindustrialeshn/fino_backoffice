@@ -109,8 +109,12 @@ export class ClientForm implements OnInit {
   protected readonly isEdit = computed(() => this.clientId() !== null);
   protected readonly rtnMaxDigits = RTN_MAX_DIGITS;
 
-  /** Reassigning a cartera is ADMIN/SUPERVISOR only — a SELLER always owns what they register. */
-  protected readonly canAssignSeller = computed(() => {
+  /**
+   * Reassigning a cartera is ADMIN/SUPERVISOR only — a SELLER always owns what
+   * they register, and a PRESELLER likewise always gets themselves. Gates both
+   * owners: the seller who delivers and the preseller who takes the order.
+   */
+  protected readonly canAssignOwners = computed(() => {
     const role = this.auth.role();
     return role === 'ADMIN' || role === 'SUPERVISOR';
   });
@@ -119,6 +123,10 @@ export class ClientForm implements OnInit {
   protected readonly client = signal<ClientDetail | null>(null);
 
   protected readonly sellerOptions = signal<SelectOption<string | null>[]>([
+    { label: 'Sin asignar', value: null },
+  ]);
+
+  protected readonly presellerOptions = signal<SelectOption<string | null>[]>([
     { label: 'Sin asignar', value: null },
   ]);
 
@@ -150,13 +158,14 @@ export class ClientForm implements OnInit {
       latitude: this.fb.control(0),
       longitude: this.fb.control(0),
       assignedSellerId: this.fb.control<string | null>(null),
+      assignedPresellerId: this.fb.control<string | null>(null),
     },
     { validators: locationRequired },
   );
 
   ngOnInit(): void {
-    if (this.canAssignSeller()) {
-      void this.loadSellers();
+    if (this.canAssignOwners()) {
+      void this.loadOwners();
     }
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
@@ -165,20 +174,23 @@ export class ClientForm implements OnInit {
     }
   }
 
-  private async loadSellers(): Promise<void> {
-    try {
-      const result = await firstValueFrom(
-        this.users.list({ role: 'SELLER', pageSize: LOOKUP_SIZE }),
-      );
-      this.sellerOptions.set([
-        { label: 'Sin asignar', value: null },
-        ...result.items.map((user) => ({
-          label: user.fullName,
-          value: user.id,
-        })),
-      ]);
-    } catch {
-      // Picker keeps only "unassigned" if the lookup fails.
+  /**
+   * Both owner pickers, fetched together. Settled independently so one role's
+   * lookup failing does not blank the other picker.
+   */
+  private async loadOwners(): Promise<void> {
+    const [sellers, presellers] = await Promise.allSettled([
+      firstValueFrom(this.users.list({ role: 'SELLER', pageSize: LOOKUP_SIZE })),
+      firstValueFrom(
+        this.users.list({ role: 'PRESELLER', pageSize: LOOKUP_SIZE }),
+      ),
+    ]);
+    // Pickers keep only "unassigned" if a lookup fails.
+    if (sellers.status === 'fulfilled') {
+      this.sellerOptions.set(toOptions(sellers.value.items));
+    }
+    if (presellers.status === 'fulfilled') {
+      this.presellerOptions.set(toOptions(presellers.value.items));
     }
   }
 
@@ -209,6 +221,7 @@ export class ClientForm implements OnInit {
       latitude: client.latitude,
       longitude: client.longitude,
       assignedSellerId: client.assignedSellerId,
+      assignedPresellerId: client.assignedPresellerId,
     });
     this.mapLat.set(client.latitude);
     this.mapLng.set(client.longitude);
@@ -282,8 +295,11 @@ export class ClientForm implements OnInit {
         imageUrl,
         // A SELLER may not assign — the API always makes them the owner, and
         // sending the field at all would be rejected as CLIENT_REASSIGN_FORBIDDEN.
-        ...(this.canAssignSeller()
-          ? { assignedSellerId: raw.assignedSellerId }
+        ...(this.canAssignOwners()
+          ? {
+              assignedSellerId: raw.assignedSellerId,
+              assignedPresellerId: raw.assignedPresellerId,
+            }
           : {}),
       };
 
@@ -331,4 +347,14 @@ export class ClientForm implements OnInit {
     }
     return fallback;
   }
+}
+
+/** Owner picker options, always led by the "unassigned" choice. */
+function toOptions(
+  users: readonly { id: string; fullName: string }[],
+): SelectOption<string | null>[] {
+  return [
+    { label: 'Sin asignar', value: null },
+    ...users.map((user) => ({ label: user.fullName, value: user.id })),
+  ];
 }

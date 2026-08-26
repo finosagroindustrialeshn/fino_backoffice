@@ -85,6 +85,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
           { label: 'Caja', route: '/reportes/caja' },
           { label: 'Inventario', route: '/reportes/inventario' },
           { label: 'Preventa', route: '/reportes/preventa' },
+          { label: 'Rutas', route: '/reportes/rutas' },
         ],
       },
     ],

@@ -88,6 +88,15 @@
 
         <div class="flex flex-col">
           <dt class="text-xs uppercase tracking-wide text-ink-soft">
+            Preventista asignado
+          </dt>
+          <dd class="text-sm text-ink">
+            {{ presellerName(detail.assignedPresellerId) }}
+          </dd>
+        </div>
+
+        <div class="flex flex-col">
+          <dt class="text-xs uppercase tracking-wide text-ink-soft">
             Persona de contacto
           </dt>
           <dd class="text-sm text-ink">{{ detail.contactName ?? '—' }}</dd>

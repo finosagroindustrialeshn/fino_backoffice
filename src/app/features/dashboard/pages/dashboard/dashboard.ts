@@ -180,7 +180,7 @@ export class Dashboard implements OnInit {
    * their own actionable block instead of sitting next to range-scoped stats.
    */
   protected readonly preventaTiles = computed<readonly StatTile[]>(() => {
-    const preventa = this.successSummary()?.preventa;
+    const preventa = this.successSummary()?.presales;
     if (!preventa) {
       return [];
     }
@@ -228,7 +228,7 @@ export class Dashboard implements OnInit {
 
   /** The live queue: promises nobody is working right now. */
   protected readonly preventaQueue = computed(
-    () => this.successSummary()?.preventa ?? null,
+    () => this.successSummary()?.presales ?? null,
   );
 
   /** Contado vs. crédito split of the range's sales, in brand colors. */

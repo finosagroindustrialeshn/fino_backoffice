@@ -290,7 +290,7 @@ export class SalesOrderList implements OnInit {
     try {
       const [preventistas, sellers] = await Promise.all([
         firstValueFrom(
-          this.users.list({ role: 'PREVENTISTA', pageSize: LOOKUP_SIZE }),
+          this.users.list({ role: 'PRESELLER', pageSize: LOOKUP_SIZE }),
         ),
         firstValueFrom(
           this.users.list({ role: 'SELLER', pageSize: LOOKUP_SIZE }),

@@ -69,6 +69,33 @@
 
     <div class="flex flex-col gap-1.5">
       <label
+        for="preseller-filter"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Preventista asignado
+      </label>
+      <p-select
+        inputId="preseller-filter"
+        [options]="presellerFilterOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="presellerFilter()"
+        (onChange)="onPresellerFilterChange($event.value)"
+        [disabled]="presellerFilterDisabled()"
+        placeholder="Todos los preventistas"
+        styleClass="w-full sm:w-56"
+        aria-describedby="preseller-filter-hint"
+      />
+      @if (presellerFilterDisabled()) {
+        <span id="preseller-filter-hint" class="text-xs text-ink-soft">
+          No se combina con el filtro de vendedor. Quitá ese filtro para
+          buscar por preventista.
+        </span>
+      }
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label
         for="client-active-filter"
         class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
       >
@@ -410,4 +437,5 @@
   [(visible)]="detailVisible"
   [clientId]="detailClientId()"
   [sellerNames]="sellerNames()"
+  [presellerNames]="presellerNames()"
 />

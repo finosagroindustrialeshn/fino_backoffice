@@ -220,7 +220,7 @@
         </div>
 
         <!-- Cartera ownership — ADMIN/SUPERVISOR only -->
-        @if (canAssignSeller()) {
+        @if (canAssignOwners()) {
           <div class="flex flex-col gap-1.5">
             <label
               for="client-assigned-seller"
@@ -240,6 +240,28 @@
             <span class="text-xs text-ink-soft">
               Quién atiende este cliente. Sin asignar queda disponible para
               entregarlo después.
+            </span>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="client-assigned-preseller"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Preventista asignado
+            </label>
+            <p-select
+              inputId="client-assigned-preseller"
+              formControlName="assignedPresellerId"
+              [options]="presellerOptions()"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Sin asignar"
+              styleClass="w-full"
+            />
+            <span class="text-xs text-ink-soft">
+              Quién toma el pedido antes de la visita. Es independiente del
+              vendedor: normalmente un cliente tiene los dos.
             </span>
           </div>
         }

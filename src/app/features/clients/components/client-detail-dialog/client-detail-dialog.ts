@@ -49,6 +49,8 @@ export class ClientDetailDialog {
   readonly clientId = input<string | null>(null);
   /** Seller display names keyed by id, so the owner reads as a name, not a uuid. */
   readonly sellerNames = input<Record<string, string>>({});
+  /** Preseller display names keyed by id — the client's second owner. */
+  readonly presellerNames = input<Record<string, string>>({});
 
   protected readonly client = signal<ClientDetail | null>(null);
   protected readonly loading = signal(false);
@@ -89,6 +91,13 @@ export class ClientDetailDialog {
       return 'Sin asignar';
     }
     return this.sellerNames()[sellerId] ?? 'Vendedor asignado';
+  }
+
+  protected presellerName(presellerId: string | null): string {
+    if (!presellerId) {
+      return 'Sin asignar';
+    }
+    return this.presellerNames()[presellerId] ?? 'Preventista asignado';
   }
 
   protected lastPurchaseLabel(status: LastPurchaseStatus): string {
