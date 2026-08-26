@@ -311,6 +311,14 @@ export const routes: Routes = [
               ).then((m) => m.PreventaReport),
             data: { title: 'Reportes' },
           },
+          {
+            path: 'rutas',
+            loadComponent: () =>
+              import(
+                './features/reports/pages/route-compliance-report/route-compliance-report'
+              ).then((m) => m.RouteComplianceReport),
+            data: { title: 'Reportes' },
+          },
         ],
       },
       {
