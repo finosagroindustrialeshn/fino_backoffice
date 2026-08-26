@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -29,10 +30,12 @@ import type { ProductCategory } from '../../../catalogs/product-categories/model
 import { ProductCategoryDataClient } from '../../../catalogs/product-categories/services/product-category-data';
 import type { ProductPresentation } from '../../../catalogs/product-presentations/models/product-presentation.model';
 import { ProductPresentationDataClient } from '../../../catalogs/product-presentations/services/product-presentation-data';
-import type {
-  CompositionItem,
-  Product,
-  ProductPayload,
+import {
+  PRODUCT_FIELD_LABELS,
+  type CompositionItem,
+  type Product,
+  type ProductChange,
+  type ProductPayload,
 } from '../../models/product.model';
 import { ProductDataClient } from '../../services/product-data';
 import { ProductImageStorage } from '../../services/product-image-storage';
@@ -48,9 +51,13 @@ type CompositionRow = FormGroup<{
   unit: FormControl<string>;
 }>;
 
+/** Recent history only — the form is not a full audit browser. */
+const CHANGES_PAGE_SIZE = 20;
+
 @Component({
   selector: 'app-product-form',
   imports: [
+    DatePipe,
     ReactiveFormsModule,
     RouterLink,
     ButtonModule,
@@ -82,6 +89,13 @@ export class ProductForm implements OnInit {
   protected readonly loadError = signal<string | null>(null);
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
+
+  /**
+   * Edit history, loaded only when editing and best-effort: the product form
+   * has to work whether or not the log can be read.
+   */
+  protected readonly changes = signal<readonly ProductChange[]>([]);
+  protected readonly changesLoading = signal(false);
 
   protected readonly categoryOptions = signal<ProductCategory[]>([]);
   protected readonly presentationOptions = signal<ProductPresentation[]>([]);
@@ -131,6 +145,7 @@ export class ProductForm implements OnInit {
         this.productId.set(id);
         const product = await firstValueFrom(this.products.get(id));
         this.fill(product);
+        void this.loadChanges(id);
       }
     } catch (error) {
       this.loadError.set(
@@ -262,4 +277,32 @@ export class ProductForm implements OnInit {
     }
     return fallback;
   }
+  /**
+   * The history is a reference, not a requirement — a failure here leaves the
+   * section empty rather than taking the whole form down with it.
+   */
+  private async loadChanges(id: string): Promise<void> {
+    this.changesLoading.set(true);
+    try {
+      const page = await firstValueFrom(
+        this.products.changes(id, { pageSize: CHANGES_PAGE_SIZE }),
+      );
+      this.changes.set(page.items);
+    } catch {
+      this.changes.set([]);
+    } finally {
+      this.changesLoading.set(false);
+    }
+  }
+
+  /** Falls back to the raw property name so a newly logged field still shows. */
+  protected fieldLabel(field: string): string {
+    return PRODUCT_FIELD_LABELS[field] ?? field;
+  }
+
+  /** An empty value reads as a dash: the field was blank, not unknown. */
+  protected changeValue(value: string | null): string {
+    return value === null || value === '' ? '—' : value;
+  }
+
 }
