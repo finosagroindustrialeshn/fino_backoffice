@@ -11,6 +11,12 @@ export type ShiftStatus = 'OPEN' | 'CLOSED';
 export interface Liquidation {
   readonly salesCount: number;
   readonly totalSales: number;
+  /**
+   * Units that physically left the truck during the shift — the day's volume
+   * next to its value. `topSellingProducts` cannot answer this: it is capped
+   * at five rows, so it reports what moved most, never how much moved.
+   */
+  readonly unitsSold: number;
   /** Cash actually collected during the shift. */
   readonly cashCollected: number;
   /** Credit extended during the shift that is still owed. */

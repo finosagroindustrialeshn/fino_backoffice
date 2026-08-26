@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -67,6 +67,7 @@ const EXPENSE_PAGE_SIZE = 100;
   imports: [
     CurrencyPipe,
     DatePipe,
+    DecimalPipe,
     RouterLink,
     ButtonModule,
     ShiftCloseDialog,
