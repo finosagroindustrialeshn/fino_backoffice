@@ -12,6 +12,7 @@ import type {
   RoutePayload,
   RouteStatus,
   RouteStop,
+  ReorderRouteStopsPayload,
   RouteStopPayload,
   RouteStopStatus,
   RouteUpdatePayload,
@@ -92,6 +93,22 @@ export class RouteDataClient {
 
   removeStop(routeId: string, stopId: string): Observable<void> {
     return this.api.delete(`/routes/${routeId}/stops/${stopId}`);
+  }
+
+  /**
+   * Sets the order the stops are visited in, renumbering them 1..n by their
+   * position in `stopIds`. One atomic write for the whole route.
+   *
+   * `stopIds` must name every stop exactly once (400
+   * ROUTE_STOP_ORDER_INVALID otherwise), and a COMPLETED or CANCELLED route
+   * refuses with 409 ROUTE_CLOSED.
+   */
+  reorderStops(routeId: string, stopIds: readonly string[]): Observable<RouteDetail> {
+    const payload: ReorderRouteStopsPayload = { stopIds };
+    return this.api.patch<RouteDetail>(
+      `/routes/${routeId}/stops/order`,
+      payload,
+    );
   }
 
   /** Also returns the stop without its client — refetch to redraw. */

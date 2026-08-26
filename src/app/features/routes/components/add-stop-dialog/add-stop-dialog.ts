@@ -23,9 +23,10 @@ const SEARCH_DEBOUNCE_MS = 350;
 const RESULT_SIZE = 20;
 
 /**
- * The client to visit and where in the run to visit it. Order travels with the
- * selection because the API has no reorder endpoint — adding the stop is the
- * only moment its position can be chosen.
+ * The client to visit and where in the run to visit it. The position is still
+ * chosen here so a stop can be dropped straight into place, but it is no
+ * longer the only chance: the route detail reorders stops afterwards through
+ * PATCH /routes/:id/stops/order.
  */
 export interface AddStopSelection {
   readonly clientId: string;

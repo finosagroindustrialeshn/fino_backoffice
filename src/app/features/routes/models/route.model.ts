@@ -149,3 +149,19 @@ export function toLocatedStops(
       stop.client !== null && hasCoordinates(stop.client),
   );
 }
+
+/**
+ * Body of `PATCH /routes/:id/stops/order`.
+ *
+ * The WHOLE order, never one stop at a time: a reorder moves several
+ * positions at once, and applying it stop by stop would leave the agenda
+ * readable mid-way with positions colliding until the last call landed.
+ * Sending the complete list also makes the request safe to repeat.
+ */
+export interface ReorderRouteStopsPayload {
+  /**
+   * Every stop on the route, exactly once, in visit order. A partial list is
+   * refused with ROUTE_STOP_ORDER_INVALID.
+   */
+  readonly stopIds: readonly string[];
+}
