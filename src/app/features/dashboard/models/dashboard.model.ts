@@ -90,7 +90,7 @@ export function agingRangeLabel(bucket: AgingBucket): string {
  * Tuesday is overdue today whichever month the dashboard is showing, and
  * scoping them would hide precisely the ones nobody has looked at in a while.
  */
-export interface DashboardPreventaSummary {
+export interface DashboardPresalesSummary {
   readonly ordersTaken: number;
   readonly converted: number;
   readonly cancelled: number;
@@ -118,5 +118,5 @@ export interface DashboardSummary {
   readonly sales: DashboardSalesSummary;
   readonly cash: DashboardCashSummary;
   readonly receivables: DashboardReceivablesSummary;
-  readonly preventa: DashboardPreventaSummary;
+  readonly presales: DashboardPresalesSummary;
 }

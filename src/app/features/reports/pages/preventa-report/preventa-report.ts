@@ -29,14 +29,14 @@ import {
 import { parseRange, parseUuid } from '../../../../shared/utils/query-params';
 import { UserDataClient } from '../../../users/services/user-data';
 import type {
-  PreventaSummary,
-  PreventistaOrdersRow,
+  PresalesSummary,
+  PresellerOrdersRow,
 } from '../../models/preventa-report.model';
 import { ReportsPreventaDataClient } from '../../services/reports-preventa-data';
 
 type SummaryState =
   | { readonly status: 'loading' }
-  | { readonly status: 'success'; readonly summary: PreventaSummary }
+  | { readonly status: 'success'; readonly summary: PresalesSummary }
   | { readonly status: 'error'; readonly message: string };
 
 /** Preventistas are a bounded lookup used only to populate the filter. */
@@ -120,10 +120,10 @@ export class PreventaReport implements OnInit {
 
   // Annotated explicitly: the fetcher reads back this.list.sortOrder(), which
   // would otherwise make the type circular.
-  protected readonly list: LazyList<PreventistaOrdersRow> =
-    new LazyList<PreventistaOrdersRow>(
+  protected readonly list: LazyList<PresellerOrdersRow> =
+    new LazyList<PresellerOrdersRow>(
       (page, pageSize) =>
-        this.reports.byPreventista({
+        this.reports.byPreseller({
           page,
           pageSize,
           ...this.range(),
@@ -179,7 +179,7 @@ export class PreventaReport implements OnInit {
    * Share of orders that settled the right way. Null while nothing has
    * settled — shown as a dash rather than as 0%, which would read as failure.
    */
-  protected conversionOf(row: PreventistaOrdersRow): number | null {
+  protected conversionOf(row: PresellerOrdersRow): number | null {
     return row.conversionRate;
   }
 
@@ -212,7 +212,7 @@ export class PreventaReport implements OnInit {
   private async loadPreventistas(): Promise<void> {
     try {
       const users = await firstValueFrom(
-        this.users.list({ role: 'PREVENTISTA', pageSize: LOOKUP_SIZE }),
+        this.users.list({ role: 'PRESELLER', pageSize: LOOKUP_SIZE }),
       );
       this.preventistaNames.set(
         new Map(users.items.map((user) => [user.id, user.fullName])),

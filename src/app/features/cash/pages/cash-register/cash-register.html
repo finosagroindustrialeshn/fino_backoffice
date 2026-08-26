@@ -120,11 +120,11 @@
         <h2 class="text-lg font-semibold text-ink">Caja cerrada</h2>
         <p class="text-sm text-ink-soft">
           Cerrada {{ closed.closedAt | date: 'short' }} · {{
-            closed.arqueo?.salesCount ?? 0
+            closed.cashCount?.salesCount ?? 0
           }} venta(s)
         </p>
 
-        @if (closed.arqueo; as final) {
+        @if (closed.cashCount; as final) {
           <dl class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div class="rounded-xl border border-ink/10 px-4 py-3">
               <dt class="text-xs uppercase tracking-wide text-ink-soft">

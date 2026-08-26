@@ -3,16 +3,16 @@ export type Role =
   | 'SUPERVISOR'
   | 'ACCOUNTANT'
   | 'SELLER'
-  | 'PREVENTISTA';
+  | 'PRESELLER';
 
 export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: 'Administrador',
   SUPERVISOR: 'Supervisor',
   ACCOUNTANT: 'Contador',
   SELLER: 'Vendedor',
-  // Kept as the Spanish trade name rather than translated: "preventista" is
-  // what the role is called in the field, and the API labels it the same way.
-  PREVENTISTA: 'Preventista',
+  // The API calls this role PRESELLER; the label stays the Spanish trade name
+  // because "preventista" is what the role is called in the field.
+  PRESELLER: 'Preventista',
 };
 
 /** Business profile returned by GET /auth/me, provisioned from the Supabase JWT on first access. */

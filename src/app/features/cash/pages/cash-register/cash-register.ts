@@ -74,7 +74,8 @@ export class CashRegister implements OnInit {
   /** Warehouse units on hand, keyed by product id. */
   protected readonly stockByProduct = signal<Record<string, number>>({});
 
-  protected readonly arqueo = computed(() => this.session()?.arqueo ?? null);
+  /** UI name stays "arqueo"; the API field it reads is `cashCount`. */
+  protected readonly arqueo = computed(() => this.session()?.cashCount ?? null);
 
   // ── Opening ────────────────────────────────────────────────────────────
   protected readonly openForm = this.fb.group({

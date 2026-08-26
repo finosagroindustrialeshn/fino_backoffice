@@ -1,11 +1,11 @@
 /**
- * Preventa rolled up across everybody, for `GET /reports/preventa/summary`.
+ * Preventa rolled up across everybody, for `GET /reports/presales/summary`.
  *
  * Everything is scoped to the date range EXCEPT `unassigned` and `overdue`,
  * which are a work queue rather than a measurement of a period: an order
  * promised for last Tuesday is overdue today whichever month the report shows.
  */
-export interface PreventaSummary {
+export interface PresalesSummary {
   readonly ordersTaken: number;
   /** Fully delivered — every line covered by a sale. */
   readonly converted: number;
@@ -31,16 +31,16 @@ export interface PreventaSummary {
 }
 
 /**
- * One preventista's work over the range, for `GET /reports/preventa/by-preventista`.
+ * One preventista's work over the range, for `GET /reports/presales/by-preseller`.
  *
  * The range filters on when the order was TAKEN, never on when it converted:
  * a preventista's work is the taking, and a conversion landing three weeks
  * later would otherwise credit the month it arrived in rather than the one it
  * was earned in.
  */
-export interface PreventistaOrdersRow {
-  readonly preventistaId: string;
-  readonly preventistaName: string;
+export interface PresellerOrdersRow {
+  readonly presellerId: string;
+  readonly presellerName: string;
   readonly ordersTaken: number;
   readonly converted: number;
   readonly cancelled: number;
