@@ -22,7 +22,6 @@ import { TagModule } from 'primeng/tag';
 import { AuthSession } from '../../../../core/auth/auth-session';
 import { fetchAllPages } from '../../../../core/http/fetch-all-pages';
 import { LazyList } from '../../../../core/http/lazy-list';
-import { MAX_PAGE_SIZE } from '../../../../core/http/pagination.model';
 import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
 import { formatDay } from '../../../../shared/utils/date-range';
 import { parseRange, parseUuid } from '../../../../shared/utils/query-params';
@@ -33,7 +32,6 @@ import {
   EXCEL_MONEY_FORMAT,
   type ExcelColumn,
 } from '../../../../shared/utils/excel-export';
-import { ClientDataClient } from '../../../clients/services/client-data';
 import { ProductDataClient } from '../../../products/services/product-data';
 import { UserDataClient } from '../../../users/services/user-data';
 import {
@@ -43,8 +41,8 @@ import {
   SALE_STATUS_LABELS,
   SALE_STATUS_SEVERITY,
   type PaymentType,
-  type Sale,
   type SaleChannel,
+  type SaleListItem,
   type SaleStatus,
   type SaleTagSeverity,
 } from '../../models/sale.model';
@@ -56,12 +54,15 @@ interface FilterOption<T> {
 }
 
 /**
- * Users and clients are bounded lookups joined to the paginated sales, which
- * carry ids only. A name missing from the lookup degrades to a dash rather
- * than showing a raw uuid.
+ * Bounded lookups that exist for the CONTROLS, not for the rows: users fill
+ * the seller dropdown, products name the drill-down chip. A row already names
+ * its own client, seller and products, so neither lookup is joined to the
+ * listing any more.
  */
 const LOOKUP_SIZE = 100;
-const CLIENT_LOOKUP_SIZE = MAX_PAGE_SIZE;
+
+/** A STORE walk-in is anonymous by design, not a name that failed to resolve. */
+const WALK_IN_CLIENT = 'Consumidor final';
 
 @Component({
   selector: 'app-sale-list',
@@ -83,7 +84,6 @@ const CLIENT_LOOKUP_SIZE = MAX_PAGE_SIZE;
 export class SaleList implements OnInit {
   private readonly sales = inject(SaleDataClient);
   private readonly users = inject(UserDataClient);
-  private readonly clients = inject(ClientDataClient);
   private readonly products = inject(ProductDataClient);
   private readonly auth = inject(AuthSession);
   private readonly router = inject(Router);
@@ -153,7 +153,6 @@ export class SaleList implements OnInit {
   protected readonly dateRange = signal<Date[] | null>(null);
 
   private readonly userNames = signal<ReadonlyMap<string, string>>(new Map());
-  private readonly clientNames = signal<ReadonlyMap<string, string>>(new Map());
   private readonly productNames = signal<ReadonlyMap<string, string>>(new Map());
 
   /**
@@ -181,7 +180,7 @@ export class SaleList implements OnInit {
     ...[...this.userNames()].map(([id, name]) => ({ label: name, value: id })),
   ]);
 
-  protected readonly list = new LazyList<Sale>((page, pageSize) => {
+  protected readonly list = new LazyList<SaleListItem>((page, pageSize) => {
     const range = this.dateRange();
     return this.sales.list({
       page,
@@ -251,9 +250,9 @@ export class SaleList implements OnInit {
   /**
    * Exports every sale matching the current filters — not the page on screen.
    *
-   * Names are resolved from full lookups fetched here rather than from the
-   * bounded ones the table uses: a spreadsheet built for analysis cannot have
-   * a client column that degrades to a dash past row 200.
+   * Every column is read straight off the row: the listing carries the client
+   * and seller names and the product summary, so the export walks the sales
+   * alone instead of also draining the client and user catalogs.
    */
   protected async exportSales(): Promise<void> {
     this.exporting.set(true);
@@ -261,32 +260,23 @@ export class SaleList implements OnInit {
     this.exportNotice.set(null);
     try {
       const range = this.dateRange();
-      const [sales, users, clients] = await Promise.all([
-        fetchAllPages((page, pageSize) =>
-          this.sales.list({
-            page,
-            pageSize,
-            status: this.statusFilter() ?? undefined,
-            channel: this.channelFilter() ?? undefined,
-            paymentType: this.paymentTypeFilter() ?? undefined,
-            sellerId: this.sellerFilter() ?? undefined,
-            routeId: this.routeIdFilter() ?? undefined,
-            routeStopId: this.routeStopIdFilter() ?? undefined,
-            productId: this.productIdFilter() ?? undefined,
-            dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
-            dateTo: range?.[1] ? formatDay(range[1]) : undefined,
-          }),
-        ),
-        fetchAllPages((page, pageSize) => this.users.list({ page, pageSize })),
-        fetchAllPages((page, pageSize) => this.clients.list({ page, pageSize })),
-      ]);
-
-      const userNames = new Map(users.rows.map((user) => [user.id, user.fullName]));
-      const clientNames = new Map(
-        clients.rows.map((client) => [client.id, client.name]),
+      const sales = await fetchAllPages((page, pageSize) =>
+        this.sales.list({
+          page,
+          pageSize,
+          status: this.statusFilter() ?? undefined,
+          channel: this.channelFilter() ?? undefined,
+          paymentType: this.paymentTypeFilter() ?? undefined,
+          sellerId: this.sellerFilter() ?? undefined,
+          routeId: this.routeIdFilter() ?? undefined,
+          routeStopId: this.routeStopIdFilter() ?? undefined,
+          productId: this.productIdFilter() ?? undefined,
+          dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
+          dateTo: range?.[1] ? formatDay(range[1]) : undefined,
+        }),
       );
 
-      const columns: readonly ExcelColumn<Sale>[] = [
+      const columns: readonly ExcelColumn<SaleListItem>[] = [
         {
           header: 'Fecha',
           value: (sale) => new Date(sale.createdAt),
@@ -295,17 +285,17 @@ export class SaleList implements OnInit {
         },
         {
           header: 'Cliente',
-          // Falls back to the id, never to a dash: an unresolved name still
-          // has to be traceable in the spreadsheet.
-          value: (sale) =>
-            sale.clientId
-              ? (clientNames.get(sale.clientId) ?? sale.clientId)
-              : 'Consumidor final',
+          value: (sale) => this.clientName(sale),
           width: 28,
         },
         {
+          header: 'Código cliente',
+          value: (sale) => sale.clientCode,
+          width: 16,
+        },
+        {
           header: 'Vendedor',
-          value: (sale) => userNames.get(sale.sellerId) ?? sale.sellerId,
+          value: (sale) => sale.sellerName,
           width: 24,
         },
         {
@@ -321,6 +311,23 @@ export class SaleList implements OnInit {
         {
           header: 'Estado',
           value: (sale) => SALE_STATUS_LABELS[sale.status],
+          width: 12,
+        },
+        {
+          header: 'Productos',
+          value: (sale) => this.productSummary(sale),
+          width: 40,
+        },
+        {
+          header: 'Líneas',
+          value: (sale) => Number(sale.lineCount),
+          align: 'right',
+          width: 10,
+        },
+        {
+          header: 'Unidades',
+          value: (sale) => Number(sale.unitsSold),
+          align: 'right',
           width: 12,
         },
         {
@@ -344,7 +351,6 @@ export class SaleList implements OnInit {
           align: 'right',
           width: 16,
         },
-        { header: 'Notas', value: (sale) => sale.notes, width: 32 },
       ];
 
       await exportToExcel({
@@ -414,37 +420,34 @@ export class SaleList implements OnInit {
   }
 
   /** A STORE sale can be a walk-in with no client on file. */
-  protected clientName(clientId: string | null): string {
-    if (!clientId) {
-      return 'Consumidor final';
-    }
-    return this.clientNames().get(clientId) ?? '—';
+  protected clientName(sale: SaleListItem): string {
+    return sale.clientName ?? WALK_IN_CLIENT;
   }
 
-  protected sellerName(sellerId: string): string {
-    return this.userNames().get(sellerId) ?? '—';
+  /** What the sale sold, e.g. "3 × Café molido, 1 × Azúcar". */
+  protected productSummary(sale: SaleListItem): string {
+    return sale.products
+      .map((product) => `${product.quantity} × ${product.name}`)
+      .join(', ');
   }
 
   private async loadLookups(): Promise<void> {
     try {
       // Not filtered by role: a STORE sale's "seller" is whoever was on the
       // till, which is an admin or supervisor, not a SELLER.
-      const [users, clients, products] = await Promise.all([
+      const [users, products] = await Promise.all([
         firstValueFrom(this.users.list({ pageSize: LOOKUP_SIZE })),
-        firstValueFrom(this.clients.list({ pageSize: CLIENT_LOOKUP_SIZE })),
         firstValueFrom(this.products.list({ pageSize: LOOKUP_SIZE })),
       ]);
       this.userNames.set(
         new Map(users.items.map((user) => [user.id, user.fullName])),
       );
-      this.clientNames.set(
-        new Map(clients.items.map((client) => [client.id, client.name])),
-      );
       this.productNames.set(
         new Map(products.items.map((product) => [product.id, product.name])),
       );
     } catch {
-      // Names fall back to a dash if the lookups fail.
+      // The seller dropdown stays empty and the drill-down chip keeps its
+      // generic label if the lookups fail; the listing itself is unaffected.
     }
   }
 }

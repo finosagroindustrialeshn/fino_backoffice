@@ -17,9 +17,6 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import { parseUuid } from '../../../../shared/utils/query-params';
-import { ClientDataClient } from '../../../clients/services/client-data';
-import { ProductDataClient } from '../../../products/services/product-data';
-import { UserDataClient } from '../../../users/services/user-data';
 import { SalePaymentDialog } from '../../components/sale-payment-dialog/sale-payment-dialog';
 import {
   PAYMENT_TYPE_LABELS,
@@ -57,8 +54,8 @@ const INVALID_SALE_MESSAGE = 'El identificador de la venta no es válido.';
 const LOAD_ERROR_MESSAGE = 'No se pudo cargar la venta.';
 const PAYMENT_ERROR_MESSAGE = 'No se pudo registrar el abono.';
 
-/** The product catalog is a bounded lookup joined to the sale's line items. */
-const LOOKUP_SIZE = 100;
+/** A STORE walk-in is anonymous by design, not a name that failed to resolve. */
+const WALK_IN_CLIENT = 'Consumidor final';
 
 @Component({
   selector: 'app-sale-detail',
@@ -77,9 +74,6 @@ const LOOKUP_SIZE = 100;
 })
 export class SaleDetail {
   private readonly sales = inject(SaleDataClient);
-  private readonly clients = inject(ClientDataClient);
-  private readonly users = inject(UserDataClient);
-  private readonly products = inject(ProductDataClient);
   private readonly route = inject(ActivatedRoute);
   private readonly paymentDialog = viewChild(SalePaymentDialog);
 
@@ -111,10 +105,6 @@ export class SaleDetail {
     ...(this.sale()?.payments ?? []),
   ]);
 
-  private readonly clientName = signal<string | null>(null);
-  private readonly sellerName = signal<string | null>(null);
-  private readonly productNames = signal<ReadonlyMap<string, string>>(new Map());
-
   protected readonly paymentOpen = signal(false);
   protected readonly paying = signal(false);
   protected readonly paymentError = signal<string | null>(null);
@@ -139,8 +129,6 @@ export class SaleDetail {
       }
       void this.load(id);
     });
-
-    void this.loadProductNames();
   }
 
   protected statusLabel(status: SaleStatus): string {
@@ -163,17 +151,18 @@ export class SaleDetail {
     return PAYMENT_TYPE_LABELS[paymentType];
   }
 
-  protected productName(productId: string): string {
-    return this.productNames().get(productId) ?? '—';
-  }
-
-  /** A STORE sale can be a walk-in with no client on file. */
+  /**
+   * A STORE sale can be a walk-in with no client on file, which the API
+   * reports as a null `client` — a real answer, so it is shown as one. A
+   * client that IS on the sale but did not come embedded degrades to a dash.
+   */
   protected displayClient(): string {
-    return this.sale()?.clientId ? (this.clientName() ?? '…') : 'Consumidor final';
+    const sale = this.sale();
+    return sale?.client?.name ?? (sale?.clientId ? '—' : WALK_IN_CLIENT);
   }
 
   protected displaySeller(): string {
-    return this.sellerName() ?? '…';
+    return this.sale()?.seller?.fullName ?? '—';
   }
 
   protected openPaymentDialog(): void {
@@ -218,52 +207,20 @@ export class SaleDetail {
     }
   }
 
+  /**
+   * One request is all it takes: the detail endpoint embeds the seller, the
+   * client and every line's product, so there is nothing left to join.
+   */
   private async load(id: string): Promise<void> {
     this.state.set({ status: 'loading' });
-    this.clientName.set(null);
-    this.sellerName.set(null);
     try {
       const sale = await firstValueFrom(this.sales.get(id));
       this.state.set({ status: 'success', sale });
-      void this.loadParties(sale);
     } catch (error) {
       this.state.set({
         status: 'error',
         message: toMessage(error, LOAD_ERROR_MESSAGE),
       });
-    }
-  }
-
-  /**
-   * The sale carries ids only. Names are fetched per party rather than from a
-   * paginated lookup so a client outside the first page still resolves.
-   */
-  private async loadParties(sale: Sale): Promise<void> {
-    const [client, seller] = await Promise.allSettled([
-      sale.clientId
-        ? firstValueFrom(this.clients.get(sale.clientId))
-        : Promise.resolve(null),
-      firstValueFrom(this.users.get(sale.sellerId)),
-    ]);
-
-    if (client.status === 'fulfilled' && client.value) {
-      this.clientName.set(client.value.name);
-    }
-    if (seller.status === 'fulfilled') {
-      this.sellerName.set(seller.value.fullName);
-    }
-  }
-
-  private async loadProductNames(): Promise<void> {
-    try {
-      const products = await firstValueFrom(
-        this.products.list({ pageSize: LOOKUP_SIZE }),
-      );
-      this.productNames.set(
-        new Map(products.items.map((product) => [product.id, product.name])),
-      );
-    } catch {
-      // Names fall back to a dash if the lookup fails.
     }
   }
 }

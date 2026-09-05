@@ -20,7 +20,7 @@ import { TableModule } from 'primeng/table';
 import { formatDay, type DateRange } from '../../../../shared/utils/date-range';
 import { parseRange, parseUuid } from '../../../../shared/utils/query-params';
 import { SALE_STATUS_LABELS } from '../../../sales/models/sale.model';
-import type { Sale, SaleStatus } from '../../../sales/models/sale.model';
+import type { OpenCreditSale, SaleStatus } from '../../../sales/models/sale.model';
 import {
   AGING_SEVERITY_LABELS,
   STATEMENT_ENTRY_LABELS,
@@ -135,7 +135,7 @@ export class ClientAccountStatement implements OnInit {
     return state.status === 'success' ? [...state.statement.entries] : [];
   });
 
-  protected readonly openSales = computed<Sale[]>(() => {
+  protected readonly openSales = computed<OpenCreditSale[]>(() => {
     const state = this.accountState();
     return state.status === 'success' ? [...state.account.receivable.sales] : [];
   });

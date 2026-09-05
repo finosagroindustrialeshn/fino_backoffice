@@ -13,6 +13,7 @@ import type {
   PaymentType,
   Sale,
   SaleChannel,
+  SaleListItem,
   SalePayment,
   SaleStatus,
 } from '../models/sale.model';
@@ -48,8 +49,15 @@ export interface SaleListQuery extends PaginationQuery {
 export class SaleDataClient {
   private readonly api = inject(ApiClient);
 
-  list(query: SaleListQuery): Observable<Paginated<Sale>> {
-    return this.api.get<Paginated<Sale>>('/sales', toQueryParams({ ...query }));
+  /**
+   * Rows are `SaleListItem`, not `Sale`: the listing is a summary shape with
+   * the parties already named and no lines or abonos on it.
+   */
+  list(query: SaleListQuery): Observable<Paginated<SaleListItem>> {
+    return this.api.get<Paginated<SaleListItem>>(
+      '/sales',
+      toQueryParams({ ...query }),
+    );
   }
 
   get(id: string): Observable<Sale> {
