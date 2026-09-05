@@ -3,13 +3,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   OnInit,
   signal,
   viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -23,6 +25,7 @@ import { LazyList } from '../../../../core/http/lazy-list';
 import { MAX_PAGE_SIZE } from '../../../../core/http/pagination.model';
 import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
 import { formatDay } from '../../../../shared/utils/date-range';
+import { parseRange, parseUuid } from '../../../../shared/utils/query-params';
 import {
   buildTableSheet,
   exportToExcel,
@@ -31,6 +34,7 @@ import {
   type ExcelColumn,
 } from '../../../../shared/utils/excel-export';
 import { ClientDataClient } from '../../../clients/services/client-data';
+import { ProductDataClient } from '../../../products/services/product-data';
 import { UserDataClient } from '../../../users/services/user-data';
 import {
   PAYMENT_TYPE_LABELS,
@@ -80,7 +84,10 @@ export class SaleList implements OnInit {
   private readonly sales = inject(SaleDataClient);
   private readonly users = inject(UserDataClient);
   private readonly clients = inject(ClientDataClient);
+  private readonly products = inject(ProductDataClient);
   private readonly auth = inject(AuthSession);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly table = viewChild.required<Table>('dt');
 
   protected readonly rowsPerPageOptions = [5, 10, 20, 50];
@@ -115,6 +122,29 @@ export class SaleList implements OnInit {
     })),
   ];
 
+  /**
+   * Route, stop and product arrive in the URL rather than from a dropdown:
+   * they are how a report OPENS this page — the compliance report drilling
+   * into a route's sales, the by-product ranking into a product's — and
+   * neither has a sensible standalone picker here.
+   *
+   * Query params are user input, so each is validated before it reaches the
+   * API; anything unparseable degrades to "no filter".
+   */
+  private readonly params = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+
+  protected readonly routeIdFilter = computed(() =>
+    parseUuid(this.params().get('routeId')),
+  );
+  protected readonly routeStopIdFilter = computed(() =>
+    parseUuid(this.params().get('routeStopId')),
+  );
+  protected readonly productIdFilter = computed(() =>
+    parseUuid(this.params().get('productId')),
+  );
+
   protected readonly statusFilter = signal<SaleStatus | null>(null);
   protected readonly channelFilter = signal<SaleChannel | null>(null);
   protected readonly paymentTypeFilter = signal<PaymentType | null>(null);
@@ -124,6 +154,27 @@ export class SaleList implements OnInit {
 
   private readonly userNames = signal<ReadonlyMap<string, string>>(new Map());
   private readonly clientNames = signal<ReadonlyMap<string, string>>(new Map());
+  private readonly productNames = signal<ReadonlyMap<string, string>>(new Map());
+
+  /**
+   * What the drill-down chip says, or null when the full listing is showing.
+   * A route has no name of its own, so only the product resolves to one — the
+   * others say what they filter by and rely on the chip to get back.
+   */
+  protected readonly contextLabel = computed(() => {
+    const productId = this.productIdFilter();
+    if (productId) {
+      const name = this.productNames().get(productId);
+      return name ? 'Ventas que incluyen ' + name : 'Ventas de un producto';
+    }
+    if (this.routeStopIdFilter()) {
+      return 'Ventas de una visita';
+    }
+    if (this.routeIdFilter()) {
+      return 'Ventas de una ruta';
+    }
+    return null;
+  });
 
   protected readonly sellerFilterOptions = computed(() => [
     { label: 'Todos los vendedores', value: null as string | null },
@@ -139,6 +190,9 @@ export class SaleList implements OnInit {
       channel: this.channelFilter() ?? undefined,
       paymentType: this.paymentTypeFilter() ?? undefined,
       sellerId: this.sellerFilter() ?? undefined,
+      routeId: this.routeIdFilter() ?? undefined,
+      routeStopId: this.routeStopIdFilter() ?? undefined,
+      productId: this.productIdFilter() ?? undefined,
       dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
       dateTo: range?.[1] ? formatDay(range[1]) : undefined,
     });
@@ -149,8 +203,49 @@ export class SaleList implements OnInit {
   /** Set when the export hit the row ceiling, so the user knows it is partial. */
   protected readonly exportNotice = signal<string | null>(null);
 
+  constructor() {
+    // A drill-down carries the report's range so the listing opens on the
+    // same period the figures were read from. Applied once, as a seed: from
+    // there the datepicker owns the range like on any other visit.
+    const [seededFrom, seededTo] = parseRange(
+      this.params().get('dateFrom'),
+      this.params().get('dateTo'),
+    ) ?? [];
+    if (seededFrom && seededTo) {
+      this.dateRange.set([seededFrom, seededTo]);
+    }
+
+    // The table fetches on its own init, so the first run is skipped; after
+    // that a changed drill-down (a new one, or the chip being dismissed)
+    // sends it back to page 1 and refetches.
+    let isFirstRun = true;
+    effect(() => {
+      this.routeIdFilter();
+      this.routeStopIdFilter();
+      this.productIdFilter();
+      if (isFirstRun) {
+        isFirstRun = false;
+        return;
+      }
+      this.table().reset();
+    });
+  }
+
   ngOnInit(): void {
     void this.loadLookups();
+  }
+
+  /** Drops the drill-down and shows the full listing again. */
+  protected clearContextFilter(): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        routeId: null,
+        routeStopId: null,
+        productId: null,
+      } satisfies Params,
+      queryParamsHandling: 'merge',
+    });
   }
 
   /**
@@ -175,6 +270,9 @@ export class SaleList implements OnInit {
             channel: this.channelFilter() ?? undefined,
             paymentType: this.paymentTypeFilter() ?? undefined,
             sellerId: this.sellerFilter() ?? undefined,
+            routeId: this.routeIdFilter() ?? undefined,
+            routeStopId: this.routeStopIdFilter() ?? undefined,
+            productId: this.productIdFilter() ?? undefined,
             dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
             dateTo: range?.[1] ? formatDay(range[1]) : undefined,
           }),
@@ -331,15 +429,19 @@ export class SaleList implements OnInit {
     try {
       // Not filtered by role: a STORE sale's "seller" is whoever was on the
       // till, which is an admin or supervisor, not a SELLER.
-      const [users, clients] = await Promise.all([
+      const [users, clients, products] = await Promise.all([
         firstValueFrom(this.users.list({ pageSize: LOOKUP_SIZE })),
         firstValueFrom(this.clients.list({ pageSize: CLIENT_LOOKUP_SIZE })),
+        firstValueFrom(this.products.list({ pageSize: LOOKUP_SIZE })),
       ]);
       this.userNames.set(
         new Map(users.items.map((user) => [user.id, user.fullName])),
       );
       this.clientNames.set(
         new Map(clients.items.map((client) => [client.id, client.name])),
+      );
+      this.productNames.set(
+        new Map(products.items.map((product) => [product.id, product.name])),
       );
     } catch {
       // Names fall back to a dash if the lookups fail.

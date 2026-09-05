@@ -11,6 +11,7 @@ import {
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
@@ -70,6 +71,7 @@ const PRODUCT_SORT_FIELDS: Record<string, ProductSalesSortBy> = {
     CurrencyPipe,
     DecimalPipe,
     FormsModule,
+    RouterLink,
     ButtonModule,
     DatePickerModule,
     DateRangePresets,
@@ -193,6 +195,23 @@ export class SalesReport implements OnInit {
   ngOnInit(): void {
     void this.loadSellers();
     void this.loadSummary();
+  }
+
+  /**
+   * Query params for a drill-down into the sales listing: the product, plus
+   * the range the ranking was read over so the listing opens on the same
+   * period.
+   *
+   * The two will NOT tally, and cannot: this ranking counts the product's
+   * share of each sale, while a sale row carries its whole total. It answers
+   * "which sales" — never "does the money add up".
+   */
+  protected productSalesParams(productId: string): {
+    productId: string;
+    dateFrom: string;
+    dateTo: string;
+  } {
+    return { productId, ...this.range() };
   }
 
   private range(): { dateFrom: string; dateTo: string } {

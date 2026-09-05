@@ -23,6 +23,19 @@ export interface SaleListQuery extends PaginationQuery {
   readonly cashSessionId?: string;
   readonly sellerId?: string;
   readonly clientId?: string;
+  /**
+   * The sales that closed a stop of this route. Reproduces the
+   * salesCount / salesAmount of the route compliance report.
+   */
+  readonly routeId?: string;
+  /** A single visit — the sales made at that stop. */
+  readonly routeStopId?: string;
+  /**
+   * Sales carrying at least one line for this product. Row totals stay the
+   * WHOLE sale, not the product's share of it, so these figures do NOT add up
+   * to the product's revenue in the by-product report.
+   */
+  readonly productId?: string;
   readonly paymentType?: PaymentType;
   readonly status?: SaleStatus;
   /** Single day; superseded by dateFrom/dateTo when those are present. */

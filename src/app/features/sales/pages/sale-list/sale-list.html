@@ -38,6 +38,26 @@
     </p>
   </div>
 
+  <!-- Where a report drilled in from. Dismissing it restores the full
+       listing; the dropdown filters below stay untouched either way. -->
+  @if (contextLabel(); as label) {
+    <div
+      role="status"
+      class="flex flex-wrap items-center gap-2 rounded-xl border border-ink/10 bg-cream px-4 py-2.5"
+    >
+      <i class="pi pi-filter text-xs text-ink-soft" aria-hidden="true"></i>
+      <span class="text-sm font-medium text-ink">{{ label }}</span>
+      <p-button
+        label="Quitar filtro"
+        icon="pi pi-times"
+        size="small"
+        severity="secondary"
+        [text]="true"
+        (onClick)="clearContextFilter()"
+      />
+    </div>
+  }
+
   <!-- Filters -->
   <section
     class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"

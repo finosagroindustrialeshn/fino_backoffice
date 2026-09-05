@@ -321,6 +321,7 @@
               Ingresos
               <p-sortIcon field="revenue" />
             </th>
+            <th scope="col"><span class="sr-only">Ventas</span></th>
           </tr>
         </ng-template>
 
@@ -336,6 +337,20 @@
             <td class="hidden font-semibold text-ink md:table-cell">
               {{ row.revenue | currency: 'HNL' : 'L ' : '1.2-2' }}
             </td>
+            <!-- Which sales carried this product. Their totals are whole
+                 sales, so they will not add up to the revenue beside them. -->
+            <td class="hidden md:table-cell">
+              <p-button
+                label="Ver ventas"
+                icon="pi pi-external-link"
+                size="small"
+                severity="secondary"
+                [text]="true"
+                [routerLink]="['/ventas']"
+                [queryParams]="productSalesParams(row.productId)"
+                [attr.aria-label]="'Ver las ventas que incluyen ' + row.productName"
+              />
+            </td>
 
             <!-- Mobile card: one cell, everything laid out by hand -->
             <td class="block md:hidden">
@@ -349,13 +364,25 @@
                   {{ row.revenue | currency: 'HNL' : 'L ' : '1.2-2' }}
                 </span>
               </div>
+
+              <div class="mt-3 flex justify-end">
+                <p-button
+                  label="Ver ventas"
+                  icon="pi pi-external-link"
+                  size="small"
+                  severity="secondary"
+                  [text]="true"
+                  [routerLink]="['/ventas']"
+                  [queryParams]="productSalesParams(row.productId)"
+                />
+              </div>
             </td>
           </tr>
         </ng-template>
 
         <ng-template #emptymessage>
           <tr>
-            <td colspan="3">
+            <td colspan="4">
               <p class="py-8 text-center text-sm text-ink-soft">
                 @if (productList.loading()) {
                   Cargando ranking…

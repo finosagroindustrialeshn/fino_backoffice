@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -93,6 +94,7 @@ const COLUMNS: readonly ExcelColumn<RouteComplianceRow>[] = [
     DecimalPipe,
     PercentPipe,
     FormsModule,
+    RouterLink,
     ButtonModule,
     DatePickerModule,
     DateRangePresets,
