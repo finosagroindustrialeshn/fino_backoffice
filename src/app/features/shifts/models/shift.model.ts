@@ -24,11 +24,27 @@ export interface Liquidation {
   readonly cashDifference: number | null;
 }
 
-/** A shift as returned by the list endpoint, which carries ids only. */
 export interface Shift {
   readonly id: string;
   readonly sellerId: string;
+  /** Whose day this is. Alongside `sellerId`, never instead of it: the id is
+   * what a drill-down links on, the name is what the row is read by. */
+  readonly sellerName: string;
   readonly routeId: string | null;
+  /**
+   * The day the route was planned for, YYYY-MM-DD, or null when the shift
+   * works no route.
+   *
+   * A Route has no name of its own in the database — it is identified by its
+   * zone and its date, which is why both travel together and why neither one
+   * alone is a usable label.
+   */
+  readonly routeDate: string | null;
+  /**
+   * The zone the route covers. Null when the shift works no route, and also
+   * when the route was planned without a zone.
+   */
+  readonly routeZoneName: string | null;
   readonly status: ShiftStatus;
   readonly openingCash: number;
   readonly closingCash: number | null;
@@ -93,6 +109,38 @@ export interface CloseShiftPayload {
   /** Cash the seller counts and reports at close. */
   readonly closingCash: number;
   readonly notes?: string;
+}
+
+/** Shown where a shift works no route at all. */
+export const NO_ROUTE_LABEL = 'Sin ruta';
+
+/**
+ * A route has no name in the database: it is identified by the zone it covers
+ * and the day it was planned for. This composes the two into the label the
+ * office actually says out loud ("Zona Norte · 04/09/2026").
+ *
+ * `routeDate` is a civil day (YYYY-MM-DD), NOT an instant — running it through
+ * DatePipe would parse it as UTC midnight and render the PREVIOUS day in
+ * Honduras (UTC-6), so it is split by hand and never localized.
+ */
+export function routeLabel(
+  shift: Pick<Shift, 'routeId' | 'routeDate' | 'routeZoneName'>,
+): string {
+  if (!shift.routeId) {
+    return NO_ROUTE_LABEL;
+  }
+  const zone = shift.routeZoneName ?? 'Sin zona';
+  const day = formatCivilDay(shift.routeDate);
+  return day ? `${zone} · ${day}` : zone;
+}
+
+/** `2026-09-04` → `04/09/2026`. Null in, null out. */
+function formatCivilDay(day: string | null): string | null {
+  if (!day) {
+    return null;
+  }
+  const [year, month, date] = day.split('-');
+  return year && month && date ? `${date}/${month}/${year}` : day;
 }
 
 export const SHIFT_STATUS_LABELS: Record<ShiftStatus, string> = {
