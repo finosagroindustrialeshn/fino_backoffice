@@ -1,3 +1,5 @@
+import type { CollectedByMethod } from '../../sales/models/sale.model';
+
 export type ShiftStatus = 'OPEN' | 'CLOSED';
 
 /**
@@ -11,8 +13,31 @@ export type ShiftStatus = 'OPEN' | 'CLOSED';
 export interface Liquidation {
   readonly salesCount: number;
   readonly totalSales: number;
-  /** Cash actually collected during the shift. */
+  /**
+   * Units that left the truck this shift — the day's volume next to its
+   * value. `topSellingProducts` cannot stand in for it: that list stops at
+   * five lines, so on a wide day it undercounts by design.
+   */
+  readonly unitsSold: number;
+  /**
+   * Cash actually collected during the shift. Banknotes the seller is
+   * holding and will hand over, which is why this is the only inflow the
+   * arqueo counts them against.
+   */
   readonly cashCollected: number;
+  /**
+   * TRANSFER + CARD. Already settled for the company but never in the
+   * seller's hands, so it deliberately stays out of `expectedCash`.
+   */
+  readonly otherCollected: number;
+  /** cashCollected + otherCollected: everything the shift settled, however it arrived. */
+  readonly totalCollected: number;
+  /**
+   * The same money split the way it arrived, for reading a mixed day apart.
+   * Only methods the shift actually used are returned, so an all-cash day
+   * carries a single row that says nothing the cash figure did not.
+   */
+  readonly collectedByMethod: readonly CollectedByMethod[];
   /** Credit extended during the shift that is still owed. */
   readonly creditOutstanding: number;
   /** Field expenses paid out of the float. */

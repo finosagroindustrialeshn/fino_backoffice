@@ -147,6 +147,12 @@
               </div>
               <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
                 <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Unidades vendidas
+                </dt>
+                <dd class="text-lg font-bold text-ink">{{ summary.unitsSold | number }}</dd>
+              </div>
+              <div class="flex items-baseline justify-between rounded-xl bg-cream px-4 py-3">
+                <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                   Cobrado en efectivo
                 </dt>
                 <dd class="text-lg font-semibold text-emerald-700">
@@ -186,6 +192,59 @@
                 </dd>
               </div>
             </dl>
+
+            <!-- Everything the shift settled, however it arrived. Deliberately
+                 outside the arqueo grid above: only cash is what the seller is
+                 counted against, and a transfer sitting among those tiles
+                 reads as money that should be in the bag. -->
+            <div
+              class="flex flex-col gap-3 rounded-xl border border-dashed border-ink/25 px-4 py-4"
+              aria-live="polite"
+            >
+              <h4 class="text-sm font-semibold text-ink">Cobrado en total</h4>
+              <p class="text-xs text-ink-soft">
+                Las transferencias y las tarjetas ya quedaron liquidadas para la
+                empresa: nunca pasan por las manos del vendedor y no suman al
+                efectivo esperado.
+              </p>
+
+              <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div class="flex items-baseline justify-between gap-3">
+                  <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    Otros medios
+                  </dt>
+                  <dd class="text-lg font-semibold text-ink">
+                    {{ summary.otherCollected | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </dd>
+                </div>
+                <div class="flex items-baseline justify-between gap-3">
+                  <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    Total cobrado
+                  </dt>
+                  <dd class="text-lg font-bold text-ink">
+                    {{ summary.totalCollected | currency: 'HNL' : 'L ' : '1.2-2' }}
+                  </dd>
+                </div>
+              </dl>
+
+              <!-- Only from two methods up: a single row restates the total. -->
+              @if (methodBreakdown().length > 0) {
+                <dl
+                  class="flex flex-col divide-y divide-ink/10 border-t border-ink/10"
+                >
+                  @for (line of methodBreakdown(); track line.method) {
+                    <div class="flex items-baseline justify-between gap-3 py-2">
+                      <dt class="text-sm text-ink">
+                        {{ paymentMethodLabel(line.method) }}
+                      </dt>
+                      <dd class="text-sm font-semibold text-ink">
+                        {{ line.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+                      </dd>
+                    </div>
+                  }
+                </dl>
+              }
+            </div>
 
             <!-- Reconciliation: only meaningful once the cash was counted. -->
             @if (summary.closingCash !== null) {

@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -21,6 +21,10 @@ import { isApiError } from '../../../../core/http/api-error';
 import { parseUuid } from '../../../../shared/utils/query-params';
 import type { Expense } from '../../../expenses/models/expense.model';
 import { ExpenseDataClient } from '../../../expenses/services/expense-data';
+import {
+  paymentMethodLabel,
+  type CollectedByMethod,
+} from '../../../sales/models/sale.model';
 import { UserDataClient } from '../../../users/services/user-data';
 import { ShiftCloseDialog } from '../../components/shift-close-dialog/shift-close-dialog';
 import {
@@ -66,6 +70,7 @@ const EXPENSE_PAGE_SIZE = 100;
   imports: [
     CurrencyPipe,
     DatePipe,
+    DecimalPipe,
     RouterLink,
     ButtonModule,
     ShiftCloseDialog,
@@ -110,9 +115,22 @@ export class ShiftDetail {
     () => this.shift()?.liquidation ?? null,
   );
 
+  /**
+   * The collection split, but only once it says something. A shift that took
+   * money one way returns a single row that just restates `totalCollected`,
+   * so the breakdown earns its place only from two methods up.
+   */
+  protected readonly methodBreakdown = computed<readonly CollectedByMethod[]>(
+    () => {
+      const methods = this.liquidation()?.collectedByMethod ?? [];
+      return methods.length > 1 ? methods : [];
+    },
+  );
+
   private readonly closedByName = signal<string | null>(null);
 
   protected readonly routeLabel = routeLabel;
+  protected readonly paymentMethodLabel = paymentMethodLabel;
 
   /** Mutable copy: PrimeNG's `[value]` input rejects readonly arrays. */
   protected readonly shiftExpenses = signal<Expense[]>([]);
