@@ -11,7 +11,6 @@ import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Params, Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
 import { Table, TableModule } from 'primeng/table';
@@ -27,7 +26,6 @@ import {
   type ExcelCellSpec,
   type ExcelSheetSpec,
 } from '../../../../shared/utils/excel-export';
-import { UserDataClient } from '../../../users/services/user-data';
 import {
   CASH_LINE_KIND_LABELS,
   CASH_LINE_STATUS_LABELS,
@@ -36,12 +34,11 @@ import {
   type CashSessionRow,
   type DailyCashRow,
 } from '../../models/cash-report.model';
+import { CashCollections } from '../../components/cash-collections/cash-collections';
 import { ReportsCashDataClient } from '../../services/reports-cash-data';
 import { validateCashRange } from '../../utils/date-range';
 import { parseRange } from '../../../../shared/utils/query-params';
 
-/** Owners are a bounded lookup used to name the arqueo lines. */
-const LOOKUP_SIZE = 100;
 /** Window used when the URL carries no range — well inside the 92-day cap. */
 const DEFAULT_RANGE_DAYS = 30;
 /** Max page size the API allows — used to page through export data in as few round-trips as possible. */
@@ -55,6 +52,7 @@ const EXPORT_PAGE_SIZE = 100;
     DecimalPipe,
     FormsModule,
     ButtonModule,
+    CashCollections,
     DatePickerModule,
     DateRangePresets,
     TableModule,
@@ -65,7 +63,6 @@ const EXPORT_PAGE_SIZE = 100;
 })
 export class CashReport {
   private readonly reports = inject(ReportsCashDataClient);
-  private readonly users = inject(UserDataClient);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly dailyTable = viewChild<Table>('dailyTable');
@@ -95,7 +92,15 @@ export class CashReport {
     validateCashRange(this.dateRange()),
   );
 
-  private readonly ownerNames = signal<ReadonlyMap<string, string>>(new Map());
+  /**
+   * Which arqueo lines have their collections open, keyed by line id.
+   *
+   * A plain mutable object, not a signal: `expandedRowKeys` is an input only
+   * — PrimeNG writes the toggle straight into the object it is handed and
+   * re-renders itself, so wrapping it in a signal would only hide the writes.
+   */
+  protected expandedRows: Record<string, boolean> = {};
+
   protected readonly exporting = signal(false);
   protected readonly exportError = signal<string | null>(null);
 
@@ -111,8 +116,6 @@ export class CashReport {
   );
 
   constructor() {
-    void this.loadOwners();
-
     // Skips its own first run — the tables fetch on their own init. After
     // that, every URL change refetches through this one path.
     //
@@ -129,6 +132,8 @@ export class CashReport {
         return;
       }
       if (isValid && wasValid) {
+        // The ids on screen are about to be different rows.
+        this.expandedRows = {};
         this.dailyTable()?.reset();
         this.sessionsTable()?.reset();
       }
@@ -246,7 +251,9 @@ export class CashReport {
       'Apertura',
       'Cierre',
       'Fondo',
-      'Cobrado',
+      'Efectivo cobrado',
+      'No efectivo',
+      'Total cobrado',
       'Gastos',
       'Esperado',
       'Contado',
@@ -262,7 +269,7 @@ export class CashReport {
       const r = index + 2;
       cells.push(
         { ref: `A${r}`, value: this.kindLabel(row.kind) },
-        { ref: `B${r}`, value: this.ownerName(row.ownerId) },
+        { ref: `B${r}`, value: row.ownerName },
         { ref: `C${r}`, value: this.statusLabel(row.status) },
         { ref: `D${r}`, value: new Date(row.openedAt), numberFormat: dateTime },
         {
@@ -272,16 +279,18 @@ export class CashReport {
         },
         { ref: `F${r}`, value: row.openingCash, numberFormat: money, align: 'right' },
         { ref: `G${r}`, value: row.cashCollected, numberFormat: money, align: 'right' },
-        { ref: `H${r}`, value: row.expenses, numberFormat: money, align: 'right' },
-        { ref: `I${r}`, value: row.expectedCash, numberFormat: money, align: 'right' },
+        { ref: `H${r}`, value: row.otherCollected, numberFormat: money, align: 'right' },
+        { ref: `I${r}`, value: row.totalCollected, numberFormat: money, align: 'right' },
+        { ref: `J${r}`, value: row.expenses, numberFormat: money, align: 'right' },
+        { ref: `K${r}`, value: row.expectedCash, numberFormat: money, align: 'right' },
         {
-          ref: `J${r}`,
+          ref: `L${r}`,
           value: row.closingCash,
           numberFormat: row.closingCash === null ? undefined : money,
           align: 'right',
         },
         {
-          ref: `K${r}`,
+          ref: `M${r}`,
           value: row.difference,
           numberFormat: row.difference === null ? undefined : money,
           align: 'right',
@@ -294,16 +303,18 @@ export class CashReport {
       cells,
       columnWidths: {
         A: 10,
-        B: 20,
+        B: 24,
         C: 10,
         D: 16,
         E: 16,
         F: 12,
-        G: 12,
-        H: 12,
-        I: 12,
+        G: 16,
+        H: 14,
+        I: 14,
         J: 12,
         K: 12,
+        L: 12,
+        M: 12,
       },
     };
   }
@@ -330,10 +341,6 @@ export class CashReport {
     return difference === 0 ? 'success' : 'danger';
   }
 
-  protected ownerName(ownerId: string): string {
-    return this.ownerNames().get(ownerId) ?? ownerId;
-  }
-
   /** Merges into the current query params; a null value drops the param. */
   private patchParams(patch: Params): void {
     void this.router.navigate([], {
@@ -341,19 +348,6 @@ export class CashReport {
       queryParams: patch,
       queryParamsHandling: 'merge',
     });
-  }
-
-  private async loadOwners(): Promise<void> {
-    try {
-      const users = await firstValueFrom(
-        this.users.list({ pageSize: LOOKUP_SIZE }),
-      );
-      this.ownerNames.set(
-        new Map(users.items.map((user) => [user.id, user.fullName])),
-      );
-    } catch {
-      // Lines fall back to the raw owner id if the lookup fails.
-    }
   }
 }
 
