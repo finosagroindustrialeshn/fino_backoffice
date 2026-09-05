@@ -59,7 +59,7 @@
 
       @if (arqueo(); as live) {
         <dl
-          class="grid grid-cols-2 gap-3 lg:grid-cols-5"
+          class="grid grid-cols-2 gap-3 lg:grid-cols-6"
           aria-live="polite"
           aria-label="Arqueo en vivo"
         >
@@ -87,6 +87,15 @@
           </div>
           <div class="rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-3">
             <dt class="text-xs uppercase tracking-wide text-ink-soft">
+              No efectivo
+            </dt>
+            <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
+              {{ live.otherCollected | currency: 'HNL' : 'L ' : '1.2-2' }}
+            </dd>
+            <p class="mt-0.5 text-[11px] text-ink-soft">Se liquida en banco</p>
+          </div>
+          <div class="rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-3">
+            <dt class="text-xs uppercase tracking-wide text-ink-soft">
               Crédito pendiente
             </dt>
             <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
@@ -102,8 +111,37 @@
             <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
               {{ live.expectedCash | currency: 'HNL' : 'L ' : '1.2-2' }}
             </dd>
+            <p class="mt-0.5 text-[11px] text-ink-soft">Solo efectivo</p>
           </div>
         </dl>
+
+        <!-- Only worth showing once more than one method was used: a single
+             all-cash row repeats the cash figure above it. -->
+        @if (live.collectedByMethod.length > 1) {
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs uppercase tracking-wide text-ink-soft">
+              Cobrado por método
+            </span>
+            @for (split of live.collectedByMethod; track split.method) {
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-1 text-xs text-ink"
+              >
+                <span class="font-medium">
+                  {{ paymentMethodLabel(split.method) }}
+                </span>
+                <span class="tabular-nums">
+                  {{ split.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
+                </span>
+              </span>
+            }
+            <span class="text-xs text-ink-soft">
+              · total
+              <span class="font-semibold text-ink tabular-nums">
+                {{ live.totalCollected | currency: 'HNL' : 'L ' : '1.2-2' }}
+              </span>
+            </span>
+          </div>
+        }
       }
 
       @if (open.notes; as notes) {
@@ -287,6 +325,18 @@
           {{ live.expectedCash | currency: 'HNL' : 'L ' : '1.2-2' }}
         </span>
       </div>
+
+      <!-- Said out loud at the one moment it matters: the cashier is about
+           to be counted against the drawer, and money that settled at the
+           bank is not in it. -->
+      @if (live.otherCollected > 0) {
+        <p class="text-xs text-ink-soft">
+          No se cuentan
+          {{ live.otherCollected | currency: 'HNL' : 'L ' : '1.2-2' }}
+          cobrados por transferencia o tarjeta: se liquidan en el banco, no en
+          la caja.
+        </p>
+      }
     }
 
     <div class="flex flex-col gap-1.5">

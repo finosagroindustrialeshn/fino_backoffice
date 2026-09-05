@@ -21,6 +21,7 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TextareaModule } from 'primeng/textarea';
 
 import { toNumber } from '../../../../shared/forms/to-number';
+import { paymentMethodLabel } from '../../../sales/models/sale.model';
 import type { CashSession } from '../../models/cash-session.model';
 import { CashSessionDataClient } from '../../services/cash-session-data';
 
@@ -42,6 +43,8 @@ import { CashSessionDataClient } from '../../services/cash-session-data';
 export class CashRegister implements OnInit {
   private readonly cash = inject(CashSessionDataClient);
   private readonly fb = inject(NonNullableFormBuilder);
+
+  protected readonly paymentMethodLabel = paymentMethodLabel;
 
   protected readonly loading = signal(true);
   protected readonly loadError = signal<string | null>(null);
