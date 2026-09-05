@@ -97,7 +97,7 @@ describe('SaleDetail', () => {
       of(sale({ amountPaid: 400, balanceDue: 600, status: 'PARTIAL' })),
     );
 
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
 
     expect(addPayment).toHaveBeenCalledTimes(1);
     expect(keysUsed()[0]).toBeTruthy();
@@ -110,13 +110,13 @@ describe('SaleDetail', () => {
    */
   it('reuses the same key when retrying an abono that failed', async () => {
     addPayment.mockReturnValue(throwError(() => ({ message: 'Network down' })));
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
     expect(cmp.paymentError()).toBe('Network down');
 
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 400, balanceDue: 600, status: 'PARTIAL' })),
     );
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
 
     const [first, second] = keysUsed();
     expect(addPayment).toHaveBeenCalledTimes(2);
@@ -129,12 +129,12 @@ describe('SaleDetail', () => {
    */
   it('mints a new key when the amount is edited after a failure', async () => {
     addPayment.mockReturnValue(throwError(() => ({ message: 'Boom' })));
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
 
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 500, balanceDue: 500, status: 'PARTIAL' })),
     );
-    await cmp.collect({ amount: 500, method: 'cash' });
+    await cmp.collect({ amount: 500, method: 'CASH' });
 
     const [first, second] = keysUsed();
     expect(second).not.toBe(first);
@@ -144,8 +144,8 @@ describe('SaleDetail', () => {
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 400, balanceDue: 600, status: 'PARTIAL' })),
     );
-    await cmp.collect({ amount: 400, method: 'cash' });
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
 
     const [first, second] = keysUsed();
     expect(second).not.toBe(first);
@@ -155,7 +155,7 @@ describe('SaleDetail', () => {
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 1000, balanceDue: 0, status: 'PAID' })),
     );
-    await cmp.collect({ amount: 1000, method: 'cash' });
+    await cmp.collect({ amount: 1000, method: 'CASH' });
 
     expect(cmp.canCollect()).toBe(false);
   });

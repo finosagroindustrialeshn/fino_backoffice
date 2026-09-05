@@ -17,12 +17,15 @@ import {
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 
 import { toNumber } from '../../../../shared/forms/to-number';
 import {
   PAYMENT_METHOD_OPTIONS,
+  requiresReference,
   type CreateSalePaymentPayload,
+  type PaymentMethod,
 } from '../../models/sale.model';
 
 /**
@@ -38,6 +41,7 @@ import {
     ButtonModule,
     DialogModule,
     InputNumberModule,
+    InputTextModule,
     SelectModule,
   ],
   templateUrl: './sale-payment-dialog.html',
@@ -58,7 +62,8 @@ export class SalePaymentDialog {
 
   protected readonly form = this.fb.group({
     amount: this.fb.control(0, [Validators.required, Validators.min(0.01)]),
-    method: this.fb.control('cash'),
+    method: this.fb.control<PaymentMethod>('CASH'),
+    referenceNumber: this.fb.control(''),
   });
 
   private readonly changes = toSignal(this.form.valueChanges);
@@ -67,6 +72,29 @@ export class SalePaymentDialog {
     this.changes();
     return toNumber(this.form.getRawValue().amount);
   });
+
+  protected readonly method = computed(() => {
+    this.changes();
+    return this.form.getRawValue().method;
+  });
+
+  /**
+   * A transfer or card collection has to be traceable to a statement, so the
+   * API refuses one with no reference. Asking for it here turns that 400 into
+   * an inline message instead of a lost round-trip.
+   */
+  protected readonly needsReference = computed(() =>
+    requiresReference(this.method()),
+  );
+
+  protected readonly reference = computed(() => {
+    this.changes();
+    return this.form.getRawValue().referenceNumber.trim();
+  });
+
+  protected readonly missingReference = computed(
+    () => this.needsReference() && this.reference().length === 0,
+  );
 
   protected readonly exceedsBalance = computed(
     () => this.amount() > this.balanceDue(),
@@ -87,18 +115,28 @@ export class SalePaymentDialog {
   }
 
   protected submit(): void {
-    if (this.form.invalid || this.exceedsBalance() || this.amount() <= 0) {
+    if (
+      this.form.invalid ||
+      this.exceedsBalance() ||
+      this.amount() <= 0 ||
+      this.missingReference()
+    ) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const raw = this.form.getRawValue();
-    this.submitted.emit({ amount: this.amount(), method: raw.method });
+    // A reference on a CASH abono is rejected by the API, so it is dropped
+    // rather than sent — switching method after typing one must not fail.
+    this.submitted.emit({
+      amount: this.amount(),
+      method: this.method(),
+      ...(this.needsReference() ? { referenceNumber: this.reference() } : {}),
+    });
   }
 
   /** Clears the form so the next abono starts blank. */
   reset(): void {
-    this.form.reset({ amount: 0, method: 'cash' });
+    this.form.reset({ amount: 0, method: 'CASH', referenceNumber: '' });
   }
 
   protected cancel(): void {

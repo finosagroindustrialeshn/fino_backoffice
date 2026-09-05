@@ -190,7 +190,7 @@ export class SaleDetail {
 
     // A changed amount is a different operation, so it needs its own key;
     // an unchanged one reuses the key and lets the API replay the original.
-    const signature = `${payload.amount}|${payload.method ?? ''}`;
+    const signature = `${payload.amount}|${payload.method ?? ''}|${payload.referenceNumber ?? ''}`;
     if (this.pendingPayment?.signature !== signature) {
       this.pendingPayment = { key: crypto.randomUUID(), signature };
     }

@@ -11,12 +11,24 @@ export interface SaleItem {
   readonly subtotal: number;
 }
 
+/**
+ * How money arrived. A closed set on the API side, and the split the cash
+ * count is built on: only CASH ever reaches the drawer, so TRANSFER and CARD
+ * settle at the bank and are deliberately excluded from `expectedCash`.
+ */
+export type PaymentMethod = 'CASH' | 'TRANSFER' | 'CARD';
+
 export interface SalePayment {
   readonly id: string;
   readonly saleId: string;
   readonly amount: number;
-  /** Free-form label (cash, transfer, …). */
-  readonly method: string | null;
+  readonly method: PaymentMethod;
+  /**
+   * Bank or terminal reference. Always present for TRANSFER and CARD — an
+   * untraceable non-cash collection cannot be reconciled against a statement —
+   * and normally null for CASH.
+   */
+  readonly referenceNumber: string | null;
   readonly createdById: string | null;
   readonly createdAt: string;
 }
@@ -61,13 +73,27 @@ export interface CreateSalePayload {
   readonly paymentType: PaymentType;
   /** Down payment on a CREDIT sale. Ignored for CASH. */
   readonly amountPaid?: number;
+  /**
+   * How the money for this sale physically arrived: the whole amount of a
+   * CASH sale, or the down payment of a CREDIT one.
+   *
+   * Defaults to CASH server-side, which is why omitting it is NOT harmless —
+   * a transfer booked as cash inflates `cashCollected`, and therefore
+   * `expectedCash`, producing a shortage in the arqueo that never happened.
+   */
+  readonly paymentMethod?: PaymentMethod;
+  /** Required when `paymentMethod` is TRANSFER or CARD; rejected otherwise. */
+  readonly referenceNumber?: string;
   readonly notes?: string;
   readonly items: readonly SaleItemInput[];
 }
 
 export interface CreateSalePaymentPayload {
   readonly amount: number;
-  readonly method?: string;
+  /** Defaults to CASH server-side — the method the collector's close counts. */
+  readonly method?: PaymentMethod;
+  /** Required when `method` is TRANSFER or CARD; rejected otherwise. */
+  readonly referenceNumber?: string;
 }
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
@@ -86,33 +112,43 @@ export const SALE_CHANNEL_LABELS: Record<SaleChannel, string> = {
   STORE: 'Mostrador',
 };
 
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  CASH: 'Efectivo',
+  TRANSFER: 'Transferencia',
+  CARD: 'Tarjeta',
+};
+
 /**
- * Payment methods offered when collecting an abono. The API stores `method` as
- * a free-form label, so the canonical lowercase English values the spec
- * suggests (cash, transfer, …) are what travels; only the label is localized.
- * That keeps the column consistent with whatever the seller app writes.
+ * Methods offered when collecting an abono.
  *
  * Mutable on purpose: PrimeNG's `[options]` input rejects readonly arrays.
  */
-export const PAYMENT_METHOD_OPTIONS: { value: string; label: string }[] = [
-  { value: 'cash', label: 'Efectivo' },
-  { value: 'transfer', label: 'Transferencia' },
-  { value: 'deposit', label: 'Depósito' },
-  { value: 'check', label: 'Cheque' },
-];
+export const PAYMENT_METHOD_OPTIONS: {
+  value: PaymentMethod;
+  label: string;
+}[] = (Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((value) => ({
+  value,
+  label: PAYMENT_METHOD_LABELS[value],
+}));
+
+/**
+ * Non-cash money has to be traceable to a bank or terminal statement, so the
+ * API rejects a TRANSFER or CARD abono that carries no reference. The form
+ * enforces the same rule client-side rather than waiting for the 400.
+ */
+export function requiresReference(method: PaymentMethod): boolean {
+  return method !== 'CASH';
+}
 
 /**
  * Localizes a stored `method`. An unrecognized value is shown as-is rather
  * than hidden — it is real data written by some other client.
  */
-export function paymentMethodLabel(method: string | null): string {
+export function paymentMethodLabel(method: PaymentMethod | null): string {
   if (!method) {
     return '—';
   }
-  return (
-    PAYMENT_METHOD_OPTIONS.find((option) => option.value === method)?.label ??
-    method
-  );
+  return PAYMENT_METHOD_LABELS[method] ?? method;
 }
 
 export type SaleTagSeverity =

@@ -1,7 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import type { FormControl, FormGroup } from '@angular/forms';
 
-import type { CreateSalePaymentPayload } from '../../models/sale.model';
+import type {
+  CreateSalePaymentPayload,
+  PaymentMethod,
+} from '../../models/sale.model';
 import { SalePaymentDialog } from './sale-payment-dialog';
 
 /**
@@ -12,12 +15,15 @@ import { SalePaymentDialog } from './sale-payment-dialog';
 interface DialogInternals {
   readonly form: FormGroup<{
     amount: FormControl<number>;
-    method: FormControl<string>;
+    method: FormControl<PaymentMethod>;
+    referenceNumber: FormControl<string>;
   }>;
   amount(): number;
   exceedsBalance(): boolean;
   remaining(): number;
   settlesSale(): boolean;
+  needsReference(): boolean;
+  missingReference(): boolean;
   payInFull(): void;
   submit(): void;
 }
@@ -79,12 +85,46 @@ describe('SalePaymentDialog', () => {
     expect(cmp.settlesSale()).toBe(true);
   });
 
-  it('emits the abono with the selected method', () => {
+  it('emits a cash abono without a reference', () => {
     type(250);
-    cmp.form.controls.method.setValue('transfer');
     cmp.submit();
 
-    expect(emitted).toEqual([{ amount: 250, method: 'transfer' }]);
+    expect(emitted).toEqual([{ amount: 250, method: 'CASH' }]);
+  });
+
+  it('emits a transfer with its reference', () => {
+    type(250);
+    cmp.form.controls.method.setValue('TRANSFER');
+    cmp.form.controls.referenceNumber.setValue('  8842  ');
+    cmp.submit();
+
+    expect(emitted).toEqual([
+      { amount: 250, method: 'TRANSFER', referenceNumber: '8842' },
+    ]);
+  });
+
+  // The API refuses an untraceable non-cash abono, so the form has to.
+  it('refuses to emit a transfer with no reference', () => {
+    type(250);
+    cmp.form.controls.method.setValue('TRANSFER');
+
+    expect(cmp.needsReference()).toBe(true);
+    expect(cmp.missingReference()).toBe(true);
+
+    cmp.submit();
+    expect(emitted).toEqual([]);
+  });
+
+  // Switching back to cash after typing a reference must not send it: the
+  // API rejects a reference on a CASH abono.
+  it('drops a reference left over from a non-cash method', () => {
+    type(250);
+    cmp.form.controls.method.setValue('CARD');
+    cmp.form.controls.referenceNumber.setValue('8842');
+    cmp.form.controls.method.setValue('CASH');
+    cmp.submit();
+
+    expect(emitted).toEqual([{ amount: 250, method: 'CASH' }]);
   });
 
   it('refuses to emit an overpayment', () => {

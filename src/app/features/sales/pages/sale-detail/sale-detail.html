@@ -184,11 +184,12 @@
             </p>
           } @else {
             <div class="overflow-x-auto rounded-2xl border border-ink/10 bg-white">
-              <p-table [value]="payments()" tableStyleClass="w-full min-w-[28rem]">
+              <p-table [value]="payments()" tableStyleClass="w-full min-w-[34rem]">
                 <ng-template #header>
                   <tr>
                     <th scope="col">Fecha</th>
                     <th scope="col">Método</th>
+                    <th scope="col">Referencia</th>
                     <th scope="col" class="text-right">Monto</th>
                   </tr>
                 </ng-template>
@@ -199,6 +200,11 @@
                     </td>
                     <td class="text-sm text-ink-soft">
                       {{ paymentMethodLabel(payment.method) }}
+                    </td>
+                    <!-- Set for TRANSFER and CARD: what ties this abono to a
+                         line on the bank or terminal statement. -->
+                    <td class="text-sm text-ink-soft">
+                      {{ payment.referenceNumber ?? '—' }}
                     </td>
                     <td class="text-right font-semibold text-emerald-700">
                       {{ payment.amount | currency: 'HNL' : 'L ' : '1.2-2' }}
