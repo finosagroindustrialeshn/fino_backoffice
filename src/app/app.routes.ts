@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { unsavedChangesGuard } from './shared/guards/unsaved-changes.guard';
 import { MainLayout } from './layouts/main-layout/main-layout';
 
 export const routes: Routes = [
@@ -207,6 +208,15 @@ export const routes: Routes = [
             './features/inventory/pages/inventory-list/inventory-list'
           ).then((m) => m.InventoryList),
         data: { title: 'Inventario' },
+      },
+      {
+        path: 'caja/venta',
+        loadComponent: () =>
+          import('./features/cash/pages/store-sale/store-sale').then(
+            (m) => m.StoreSale,
+          ),
+        canDeactivate: [unsavedChangesGuard],
+        data: { title: 'Nueva venta' },
       },
       {
         path: 'caja',
