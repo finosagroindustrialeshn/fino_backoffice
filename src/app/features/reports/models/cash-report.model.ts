@@ -31,13 +31,24 @@ export interface CashSessionRow {
   readonly kind: CashLineKind;
   readonly id: string;
   readonly ownerId: string;
+  /**
+   * The owner's full name. A row reading `difference: -300` has to name the
+   * person, so this is what the table sorts and reads on — `ownerId` stays
+   * for the drill-down link.
+   */
+  readonly ownerName: string;
   readonly status: CashLineStatus;
   /** ISO 8601 UTC timestamp. */
   readonly openedAt: string;
   /** ISO 8601 UTC timestamp, null while still open. */
   readonly closedAt: string | null;
   readonly openingCash: number;
+  /** CASH collected. The only inflow the drawer holds, so the only one counted. */
   readonly cashCollected: number;
+  /** TRANSFER + CARD. Settled at the bank, never in the drawer. */
+  readonly otherCollected: number;
+  /** cashCollected + otherCollected — what the collections drill-down sums to. */
+  readonly totalCollected: number;
   readonly expenses: number;
   readonly expectedCash: number;
   /** Counted cash at close, null while still open. */

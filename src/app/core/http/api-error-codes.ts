@@ -30,6 +30,7 @@ export const API_ERROR_CODES = [
   'PAYMENT_EXCEEDS_BALANCE',
   'SALE_NOT_FOUND',
   'INSUFFICIENT_STOCK',
+  'SALE_PRICE_BELOW_MINIMUM',
   'RETURN_NOT_DRAFT',
   'RETURN_NOT_FOUND',
   'RETURN_ALREADY_DECLARED',
@@ -42,6 +43,7 @@ export const API_ERROR_CODES = [
   'SALES_ORDER_OVER_FULFILLED',
   'SALES_ORDER_CLIENT_MISMATCH',
   'SALES_ORDER_LINE_BELOW_FULFILLED',
+  'SALES_ORDER_PRICE_BELOW_MINIMUM',
   'CLIENT_NOT_FOUND',
   'CLIENT_REASSIGN_FORBIDDEN',
   'ROUTE_NOT_FOUND',
@@ -111,6 +113,8 @@ export const API_ERROR_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   PAYMENT_EXCEEDS_BALANCE: 'El abono supera el saldo pendiente de la venta.',
   SALE_NOT_FOUND: 'No se encontró la venta.',
   INSUFFICIENT_STOCK: 'No hay existencias suficientes para completar la operación.',
+  SALE_PRICE_BELOW_MINIMUM:
+    'El precio unitario está por debajo del mínimo permitido para el producto.',
 
   // Returns
   RETURN_NOT_DRAFT: 'Este retorno ya no es un borrador.',
@@ -130,6 +134,8 @@ export const API_ERROR_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   SALES_ORDER_CLIENT_MISMATCH: 'El pedido pertenece a otro cliente.',
   SALES_ORDER_LINE_BELOW_FULFILLED:
     'No podés reducir ni quitar una línea por debajo de lo ya entregado al cliente.',
+  SALES_ORDER_PRICE_BELOW_MINIMUM:
+    'El precio unitario del pedido está por debajo del mínimo permitido para el producto.',
 
   // Clients and routes
   CLIENT_NOT_FOUND: 'No se encontró el cliente.',

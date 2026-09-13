@@ -19,9 +19,12 @@ import { TagModule } from 'primeng/tag';
 import type { ApiErrorCode } from '../../../../core/http/api-error-codes';
 import { isApiError } from '../../../../core/http/api-error';
 import { parseUuid } from '../../../../shared/utils/query-params';
-import { ExpenseCategoryDataClient } from '../../../catalogs/expense-categories/services/expense-category-data';
 import type { Expense } from '../../../expenses/models/expense.model';
 import { ExpenseDataClient } from '../../../expenses/services/expense-data';
+import {
+  paymentMethodLabel,
+  type CollectedByMethod,
+} from '../../../sales/models/sale.model';
 import { UserDataClient } from '../../../users/services/user-data';
 import { ShiftCloseDialog } from '../../components/shift-close-dialog/shift-close-dialog';
 import {
@@ -30,6 +33,7 @@ import {
   SHIFT_STATUS_LABELS,
   SHIFT_STATUS_SEVERITY,
   cashDifferenceKind,
+  routeLabel,
   type CloseShiftPayload,
   type ShiftClosing,
   type ShiftDetail as ShiftDetailModel,
@@ -58,8 +62,6 @@ const INVALID_SHIFT_MESSAGE = 'El identificador de la jornada no es válido.';
 const LOAD_ERROR_MESSAGE = 'No se pudo cargar la jornada.';
 const CLOSE_ERROR_MESSAGE = 'No se pudo cerrar la jornada.';
 
-/** Expense categories are a small, bounded catalog. */
-const CATEGORY_LOOKUP_SIZE = 100;
 /** A single shift's expenses — a day in the field never runs to hundreds. */
 const EXPENSE_PAGE_SIZE = 100;
 
@@ -83,7 +85,6 @@ export class ShiftDetail {
   private readonly shifts = inject(ShiftDataClient);
   private readonly users = inject(UserDataClient);
   private readonly expenses = inject(ExpenseDataClient);
-  private readonly categories = inject(ExpenseCategoryDataClient);
   private readonly route = inject(ActivatedRoute);
   private readonly closeDialog = viewChild(ShiftCloseDialog);
 
@@ -114,11 +115,22 @@ export class ShiftDetail {
     () => this.shift()?.liquidation ?? null,
   );
 
-  private readonly sellerName = signal<string | null>(null);
-  private readonly closedByName = signal<string | null>(null);
-  private readonly categoryNames = signal<ReadonlyMap<string, string>>(
-    new Map(),
+  /**
+   * The collection split, but only once it says something. A shift that took
+   * money one way returns a single row that just restates `totalCollected`,
+   * so the breakdown earns its place only from two methods up.
+   */
+  protected readonly methodBreakdown = computed<readonly CollectedByMethod[]>(
+    () => {
+      const methods = this.liquidation()?.collectedByMethod ?? [];
+      return methods.length > 1 ? methods : [];
+    },
   );
+
+  private readonly closedByName = signal<string | null>(null);
+
+  protected readonly routeLabel = routeLabel;
+  protected readonly paymentMethodLabel = paymentMethodLabel;
 
   /** Mutable copy: PrimeNG's `[value]` input rejects readonly arrays. */
   protected readonly shiftExpenses = signal<Expense[]>([]);
@@ -191,8 +203,6 @@ export class ShiftDetail {
       }
       void this.load(id);
     });
-
-    void this.loadCategoryNames();
   }
 
   protected statusLabel(status: ShiftStatus): string {
@@ -201,14 +211,6 @@ export class ShiftDetail {
 
   protected statusSeverity(status: ShiftStatus): ShiftTagSeverity {
     return SHIFT_STATUS_SEVERITY[status];
-  }
-
-  protected categoryName(categoryId: string): string {
-    return this.categoryNames().get(categoryId) ?? '—';
-  }
-
-  protected displaySeller(): string {
-    return this.sellerName() ?? '…';
   }
 
   protected displayClosedBy(): string {
@@ -279,7 +281,6 @@ export class ShiftDetail {
 
   private async load(id: string): Promise<void> {
     this.state.set({ status: 'loading' });
-    this.sellerName.set(null);
     this.closedByName.set(null);
     try {
       const shift = await firstValueFrom(this.shifts.get(id));
@@ -295,22 +296,20 @@ export class ShiftDetail {
   }
 
   /**
-   * The shift carries ids only. Names are fetched per party rather than from a
-   * paginated lookup so a seller outside the first page still resolves.
+   * The shift names its own seller and route, so the only party still needing
+   * a lookup is whoever CLOSED it — a supervisor liquidating on the seller's
+   * behalf. Fetched by id rather than from a paginated lookup so a user
+   * outside the first page still resolves.
    */
   private async loadParties(shift: ShiftDetailModel): Promise<void> {
-    const [seller, closedBy] = await Promise.allSettled([
-      firstValueFrom(this.users.get(shift.sellerId)),
-      shift.closedById
-        ? firstValueFrom(this.users.get(shift.closedById))
-        : Promise.resolve(null),
-    ]);
-
-    if (seller.status === 'fulfilled') {
-      this.sellerName.set(seller.value.fullName);
+    if (!shift.closedById) {
+      return;
     }
-    if (closedBy.status === 'fulfilled' && closedBy.value) {
-      this.closedByName.set(closedBy.value.fullName);
+    try {
+      const closedBy = await firstValueFrom(this.users.get(shift.closedById));
+      this.closedByName.set(closedBy.fullName);
+    } catch {
+      // Falls back to the placeholder; the liquidation stands without it.
     }
   }
 
@@ -331,22 +330,6 @@ export class ShiftDetail {
       this.shiftExpenses.set([]);
     } finally {
       this.expensesLoading.set(false);
-    }
-  }
-
-  private async loadCategoryNames(): Promise<void> {
-    try {
-      const categories = await firstValueFrom(
-        this.categories.list({
-          pageSize: CATEGORY_LOOKUP_SIZE,
-          includeInactive: true,
-        }),
-      );
-      this.categoryNames.set(
-        new Map(categories.items.map((category) => [category.id, category.name])),
-      );
-    } catch {
-      // Names fall back to a dash if the lookup fails.
     }
   }
 }

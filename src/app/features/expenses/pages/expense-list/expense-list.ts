@@ -72,6 +72,10 @@ export class ExpenseList implements OnInit {
   /** [start, end] from the range datepicker; either end may be null mid-select. */
   protected readonly dateRange = signal<Date[] | null>(null);
 
+  /**
+   * Lookups feed the filter dropdowns ONLY — every row names its own seller
+   * and category, so nothing on screen depends on these resolving.
+   */
   private readonly userNames = signal<ReadonlyMap<string, string>>(new Map());
   private readonly categoryNames = signal<ReadonlyMap<string, string>>(
     new Map(),
@@ -127,26 +131,15 @@ export class ExpenseList implements OnInit {
     this.exportNotice.set(null);
     try {
       const range = this.dateRange();
-      const [expenses, users, categories] = await Promise.all([
-        fetchAllPages((page, pageSize) =>
-          this.expenses.list({
-            page,
-            pageSize,
-            sellerId: this.sellerFilter() ?? undefined,
-            categoryId: this.categoryFilter() ?? undefined,
-            dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
-            dateTo: range?.[1] ? formatDay(range[1]) : undefined,
-          }),
-        ),
-        fetchAllPages((page, pageSize) => this.users.list({ page, pageSize })),
-        fetchAllPages((page, pageSize) =>
-          this.categories.list({ page, pageSize, includeInactive: true }),
-        ),
-      ]);
-
-      const userNames = new Map(users.rows.map((user) => [user.id, user.fullName]));
-      const categoryNames = new Map(
-        categories.rows.map((category) => [category.id, category.name]),
+      const expenses = await fetchAllPages((page, pageSize) =>
+        this.expenses.list({
+          page,
+          pageSize,
+          sellerId: this.sellerFilter() ?? undefined,
+          categoryId: this.categoryFilter() ?? undefined,
+          dateFrom: range?.[0] ? formatDay(range[0]) : undefined,
+          dateTo: range?.[1] ? formatDay(range[1]) : undefined,
+        }),
       );
 
       const columns: readonly ExcelColumn<Expense>[] = [
@@ -156,18 +149,8 @@ export class ExpenseList implements OnInit {
           numberFormat: EXCEL_DATETIME_FORMAT,
           width: 18,
         },
-        {
-          header: 'Vendedor',
-          // Falls back to the id so an unresolved name stays traceable.
-          value: (expense) => userNames.get(expense.sellerId) ?? expense.sellerId,
-          width: 24,
-        },
-        {
-          header: 'Categoría',
-          value: (expense) =>
-            categoryNames.get(expense.categoryId) ?? expense.categoryId,
-          width: 24,
-        },
+        { header: 'Vendedor', value: (expense) => expense.sellerName, width: 24 },
+        { header: 'Categoría', value: (expense) => expense.categoryName, width: 24 },
         { header: 'Descripción', value: (expense) => expense.description, width: 36 },
         {
           header: 'Monto',
@@ -216,14 +199,6 @@ export class ExpenseList implements OnInit {
     }
   }
 
-  protected sellerName(sellerId: string): string {
-    return this.userNames().get(sellerId) ?? '—';
-  }
-
-  protected categoryName(categoryId: string): string {
-    return this.categoryNames().get(categoryId) ?? '—';
-  }
-
   private async loadLookups(): Promise<void> {
     try {
       // Inactive categories are included: an old expense still points at the
@@ -244,7 +219,7 @@ export class ExpenseList implements OnInit {
         new Map(categories.items.map((category) => [category.id, category.name])),
       );
     } catch {
-      // Names fall back to a dash if the lookups fail.
+      // Only the filter dropdowns degrade — the rows name themselves.
     }
   }
 }

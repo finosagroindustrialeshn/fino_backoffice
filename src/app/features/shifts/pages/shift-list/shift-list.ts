@@ -31,6 +31,7 @@ import {
 } from '../../../../shared/utils/excel-export';
 import { UserDataClient } from '../../../users/services/user-data';
 import {
+  routeLabel,
   SHIFT_STATUS_LABELS,
   SHIFT_STATUS_SEVERITY,
   type Shift,
@@ -45,9 +46,8 @@ interface FilterOption<T> {
 }
 
 /**
- * Users are a bounded lookup joined to the paginated shifts, which carry ids
- * only. A name missing from the lookup degrades to a dash rather than showing
- * a raw uuid.
+ * Users are a bounded lookup feeding the seller filter, and naming whoever
+ * CLOSED a shift in the export — the only party the row does not name itself.
  */
 const LOOKUP_SIZE = 100;
 
@@ -96,6 +96,8 @@ export class ShiftList implements OnInit {
   protected readonly dateRange = signal<Date[] | null>(null);
 
   private readonly userNames = signal<ReadonlyMap<string, string>>(new Map());
+
+  protected readonly routeLabel = routeLabel;
 
   protected readonly sellerFilterOptions = computed(() => [
     { label: 'Todos los vendedores', value: null as string | null },
@@ -152,7 +154,8 @@ export class ShiftList implements OnInit {
       ]);
 
       const userNames = new Map(users.rows.map((user) => [user.id, user.fullName]));
-      // Falls back to the id so an unresolved name stays traceable.
+      // Only `closedById` still needs resolving — every row names its own
+      // seller. Falls back to the id so an unresolved name stays traceable.
       const nameOf = (id: string): string => userNames.get(id) ?? id;
 
       const columns: readonly ExcelColumn<Shift>[] = [
@@ -168,7 +171,8 @@ export class ShiftList implements OnInit {
           numberFormat: EXCEL_DATETIME_FORMAT,
           width: 18,
         },
-        { header: 'Vendedor', value: (shift) => nameOf(shift.sellerId), width: 24 },
+        { header: 'Vendedor', value: (shift) => shift.sellerName, width: 24 },
+        { header: 'Ruta', value: (shift) => routeLabel(shift), width: 26 },
         {
           header: 'Estado',
           value: (shift) => SHIFT_STATUS_LABELS[shift.status],
@@ -243,10 +247,6 @@ export class ShiftList implements OnInit {
     return SHIFT_STATUS_SEVERITY[status];
   }
 
-  protected sellerName(sellerId: string): string {
-    return this.userNames().get(sellerId) ?? '—';
-  }
-
   private async loadLookups(): Promise<void> {
     try {
       const users = await firstValueFrom(
@@ -256,7 +256,7 @@ export class ShiftList implements OnInit {
         new Map(users.items.map((user) => [user.id, user.fullName])),
       );
     } catch {
-      // Names fall back to a dash if the lookup fails.
+      // Only the seller filter degrades — every row names its own seller.
     }
   }
 }

@@ -13,6 +13,7 @@ import type {
   PaymentType,
   Sale,
   SaleChannel,
+  SaleListItem,
   SalePayment,
   SaleStatus,
 } from '../models/sale.model';
@@ -23,6 +24,19 @@ export interface SaleListQuery extends PaginationQuery {
   readonly cashSessionId?: string;
   readonly sellerId?: string;
   readonly clientId?: string;
+  /**
+   * The sales that closed a stop of this route. Reproduces the
+   * salesCount / salesAmount of the route compliance report.
+   */
+  readonly routeId?: string;
+  /** A single visit — the sales made at that stop. */
+  readonly routeStopId?: string;
+  /**
+   * Sales carrying at least one line for this product. Row totals stay the
+   * WHOLE sale, not the product's share of it, so these figures do NOT add up
+   * to the product's revenue in the by-product report.
+   */
+  readonly productId?: string;
   readonly paymentType?: PaymentType;
   readonly status?: SaleStatus;
   /** Single day; superseded by dateFrom/dateTo when those are present. */
@@ -35,8 +49,15 @@ export interface SaleListQuery extends PaginationQuery {
 export class SaleDataClient {
   private readonly api = inject(ApiClient);
 
-  list(query: SaleListQuery): Observable<Paginated<Sale>> {
-    return this.api.get<Paginated<Sale>>('/sales', toQueryParams({ ...query }));
+  /**
+   * Rows are `SaleListItem`, not `Sale`: the listing is a summary shape with
+   * the parties already named and no lines or abonos on it.
+   */
+  list(query: SaleListQuery): Observable<Paginated<SaleListItem>> {
+    return this.api.get<Paginated<SaleListItem>>(
+      '/sales',
+      toQueryParams({ ...query }),
+    );
   }
 
   get(id: string): Observable<Sale> {

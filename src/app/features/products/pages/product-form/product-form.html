@@ -232,6 +232,47 @@
               inputStyleClass="w-full"
             />
           </div>
+
+          <!-- Discount cap: empty means the floor is the cost -->
+          <div class="flex flex-col gap-1.5">
+            <label
+              for="product-max-discount"
+              class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+            >
+              Descuento máximo (%)
+            </label>
+            <p-inputnumber
+              inputId="product-max-discount"
+              formControlName="maxDiscountPercent"
+              mode="decimal"
+              locale="en-US"
+              suffix=" %"
+              [min]="0"
+              [max]="100"
+              [maxFractionDigits]="0"
+              styleClass="w-full"
+              inputStyleClass="w-full"
+              ariaDescribedBy="product-max-discount-hint"
+            />
+            <span id="product-max-discount-hint" class="text-xs text-ink-soft">
+              Vacío = se permite descontar hasta el costo.
+            </span>
+            @if (
+              form.controls.maxDiscountPercent.touched &&
+              form.controls.maxDiscountPercent.invalid
+            ) {
+              <span class="text-xs text-red-600" role="alert">
+                Debe ser un entero entre 0 y 100.
+              </span>
+            }
+            @if (previewFloor(); as preview) {
+              <span class="text-xs text-ink-soft" aria-live="polite">
+                Precio mínimo: L {{ preview.minPrice | number: '1.2-2' }}
+                (hasta {{ preview.allowedDiscountPercent | number: '1.0-2' }} %
+                de descuento)
+              </span>
+            }
+          </div>
         </div>
 
         <!-- Description -->

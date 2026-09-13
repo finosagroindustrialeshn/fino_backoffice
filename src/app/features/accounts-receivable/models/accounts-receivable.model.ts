@@ -6,7 +6,7 @@
  * `string` so it is only ever localized at the presentation layer.
  */
 
-import type { Sale, SaleStatus } from '../../sales/models/sale.model';
+import type { OpenCreditSale, SaleStatus } from '../../sales/models/sale.model';
 
 /**
  * One aging band of the outstanding balance, bucketed by days since the sale
@@ -68,8 +68,13 @@ export interface ClientReceivable {
   readonly totalOwed: number;
   /** Number of open credit sales. */
   readonly openSalesCount: number;
-  /** The open credit sales, oldest first. */
-  readonly sales: readonly Sale[];
+  /**
+   * The open credit sales, oldest first.
+   *
+   * The API echoes these as bare sale rows — full sales with the parties and
+   * the lines left out — so they are typed as only what actually travels.
+   */
+  readonly sales: readonly OpenCreditSale[];
 }
 
 /** A ledger line is either a credit sale (charge) or an abono (payment). */

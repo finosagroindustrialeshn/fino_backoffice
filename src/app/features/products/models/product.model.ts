@@ -21,6 +21,25 @@ export interface Product {
   readonly cost: number;
   /** Sale price per presentation. */
   readonly price: number;
+  /**
+   * Deepest discount a sale line may take below the price, as a whole
+   * percent, as set from the back office. Null means no percentage cap: the
+   * line may go all the way down to the cost. Either way the floor never
+   * drops below the cost — see `minPrice`.
+   */
+  readonly maxDiscountPercent: number | null;
+  /**
+   * Lowest unit price a sale line may carry: the cost, or the price less
+   * `maxDiscountPercent` when that is set and higher than the cost; never
+   * above the price. A line priced below it is refused by the API.
+   */
+  readonly minPrice: number;
+  /**
+   * How far below the price a line may actually go, as a percent of it —
+   * `(price − minPrice) / price`, rounded down. `maxDiscountPercent` is what
+   * was asked for; this is what the cost allows.
+   */
+  readonly allowedDiscountPercent: number;
   readonly categoryId: string | null;
   readonly presentationId: string | null;
   readonly isActive: boolean;
@@ -38,6 +57,11 @@ export interface ProductPayload {
   readonly composition: readonly CompositionItem[];
   readonly cost: number;
   readonly price: number;
+  /**
+   * Whole percent 0–100, sent as a JSON number (a string is refused). Null
+   * clears the cap on PATCH; omit the key on POST or to leave it unchanged.
+   */
+  readonly maxDiscountPercent?: number | null;
   readonly categoryId: string;
   readonly presentationId: string;
   readonly isActive: boolean;
@@ -76,6 +100,7 @@ export const PRODUCT_FIELD_LABELS: Record<string, string> = {
   composition: 'Composición',
   cost: 'Costo',
   price: 'Precio',
+  maxDiscountPercent: 'Descuento máximo (%)',
   categoryId: 'Categoría',
   presentationId: 'Presentación',
   isActive: 'Estado',

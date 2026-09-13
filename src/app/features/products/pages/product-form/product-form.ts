@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,8 +12,10 @@ import {
   type FormGroup,
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  type ValidatorFn,
   Validators,
 } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
@@ -61,10 +63,50 @@ const CHANGES_PAGE_SIZE = 20;
 /** The export walks every page; a bigger page means fewer round trips. */
 const EXPORT_PAGE_SIZE = 100;
 
+/** Whole percents only — the API refuses a fractional cap. Empty is fine. */
+const wholeNumber: ValidatorFn = (control) => {
+  const value: unknown = control.value;
+  return value === null || Number.isInteger(value) ? null : { integer: true };
+};
+
+/** What the API will enforce for the figures currently in the form. */
+interface PriceFloorPreview {
+  readonly minPrice: number;
+  readonly allowedDiscountPercent: number;
+}
+
+/**
+ * Binary floats make 100 × 0.8 land a hair above 80, which a bare ceil would
+ * push to 80.01 — so the noise is shaved off before rounding either way.
+ */
+function toCents(value: number): number {
+  return Number((value * 100).toFixed(6));
+}
+
+/**
+ * Mirrors the API's floor: the cost, or the capped price when that is higher,
+ * rounded up to the cent and never above the price itself. The allowed
+ * percent is then read back off that floor, rounded down to two decimals.
+ */
+function previewPriceFloor(
+  cost: number,
+  price: number,
+  cap: number | null,
+): PriceFloorPreview | null {
+  if (!(price > 0)) {
+    return null;
+  }
+  const capped = cap === null ? cost : Math.max(cost, price * (1 - cap / 100));
+  const floor = Math.min(Math.ceil(toCents(capped)) / 100, price);
+  const allowed = Math.floor(toCents((price - floor) / price * 100)) / 100;
+  return { minPrice: floor, allowedDiscountPercent: allowed };
+}
+
 @Component({
   selector: 'app-product-form',
   imports: [
     DatePipe,
+    DecimalPipe,
     ReactiveFormsModule,
     RouterLink,
     ButtonModule,
@@ -132,8 +174,31 @@ export class ProductForm implements OnInit {
     presentationId: this.fb.control('', [Validators.required]),
     cost: this.fb.control(0, [Validators.required, Validators.min(0)]),
     price: this.fb.control(0, [Validators.required, Validators.min(0)]),
+    // Null = no percentage cap; the floor is then the cost.
+    maxDiscountPercent: this.fb.control<number | null>(null, [
+      Validators.min(0),
+      Validators.max(100),
+      wholeNumber,
+    ]),
     description: this.fb.control(''),
     composition: this.composition,
+  });
+
+  /**
+   * Subscribed so the floor preview recomputes as the user types; a computed
+   * over getRawValue() alone never re-runs. The values are read from
+   * getRawValue() because valueChanges emits a partial shape.
+   */
+  private readonly formChanges = toSignal(this.form.valueChanges);
+
+  /**
+   * Live view of the floor the API will enforce once saved, so the cap can be
+   * tuned against the cost and price on screen rather than the stored ones.
+   */
+  protected readonly previewFloor = computed<PriceFloorPreview | null>(() => {
+    this.formChanges();
+    const { cost, price, maxDiscountPercent } = this.form.getRawValue();
+    return previewPriceFloor(cost, price, maxDiscountPercent);
   });
 
   ngOnInit(): void {
@@ -175,6 +240,7 @@ export class ProductForm implements OnInit {
       presentationId: product.presentationId ?? '',
       cost: product.cost,
       price: product.price,
+      maxDiscountPercent: product.maxDiscountPercent,
       description: product.description ?? '',
     });
 
@@ -246,9 +312,22 @@ export class ProductForm implements OnInit {
       const id = this.productId();
       if (id) {
         // Partial PATCH — isActive is owned by the list's activate toggle.
-        await firstValueFrom(this.products.update(id, base));
+        // The cap is always sent: null is how an existing one gets cleared.
+        await firstValueFrom(
+          this.products.update(id, {
+            ...base,
+            maxDiscountPercent: raw.maxDiscountPercent,
+          }),
+        );
       } else {
-        const payload: ProductPayload = { ...base, isActive: true };
+        // On create an empty cap is left out rather than sent as null.
+        const payload: ProductPayload = {
+          ...base,
+          ...(raw.maxDiscountPercent === null
+            ? {}
+            : { maxDiscountPercent: raw.maxDiscountPercent }),
+          isActive: true,
+        };
         await firstValueFrom(this.products.create(payload));
       }
       await this.router.navigate(['/productos']);

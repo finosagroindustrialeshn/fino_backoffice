@@ -3,9 +3,6 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of, throwError, type Observable } from 'rxjs';
 import { vi, type Mock } from 'vitest';
 
-import { ClientDataClient } from '../../../clients/services/client-data';
-import { ProductDataClient } from '../../../products/services/product-data';
-import { UserDataClient } from '../../../users/services/user-data';
 import type { CreateSalePaymentPayload, Sale } from '../../models/sale.model';
 import { SaleDataClient } from '../../services/sale-data';
 import { SaleDetail } from './sale-detail';
@@ -21,8 +18,14 @@ interface DetailInternals {
   collect(payload: CreateSalePaymentPayload): Promise<void>;
   canCollect(): boolean;
   paymentError(): string | null;
+  displayClient(): string;
+  displaySeller(): string;
 }
 
+/**
+ * A sale as GET /sales/{id} returns it: seller and client embedded, so the
+ * page needs no lookup of its own to name them.
+ */
 function sale(overrides: Partial<Sale> = {}): Sale {
   return {
     id: SALE_ID,
@@ -30,8 +33,23 @@ function sale(overrides: Partial<Sale> = {}): Sale {
     shiftId: null,
     cashSessionId: null,
     sellerId: 'seller-1',
+    seller: { id: 'seller-1', fullName: 'Ana Castillo' },
     clientId: 'client-1',
+    client: {
+      id: 'client-1',
+      code: 'CLI-001',
+      name: 'Doña Marta',
+      contactName: null,
+      phone: null,
+      address: null,
+      imageUrl: null,
+      latitude: 14.1,
+      longitude: -87.2,
+    },
     routeStopId: null,
+    settledOrder: null,
+    latitude: null,
+    longitude: null,
     paymentType: 'CREDIT',
     status: 'PENDING',
     total: 1000,
@@ -52,20 +70,16 @@ describe('SaleDetail', () => {
   let cmp: DetailInternals;
   let addPayment: Mock<(...args: unknown[]) => Observable<Sale>>;
 
-  beforeEach(async () => {
+  /** Builds the page around one sale; a test may rebuild it around another. */
+  async function setup(loaded: Sale = sale()): Promise<void> {
+    TestBed.resetTestingModule();
     addPayment = vi.fn();
-    const sales = { get: vi.fn(() => of(sale())), addPayment };
-    const clients = { get: vi.fn(() => of({ id: 'client-1', name: 'Doña Marta' })) };
-    const users = { get: vi.fn(() => of({ id: 'seller-1', fullName: 'Ana Castillo' })) };
-    const products = { list: vi.fn(() => of({ items: [], meta: { total: 0 } })) };
+    const sales = { get: vi.fn(() => of(loaded)), addPayment };
 
     await TestBed.configureTestingModule({
       imports: [SaleDetail],
       providers: [
         { provide: SaleDataClient, useValue: sales },
-        { provide: ClientDataClient, useValue: clients },
-        { provide: UserDataClient, useValue: users },
-        { provide: ProductDataClient, useValue: products },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -81,7 +95,9 @@ describe('SaleDetail', () => {
     await fixture.whenStable();
 
     cmp = fixture.componentInstance as unknown as DetailInternals;
-  });
+  }
+
+  beforeEach(() => setup());
 
   /** The `Idempotency-Key` handed to the service, per call. */
   function keysUsed(): string[] {
@@ -92,12 +108,24 @@ describe('SaleDetail', () => {
     expect(cmp.canCollect()).toBe(true);
   });
 
+  /** The sale names its own parties, so nothing else is fetched to do it. */
+  it('names the parties from the sale itself', () => {
+    expect(cmp.displayClient()).toBe('Doña Marta');
+    expect(cmp.displaySeller()).toBe('Ana Castillo');
+  });
+
+  it('shows a STORE walk-in as the anonymous consumer', async () => {
+    await setup(sale({ channel: 'STORE', clientId: null, client: null }));
+
+    expect(cmp.displayClient()).toBe('Consumidor final');
+  });
+
   it('sends an idempotency key with every abono', async () => {
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 400, balanceDue: 600, status: 'PARTIAL' })),
     );
 
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
 
     expect(addPayment).toHaveBeenCalledTimes(1);
     expect(keysUsed()[0]).toBeTruthy();
@@ -110,13 +138,13 @@ describe('SaleDetail', () => {
    */
   it('reuses the same key when retrying an abono that failed', async () => {
     addPayment.mockReturnValue(throwError(() => ({ message: 'Network down' })));
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
     expect(cmp.paymentError()).toBe('Network down');
 
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 400, balanceDue: 600, status: 'PARTIAL' })),
     );
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
 
     const [first, second] = keysUsed();
     expect(addPayment).toHaveBeenCalledTimes(2);
@@ -129,12 +157,12 @@ describe('SaleDetail', () => {
    */
   it('mints a new key when the amount is edited after a failure', async () => {
     addPayment.mockReturnValue(throwError(() => ({ message: 'Boom' })));
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
 
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 500, balanceDue: 500, status: 'PARTIAL' })),
     );
-    await cmp.collect({ amount: 500, method: 'cash' });
+    await cmp.collect({ amount: 500, method: 'CASH' });
 
     const [first, second] = keysUsed();
     expect(second).not.toBe(first);
@@ -144,8 +172,8 @@ describe('SaleDetail', () => {
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 400, balanceDue: 600, status: 'PARTIAL' })),
     );
-    await cmp.collect({ amount: 400, method: 'cash' });
-    await cmp.collect({ amount: 400, method: 'cash' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
+    await cmp.collect({ amount: 400, method: 'CASH' });
 
     const [first, second] = keysUsed();
     expect(second).not.toBe(first);
@@ -155,7 +183,7 @@ describe('SaleDetail', () => {
     addPayment.mockReturnValue(
       of(sale({ amountPaid: 1000, balanceDue: 0, status: 'PAID' })),
     );
-    await cmp.collect({ amount: 1000, method: 'cash' });
+    await cmp.collect({ amount: 1000, method: 'CASH' });
 
     expect(cmp.canCollect()).toBe(false);
   });

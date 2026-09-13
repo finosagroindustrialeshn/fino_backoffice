@@ -159,6 +159,7 @@
           <th scope="col" class="text-right">Monto</th>
           <th scope="col" class="text-right">% visita</th>
           <th scope="col" class="text-right">% conversión</th>
+          <th scope="col"><span class="sr-only">Ventas</span></th>
         </tr>
       </ng-template>
 
@@ -202,6 +203,21 @@
             [class]="rateClass(row.conversionRate)"
           >
             {{ row.conversionRate | percent: '1.0-1' }}
+          </td>
+          <!-- The sales the report counted, row by row: salesCount and
+               salesAmount are built on the same routeId this filters by. -->
+          <td class="hidden md:table-cell">
+            <p-button
+              label="Ver ventas"
+              icon="pi pi-external-link"
+              size="small"
+              severity="secondary"
+              [text]="true"
+              [disabled]="row.salesCount === 0"
+              [routerLink]="['/ventas']"
+              [queryParams]="{ routeId: row.routeId }"
+              [attr.aria-label]="'Ver las ventas de la ruta de ' + row.sellerName"
+            />
           </td>
 
           <!-- Mobile card: one cell, everything laid out by hand -->
@@ -253,13 +269,27 @@
                 </dd>
               </div>
             </dl>
+
+            @if (row.salesCount > 0) {
+              <div class="mt-3 flex justify-end">
+                <p-button
+                  label="Ver ventas"
+                  icon="pi pi-external-link"
+                  size="small"
+                  severity="secondary"
+                  [text]="true"
+                  [routerLink]="['/ventas']"
+                  [queryParams]="{ routeId: row.routeId }"
+                />
+              </div>
+            }
           </td>
         </tr>
       </ng-template>
 
       <ng-template #emptymessage>
         <tr>
-          <td colspan="9">
+          <td colspan="10">
             <p class="py-8 text-center text-sm text-ink-soft">
               @if (list.loading()) {
                 Cargando rutas…

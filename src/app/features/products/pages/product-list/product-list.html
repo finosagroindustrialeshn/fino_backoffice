@@ -146,6 +146,7 @@
           <th scope="col" pSortableColumn="price">
             Precio <p-sortIcon field="price" />
           </th>
+          <th scope="col">Precio mín.</th>
           <th scope="col">Estado</th>
           <th scope="col">Acciones</th>
         </tr>
@@ -185,6 +186,22 @@
 
           <td class="hidden whitespace-nowrap md:table-cell">
             L {{ product.price | number: '1.2-2' }}
+          </td>
+
+          <!-- The floor the API enforces, and how far below the price it sits -->
+          <td class="hidden whitespace-nowrap md:table-cell">
+            <span class="block">L {{ product.minPrice | number: '1.2-2' }}</span>
+            <span class="flex items-center gap-1.5 text-xs text-ink-soft">
+              hasta {{ product.allowedDiscountPercent | number: '1.0-2' }} %
+              @if (product.maxDiscountPercent === null) {
+                <span
+                  class="inline-flex items-center rounded-full bg-cream px-2 py-0.5 text-xs font-medium text-ink-soft"
+                  title="Sin tope: se permite descontar hasta el costo"
+                >
+                  auto
+                </span>
+              }
+            </span>
           </td>
 
           <td class="hidden md:table-cell">
@@ -284,6 +301,21 @@
               />
             </div>
 
+            <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
+              <span>
+                Precio mín. L {{ product.minPrice | number: '1.2-2' }} · hasta
+                {{ product.allowedDiscountPercent | number: '1.0-2' }} %
+              </span>
+              @if (product.maxDiscountPercent === null) {
+                <span
+                  class="inline-flex items-center rounded-full bg-cream px-2 py-0.5 text-xs font-medium text-ink-soft"
+                  title="Sin tope: se permite descontar hasta el costo"
+                >
+                  auto
+                </span>
+              }
+            </div>
+
             <div class="mt-3 flex flex-col gap-2">
               <div class="flex items-center gap-2">
                 @if (canManage()) {
@@ -336,7 +368,7 @@
 
       <ng-template #emptymessage>
         <tr>
-          <td colspan="6">
+          <td colspan="7">
             <p class="py-8 text-center text-sm text-ink-soft">
               @if (list.loading()) {
                 Cargando productos…
