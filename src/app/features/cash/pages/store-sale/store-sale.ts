@@ -25,6 +25,7 @@ import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TextareaModule } from 'primeng/textarea';
 
+import { isApiError } from '../../../../core/http/api-error';
 import { MAX_PAGE_SIZE } from '../../../../core/http/pagination.model';
 import { toNumber } from '../../../../shared/forms/to-number';
 import type { HasUnsavedChanges } from '../../../../shared/guards/unsaved-changes.guard';
@@ -95,6 +96,10 @@ interface SaleLine {
   readonly available: number;
   /** Selling more units than the warehouse holds. */
   readonly exceedsStock: boolean;
+  /** Lowest unit price the catalog allows for this product. */
+  readonly minPrice: number;
+  /** Priced under the floor — the API refuses the whole sale for it. */
+  readonly belowMinPrice: boolean;
 }
 
 /**
@@ -153,6 +158,13 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
 
   protected readonly saving = signal(false);
   protected readonly saleError = signal<string | null>(null);
+  /**
+   * Floors the API enforced on a refused sale, keyed by product id. The
+   * catalog loaded at open can be stale — a floor raised since then only
+   * shows up as a 400 — so the line is flagged from what the API said, not
+   * from what the catalog remembers.
+   */
+  private readonly floorOverrides = signal<Record<string, number>>({});
   /** Set once the sale is registered, so the guard lets the page go. */
   private readonly submitted = signal(false);
 
@@ -224,6 +236,7 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
   protected readonly lines = computed<SaleLine[]>(() => {
     this.changes();
     const stock = this.stockByProduct();
+    const floors = this.floorOverrides();
     const names = new Map(this.catalog().map((p) => [p.id, p]));
     return this.items.controls.map((row, index) => {
       const raw = row.getRawValue();
@@ -231,6 +244,7 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
       const quantity = toNumber(raw.quantity);
       const unitPrice = toNumber(raw.unitPrice);
       const available = stock[raw.productId] ?? 0;
+      const minPrice = floors[raw.productId] ?? Number(product?.minPrice ?? 0);
       return {
         index,
         productId: raw.productId,
@@ -241,6 +255,9 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
         subtotal: quantity * unitPrice,
         available,
         exceedsStock: quantity > available,
+        minPrice,
+        // Compared at two decimals so a floor of 20.40 typed as 20.4 passes.
+        belowMinPrice: roundMoney(unitPrice) < roundMoney(minPrice),
       };
     });
   });
@@ -264,6 +281,11 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
 
   protected readonly hasStockIssue = computed(() =>
     this.lines().some((line) => line.exceedsStock),
+  );
+
+  /** The API refuses the whole sale over one line under its floor. */
+  protected readonly hasPriceIssue = computed(() =>
+    this.lines().some((line) => line.belowMinPrice),
   );
 
   protected readonly isCredit = computed(
@@ -346,6 +368,7 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
       !this.isEmpty() &&
       !this.overpaid() &&
       !this.hasStockIssue() &&
+      !this.hasPriceIssue() &&
       !this.missingReference() &&
       !this.needsClient() &&
       !this.saving(),
@@ -485,10 +508,35 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
       this.submitted.set(true);
       await this.router.navigate(['/ventas', sale.id]);
     } catch (error) {
-      this.saleError.set(toMessage(error, 'No se pudo registrar la venta.'));
+      this.saleError.set(
+        this.explainPriceFloor(error) ??
+          toMessage(error, 'No se pudo registrar la venta.'),
+      );
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /**
+   * Spells out the floor the API enforced and, when the refusal names a
+   * product in the cart, pins that floor on the line so the local alert
+   * points at it and Cobrar stays off until the price is fixed.
+   */
+  private explainPriceFloor(error: unknown): string | null {
+    const details = toPriceFloorDetails(error);
+    if (!details) {
+      return null;
+    }
+    const floor = formatMoney(details.minPrice);
+    const line = this.lines().find((l) => l.productId === details.productId);
+    if (!line) {
+      return `El precio está por debajo del mínimo permitido (L ${floor}). Revise la línea e intente de nuevo.`;
+    }
+    this.floorOverrides.update((floors) => ({
+      ...floors,
+      [line.productId]: details.minPrice,
+    }));
+    return `El precio de "${line.name}" está por debajo del mínimo permitido (L ${floor}). Revise la línea e intente de nuevo.`;
   }
 
   protected retry(): void {
@@ -533,6 +581,48 @@ function toStockMap(rows: readonly WarehouseStock[]): Record<string, number> {
   return Object.fromEntries(
     rows.map((row) => [row.productId, Number(row.quantity ?? 0)]),
   );
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * What the API attaches to a SALE_PRICE_BELOW_MINIMUM refusal. Only the
+ * floor is required: the product id is what lets the message name the line,
+ * but a refusal without it is still worth explaining.
+ */
+interface PriceFloorDetails {
+  readonly minPrice: number;
+  readonly productId?: string;
+}
+
+function isPriceFloorDetails(value: unknown): value is PriceFloorDetails {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as { minPrice?: unknown; productId?: unknown };
+  return (
+    typeof candidate.minPrice === 'number' &&
+    Number.isFinite(candidate.minPrice) &&
+    (candidate.productId === undefined || typeof candidate.productId === 'string')
+  );
+}
+
+/** The floor details out of a caught error, or null for any other failure. */
+function toPriceFloorDetails(error: unknown): PriceFloorDetails | null {
+  if (
+    !isApiError(error) ||
+    error.code !== 'SALE_PRICE_BELOW_MINIMUM' ||
+    !isPriceFloorDetails(error.details)
+  ) {
+    return null;
+  }
+  return error.details;
+}
+
+function formatMoney(value: number): string {
+  return roundMoney(value).toFixed(2);
 }
 
 function toMessage(error: unknown, fallback: string): string {

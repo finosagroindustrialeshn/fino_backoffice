@@ -42,6 +42,8 @@ interface PageInternals {
     unitPrice: number;
     subtotal: number;
     exceedsStock: boolean;
+    minPrice: number;
+    belowMinPrice: boolean;
   }[];
   results(): readonly { id: string; name: string; inCart: boolean }[];
   query(): string;
@@ -60,6 +62,7 @@ interface PageInternals {
   taxableBase(): number;
   tax(): number;
   hasStockIssue(): boolean;
+  hasPriceIssue(): boolean;
   balanceDue(): number;
   overpaid(): boolean;
   changeDue(): number;
@@ -73,7 +76,14 @@ interface PageInternals {
   saleError(): string | null;
 }
 
-function product(id: string, name: string, sku: string, price: number): Product {
+/** `minPrice` defaults to the cost; pass it to model a tighter floor. */
+function product(
+  id: string,
+  name: string,
+  sku: string,
+  price: number,
+  minPrice = price / 2,
+): Product {
   return {
     id,
     name,
@@ -84,6 +94,9 @@ function product(id: string, name: string, sku: string, price: number): Product 
     composition: null,
     cost: price / 2,
     price,
+    maxDiscountPercent: null,
+    minPrice,
+    allowedDiscountPercent: Math.floor(((price - minPrice) / price) * 100),
     categoryId: null,
     presentationId: null,
     isActive: true,
@@ -95,6 +108,8 @@ function product(id: string, name: string, sku: string, price: number): Product 
 const PRODUCTS = [
   product('p1', 'Urea 50kg', 'URE50', 1150),
   product('p2', 'Sal 25kg', 'SAL25', 430),
+  // No discount allowed: the floor is the price itself.
+  product('p3', 'Cal 20kg', 'CAL20', 200, 200),
 ];
 
 const SALE_ID = '11111111-1111-4111-8111-111111111111';
@@ -120,7 +135,7 @@ describe('StoreSale', () => {
         { provide: SaleDataClient, useValue: { create } },
         {
           provide: ProductDataClient,
-          useValue: { list: () => of({ items: PRODUCTS, meta: { total: 2 } }) },
+          useValue: { list: () => of({ items: PRODUCTS, meta: { total: 3 } }) },
         },
         {
           provide: ClientDataClient,
@@ -134,8 +149,9 @@ describe('StoreSale', () => {
                 items: [
                   { productId: 'p1', quantity: 10, updatedAt: '' },
                   { productId: 'p2', quantity: 3, updatedAt: '' },
+                  { productId: 'p3', quantity: 5, updatedAt: '' },
                 ],
-                meta: { total: 2 },
+                meta: { total: 3 },
               }),
           },
         },
@@ -285,6 +301,46 @@ describe('StoreSale', () => {
       setQuantity(0, 4);
       expect(cmp.hasStockIssue()).toBe(true);
       expect(cmp.lines()[0]?.exceedsStock).toBe(true);
+    });
+
+    // The API refuses the whole sale over one line under its floor, so the
+    // cashier hears it before pressing Cobrar.
+    it("flags a unit price below the product's minimum", () => {
+      addFirst('urea'); // floor is 575
+      cmp.items.at(0).controls.unitPrice.setValue(574.99);
+
+      expect(cmp.lines()[0]?.minPrice).toBe(575);
+      expect(cmp.lines()[0]?.belowMinPrice).toBe(true);
+      expect(cmp.hasPriceIssue()).toBe(true);
+    });
+
+    it('accepts a unit price equal to the minimum', () => {
+      addFirst('urea');
+      cmp.items.at(0).controls.unitPrice.setValue(575);
+
+      expect(cmp.lines()[0]?.belowMinPrice).toBe(false);
+      expect(cmp.hasPriceIssue()).toBe(false);
+    });
+
+    // The floor caps discounts, not markups.
+    it('accepts a unit price above the catalog price', () => {
+      addFirst('urea');
+      cmp.items.at(0).controls.unitPrice.setValue(1300);
+
+      expect(cmp.lines()[0]?.belowMinPrice).toBe(false);
+      expect(cmp.hasPriceIssue()).toBe(false);
+      expect(cmp.canSubmit()).toBe(true);
+    });
+
+    it('allows no discount at all when the floor is the price', () => {
+      addFirst('cal'); // price 200, floor 200
+
+      cmp.items.at(0).controls.unitPrice.setValue(199.99);
+      expect(cmp.lines()[0]?.belowMinPrice).toBe(true);
+
+      cmp.items.at(0).controls.unitPrice.setValue(200);
+      expect(cmp.lines()[0]?.belowMinPrice).toBe(false);
+      expect(cmp.hasPriceIssue()).toBe(false);
     });
 
     it('removes and clears lines', () => {
@@ -441,6 +497,92 @@ describe('StoreSale', () => {
       expect(cmp.saleError()).toBe('Stock insuficiente.');
       expect(navigate).not.toHaveBeenCalled();
       expect(cmp.items.length).toBe(1);
+    });
+
+    it('refuses to submit while a line is below its minimum', async () => {
+      addFirst('urea');
+      cmp.items.at(0).controls.unitPrice.setValue(100);
+
+      expect(cmp.canSubmit()).toBe(false);
+
+      await cmp.submit();
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    // The cashier's catalog can be stale: the floor the API enforced is the
+    // one that counts, so it is spelled out rather than hidden behind the
+    // generic message.
+    it('explains a SALE_PRICE_BELOW_MINIMUM refusal with the minimum price', async () => {
+      create.mockReturnValueOnce(
+        throwError(() => ({
+          status: 400,
+          code: 'SALE_PRICE_BELOW_MINIMUM',
+          message: 'Unit price 18.00 for "Urea 50kg" (URE50) is below the minimum 20.40',
+          details: { productId: 'p1', minPrice: 20.4, unitPrice: 18 },
+        })),
+      );
+      addFirst('urea');
+
+      await cmp.submit();
+
+      expect(cmp.saleError()).toContain('Urea 50kg');
+      expect(cmp.saleError()).toContain('20.40');
+      expect(cmp.saleError()).toContain('mínimo');
+      expect(navigate).not.toHaveBeenCalled();
+      expect(cmp.items.length).toBe(1);
+    });
+
+    // A floor raised since the catalog loaded passes the local check and
+    // comes back as a 400; the refusal names the line and pins the new floor
+    // on it so Cobrar stays off until the price is fixed.
+    it('names the failing line and flags it from what the API enforced', async () => {
+      addFirst('urea');
+      addFirst('sal'); // catalog floor 215; the API now says 500
+      cmp.items.at(1).controls.unitPrice.setValue(430);
+      expect(cmp.hasPriceIssue()).toBe(false);
+
+      create.mockReturnValueOnce(
+        throwError(() => ({
+          status: 400,
+          code: 'SALE_PRICE_BELOW_MINIMUM',
+          message: 'Unit price 430.00 for "Sal 25kg" (SAL25) is below the minimum 500.00',
+          details: { productId: 'p2', minPrice: 500, unitPrice: 430 },
+        })),
+      );
+
+      await cmp.submit();
+
+      expect(cmp.saleError()).toContain('Sal 25kg');
+      expect(cmp.saleError()).toContain('500.00');
+      expect(cmp.lines()[1]?.minPrice).toBe(500);
+      expect(cmp.lines()[1]?.belowMinPrice).toBe(true);
+      expect(cmp.lines()[0]?.belowMinPrice).toBe(false);
+      expect(cmp.hasPriceIssue()).toBe(true);
+      expect(cmp.canSubmit()).toBe(false);
+
+      // Meeting the enforced floor lets the sale through again.
+      cmp.items.at(1).controls.unitPrice.setValue(500);
+      expect(cmp.hasPriceIssue()).toBe(false);
+      expect(cmp.canSubmit()).toBe(true);
+    });
+
+    it('falls back to the generic floor wording when the product is not in the cart', async () => {
+      create.mockReturnValueOnce(
+        throwError(() => ({
+          status: 400,
+          code: 'SALE_PRICE_BELOW_MINIMUM',
+          message: 'below the minimum',
+          details: { productId: 'unknown', minPrice: 20.4, unitPrice: 18 },
+        })),
+      );
+      addFirst('urea');
+
+      await cmp.submit();
+
+      expect(cmp.saleError()).toBe(
+        'El precio está por debajo del mínimo permitido (L 20.40). Revise la línea e intente de nuevo.',
+      );
+      expect(cmp.hasPriceIssue()).toBe(false);
     });
   });
 
