@@ -4,19 +4,17 @@ import {
   computed,
   inject,
   output,
-  signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import type { MenuItem } from 'primeng/api';
 import { MenuModule } from 'primeng/menu';
-import { PopoverModule } from 'primeng/popover';
 
 import { AuthSession } from '../../../core/auth/auth-session';
 import { getInitials, ROLE_LABELS } from '../../../core/auth/user-profile.model';
 
 @Component({
   selector: 'app-topbar',
-  imports: [MenuModule, PopoverModule],
+  imports: [MenuModule],
   templateUrl: './topbar.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -35,13 +33,6 @@ export class Topbar {
   protected readonly initials = computed(() =>
     getInitials(this.profile()?.fullName),
   );
-
-  /** No notifications source wired yet; starts at zero. */
-  protected readonly notificationCount = signal(0);
-  protected readonly notificationLabel = computed(() => {
-    const count = this.notificationCount();
-    return count === 0 ? 'Sin novedad' : `${count} notificaciones`;
-  });
 
   protected readonly userMenuItems: MenuItem[] = [
     {
