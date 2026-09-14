@@ -2,7 +2,7 @@ import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
 
 /**
- * Fino Agroindustriales brand preset.
+ * Finos Agroindustriales brand preset.
  *
  * Built on top of the Aura base preset. Two overrides:
  *  - semantic.primary: the brand green scale (accent-primary #2D5E3A as 500,
