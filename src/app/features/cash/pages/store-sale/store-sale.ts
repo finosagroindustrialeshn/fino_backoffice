@@ -23,6 +23,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
+import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
 import { isApiError } from '../../../../core/http/api-error';
@@ -35,6 +36,7 @@ import type { WarehouseStock } from '../../../inventory/models/inventory.model';
 import { InventoryDataClient } from '../../../inventory/services/inventory-data';
 import type { Product } from '../../../products/models/product.model';
 import { ProductDataClient } from '../../../products/services/product-data';
+import { ISV_RATE, isvBreakdown } from '../../../sales/models/isv-breakdown';
 import {
   PAYMENT_METHOD_OPTIONS,
   requiresReference,
@@ -51,14 +53,6 @@ type ItemRow = FormGroup<{
   quantity: FormControl<number>;
   unitPrice: FormControl<number>;
 }>;
-
-/**
- * ISV rate used to break the total down. Catalog prices are treated as
- * TAX-INCLUSIVE (the Honduran retail convention), so this only splits the
- * amount for display — it never changes what the customer pays, which must
- * keep matching the `total` the API computes from the line items.
- */
-const ISV_RATE = 0.15;
 
 /** Products, clients and stock are bounded pickers for the counter. */
 const PICKER_SIZE = MAX_PAGE_SIZE;
@@ -100,6 +94,8 @@ interface SaleLine {
   readonly minPrice: number;
   /** Priced under the floor — the API refuses the whole sale for it. */
   readonly belowMinPrice: boolean;
+  /** Exempt from ISV by law — shown on the line, never changes its subtotal. */
+  readonly isvExempt: boolean;
 }
 
 /**
@@ -124,6 +120,7 @@ interface SaleLine {
     InputTextModule,
     SelectModule,
     SkeletonModule,
+    TagModule,
     TextareaModule,
   ],
   templateUrl: './store-sale.html',
@@ -258,6 +255,8 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
         minPrice,
         // Compared at two decimals so a floor of 20.40 typed as 20.4 passes.
         belowMinPrice: roundMoney(unitPrice) < roundMoney(minPrice),
+        // Taxable is the fiscally conservative fallback for an unresolved product.
+        isvExempt: product?.isvExempt ?? false,
       };
     });
   });
@@ -272,12 +271,12 @@ export class StoreSale implements OnInit, HasUnsavedChanges {
     this.lines().reduce((sum, line) => sum + line.subtotal, 0),
   );
 
-  /** Catalog prices include ISV, so the base is the total less the tax. */
-  protected readonly tax = computed(
-    () => this.total() - this.total() / (1 + ISV_RATE),
-  );
-
-  protected readonly taxableBase = computed(() => this.total() - this.tax());
+  /**
+   * ISV split for the totals block only. Prices are tax-inclusive, so this
+   * never changes what is charged: `total()` stays the figure the payment
+   * logic and the API work from.
+   */
+  protected readonly breakdown = computed(() => isvBreakdown(this.lines()));
 
   protected readonly hasStockIssue = computed(() =>
     this.lines().some((line) => line.exceedsStock),

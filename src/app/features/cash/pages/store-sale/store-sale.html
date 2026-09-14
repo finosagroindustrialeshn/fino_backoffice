@@ -252,8 +252,11 @@
                           <span class="truncate text-sm font-medium text-ink">
                             {{ line.name }}
                           </span>
-                          <span class="text-xs text-ink-soft">
-                            {{ line.sku }}
+                          <span class="flex min-w-0 items-center gap-1.5 text-xs text-ink-soft">
+                            <span class="truncate">{{ line.sku }}</span>
+                            @if (line.isvExempt) {
+                              <p-tag class="shrink-0" value="Exento" severity="info" />
+                            }
                           </span>
                         </span>
                       }
@@ -544,20 +547,37 @@
               class="flex flex-col gap-2 rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-3"
               aria-live="polite"
             >
-              <div class="flex items-center justify-between text-sm">
-                <dt class="text-ink-soft">Subtotal</dt>
-                <dd class="tabular-nums text-ink-soft">
-                  {{ taxableBase() | currency: 'HNL' : 'L ' : '1.2-2' }}
-                </dd>
-              </div>
-              <div class="flex items-center justify-between text-sm">
-                <dt class="text-ink-soft">
-                  ISV {{ isvRate * 100 }}% (incluido)
-                </dt>
-                <dd class="tabular-nums text-ink-soft">
-                  {{ tax() | currency: 'HNL' : 'L ' : '1.2-2' }}
-                </dd>
-              </div>
+              <!-- ISV is already inside the prices: these rows only show how
+                   the total splits, and an all-exempt or all-taxable cart
+                   hides the rows that would read zero. -->
+              @if (breakdown(); as split) {
+                @if (split.taxableBase > 0) {
+                  <div class="flex items-center justify-between text-sm">
+                    <dt class="text-ink-soft">Subtotal gravado</dt>
+                    <dd class="tabular-nums text-ink-soft">
+                      {{ split.taxableBase | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </dd>
+                  </div>
+                }
+                @if (split.exemptBase > 0) {
+                  <div class="flex items-center justify-between text-sm">
+                    <dt class="text-ink-soft">Subtotal exento</dt>
+                    <dd class="tabular-nums text-ink-soft">
+                      {{ split.exemptBase | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </dd>
+                  </div>
+                }
+                @if (split.isv > 0) {
+                  <div class="flex items-center justify-between text-sm">
+                    <dt class="text-ink-soft">
+                      ISV ({{ isvRate * 100 }} %) incluido
+                    </dt>
+                    <dd class="tabular-nums text-ink-soft">
+                      {{ split.isv | currency: 'HNL' : 'L ' : '1.2-2' }}
+                    </dd>
+                  </div>
+                }
+              }
               <div
                 class="mt-1 flex items-center justify-between border-t border-ink/10 pt-2 text-lg font-semibold text-ink"
               >
