@@ -1,4 +1,5 @@
 import type { Role } from '../../../core/auth/user-profile.model';
+import type { DispatchItemInput } from '../../dispatches/models/dispatch.model';
 
 /**
  * Lifecycle of a pre-sale order (pedido de preventa).
@@ -304,6 +305,46 @@ export function canCancelOrder(order: SalesOrder): boolean {
  */
 export function isCancelReasonRequired(status: SalesOrderStatus): boolean {
   return status !== 'DRAFT';
+}
+
+/**
+ * A dispatch is the load that lets the seller deliver the order, so it needs
+ * a seller to load it for (`assignedToId`) and units still owed. That leaves
+ * ASSIGNED and PARTIALLY_CONVERTED: PLACED has nobody to carry it yet, a
+ * DRAFT is still the preventista's notebook, and closed or fully delivered
+ * orders have nothing left to load.
+ */
+export function canDispatchOrder(order: SalesOrder): boolean {
+  return (
+    order.assignedToId !== null &&
+    order.unitsPending > 0 &&
+    (order.status === 'ASSIGNED' || order.status === 'PARTIALLY_CONVERTED')
+  );
+}
+
+/**
+ * The lines a dispatch for this order would carry: every product with units
+ * still owed, at the PENDING quantity — not the ordered one, so a partial
+ * delivery is never loaded twice. Two order lines for the same product are
+ * summed, because a dispatch holds one quantity per product.
+ */
+export function pendingDispatchLines(
+  order: SalesOrder,
+): readonly DispatchItemInput[] {
+  const byProduct = new Map<string, number>();
+  for (const item of order.items) {
+    if (item.quantityPending <= 0) {
+      continue;
+    }
+    byProduct.set(
+      item.productId,
+      (byProduct.get(item.productId) ?? 0) + item.quantityPending,
+    );
+  }
+  return [...byProduct].map(([productId, quantity]) => ({
+    productId,
+    quantity,
+  }));
 }
 
 /**

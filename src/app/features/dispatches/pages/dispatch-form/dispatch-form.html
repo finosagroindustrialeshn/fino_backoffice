@@ -104,13 +104,18 @@
               placeholder="Ej. 4821"
               styleClass="w-full"
               inputStyleClass="w-full"
-              aria-describedby="dispatch-order-number-hint"
+              [attr.aria-describedby]="
+                form.controls.deliveryOrderNumber.touched &&
+                form.controls.deliveryOrderNumber.invalid
+                  ? 'dispatch-order-number-error'
+                  : 'dispatch-order-number-hint'
+              "
             />
             @if (
               form.controls.deliveryOrderNumber.touched &&
               form.controls.deliveryOrderNumber.invalid
             ) {
-              <span class="text-xs text-red-600" role="alert">
+              <span id="dispatch-order-number-error" class="text-xs text-red-600" role="alert">
                 Escribí el número entero de la orden de entrega, desde
                 {{ minOrderNumber }}.
               </span>

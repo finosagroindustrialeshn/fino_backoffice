@@ -17,10 +17,13 @@ import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
+import type { Dispatch } from '../../../dispatches/models/dispatch.model';
 import { UserDataClient } from '../../../users/services/user-data';
+import { CreateDispatchDialog } from '../../components/create-dispatch-dialog/create-dispatch-dialog';
 import {
   canAssignOrder,
   canCancelOrder,
+  canDispatchOrder,
   canEditOrder,
   canPlaceOrder,
   canUnassignOrder,
@@ -43,6 +46,7 @@ const LOOKUP_SIZE = 100;
     DatePipe,
     FormsModule,
     RouterLink,
+    CreateDispatchDialog,
     ButtonModule,
     DialogModule,
     SelectModule,
@@ -70,6 +74,13 @@ export class SalesOrderDetail implements OnInit {
   protected readonly assignDialogOpen = signal(false);
   protected readonly unassignDialogOpen = signal(false);
   protected readonly cancelDialogOpen = signal(false);
+  protected readonly dispatchDialogOpen = signal(false);
+  /**
+   * The last dispatch created from this page. Kept here, not on the order:
+   * the API has no link between the two, so the order itself does not
+   * change when a load goes out for it.
+   */
+  protected readonly createdDispatch = signal<Dispatch | null>(null);
   protected readonly sellerToAssign = signal<string | null>(null);
   protected readonly unassignReason = signal('');
   protected readonly cancelReason = signal('');
@@ -104,6 +115,20 @@ export class SalesOrderDetail implements OnInit {
   protected readonly canCancel = computed(() => {
     const order = this.order();
     return order ? canCancelOrder(order) : false;
+  });
+
+  /**
+   * Once a dispatch went out from this page the button goes away for the
+   * rest of the visit: the API keeps no link between the two, so the order's
+   * pending units do not move until the seller actually delivers, and a
+   * second click would load the same units twice.
+   */
+  protected readonly canDispatch = computed(() => {
+    const order = this.order();
+    if (!order || this.createdDispatch() !== null) {
+      return false;
+    }
+    return canDispatchOrder(order);
   });
 
   protected readonly needsCancelReason = computed(() => {
@@ -193,6 +218,16 @@ export class SalesOrderDetail implements OnInit {
     if (order) {
       void this.router.navigate(['/pedidos', order.id, 'editar']);
     }
+  }
+
+  protected openDispatchDialog(): void {
+    this.actionError.set(null);
+    this.createdDispatch.set(null);
+    this.dispatchDialogOpen.set(true);
+  }
+
+  protected onDispatchCreated(dispatch: Dispatch): void {
+    this.createdDispatch.set(dispatch);
   }
 
   protected statusLabel(status: SalesOrderStatus): string {
