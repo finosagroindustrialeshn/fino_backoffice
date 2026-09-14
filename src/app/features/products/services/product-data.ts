@@ -71,12 +71,17 @@ export class ProductDataClient {
     return this.api.patch<Product>(`/products/${id}`, dto);
   }
 
-  setActive(id: string, isActive: boolean): Observable<Product> {
-    return this.api.patch<Product>(`/products/${id}`, { isActive });
+  /**
+   * Products are never deleted — they back sales, stock and accounting rows.
+   * Activation is the only lifecycle change, and the API records the flip in
+   * the product's change history.
+   */
+  activate(id: string): Observable<Product> {
+    return this.api.patch<Product>(`/products/${id}/activate`);
   }
 
-  remove(id: string): Observable<void> {
-    return this.api.delete(`/products/${id}`);
+  deactivate(id: string): Observable<Product> {
+    return this.api.patch<Product>(`/products/${id}/deactivate`);
   }
 
   /**

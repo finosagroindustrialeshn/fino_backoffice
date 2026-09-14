@@ -275,6 +275,22 @@
           </div>
         </div>
 
+        <!-- ISV exemption: informational, the price stays ISV-inclusive -->
+        <div class="flex flex-col gap-1.5">
+          <label for="product-isv-exempt" class="flex items-center gap-2 text-sm text-ink">
+            <p-checkbox
+              formControlName="isvExempt"
+              [binary]="true"
+              inputId="product-isv-exempt"
+            />
+            <span>Exento de ISV</span>
+          </label>
+          <span id="product-isv-exempt-hint" class="text-xs text-ink-soft">
+            Producto exento de ISV por ley. El precio sigue siendo el que paga el
+            cliente.
+          </span>
+        </div>
+
         <!-- Description -->
         <div class="flex flex-col gap-1.5">
           <label
@@ -438,14 +454,14 @@
                   </div>
                   <div class="flex flex-wrap items-center gap-2 text-sm">
                     <span class="text-ink-soft line-through">
-                      {{ changeValue(change.oldValue) }}
+                      {{ changeValue(change.field, change.oldValue) }}
                     </span>
                     <i
                       class="pi pi-arrow-right text-[10px] text-ink-soft"
                       aria-hidden="true"
                     ></i>
                     <span class="font-medium text-ink">
-                      {{ changeValue(change.newValue) }}
+                      {{ changeValue(change.field, change.newValue) }}
                     </span>
                   </div>
                 </li>

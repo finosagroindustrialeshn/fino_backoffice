@@ -4,12 +4,14 @@ import type { Role } from '../../../core/auth/user-profile.model';
 import {
   canAssignOrder,
   canCancelOrder,
+  canDispatchOrder,
   canEditOrder,
   canPlaceOrder,
   canUnassignOrder,
   isCancelReasonRequired,
   isOrderClosed,
   isOverdue,
+  pendingDispatchLines,
   toLineInputs,
   type SalesOrder,
   type SalesOrderItem,
@@ -267,5 +269,45 @@ describe('isOverdue', () => {
       const closed = order({ status, expectedDeliveryDate: '2026-01-01' });
       expect(isOverdue(closed, TODAY)).toBe(false);
     }
+  });
+});
+
+describe('canDispatchOrder', () => {
+  it('offers a dispatch only to an order a seller holds with units still owed', () => {
+    const dispatchable = ALL_STATUSES.filter((status) =>
+      canDispatchOrder(order({ ...assignedTo(status), unitsPending: 5 })),
+    );
+    expect(dispatchable).toEqual(['ASSIGNED', 'PARTIALLY_CONVERTED']);
+  });
+
+  it('refuses a PLACED order — there is nobody to load it for yet', () => {
+    expect(canDispatchOrder(order({ status: 'PLACED', unitsPending: 5 }))).toBe(false);
+  });
+
+  it('has nothing to load once every unit was delivered', () => {
+    const delivered = order({ ...assignedTo('ASSIGNED'), unitsPending: 0 });
+    expect(canDispatchOrder(delivered)).toBe(false);
+  });
+});
+
+describe('pendingDispatchLines', () => {
+  it('carries only the pending units and sums lines for the same product', () => {
+    const lines = pendingDispatchLines(
+      order({
+        items: [
+          line({ productId: 'p1', quantity: 5, quantityFulfilled: 2, quantityPending: 3 }),
+          // A second line for the same product: one dispatch line, summed.
+          line({ productId: 'p1', quantity: 4, quantityFulfilled: 0, quantityPending: 4 }),
+          // Fully delivered: loading it again would be a second delivery.
+          line({ productId: 'p2', quantity: 4, quantityFulfilled: 4, quantityPending: 0 }),
+        ],
+      }),
+    );
+
+    expect(lines).toEqual([{ productId: 'p1', quantity: 7 }]);
+  });
+
+  it('is empty when nothing is owed', () => {
+    expect(pendingDispatchLines(order())).toEqual([]);
   });
 });

@@ -1,0 +1,140 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="visible.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!saving()"
+  header="Crear despacho"
+  styleClass="w-[min(32rem,92vw)]"
+>
+  <form class="flex flex-col gap-5" [formGroup]="form" (ngSubmit)="submit()">
+    <p class="text-sm text-ink-soft">
+      La carga sale con lo que el pedido todavía debe. Solo hace falta el día
+      y el número de la orden de entrega que viaja con ella.
+    </p>
+
+    @if (error(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+      >
+        <p>{{ message }}</p>
+        @if (fieldErrors().length > 0) {
+          <ul class="flex flex-col gap-1 text-xs">
+            @for (fieldError of fieldErrors(); track fieldError.field) {
+              <li>
+                <span class="font-mono font-semibold">{{ fieldError.field }}</span>
+                — {{ fieldError.messages.join('. ') }}
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+
+    <!-- What the API already knows from the order -->
+    <div class="flex flex-col gap-3 rounded-xl bg-cream px-4 py-3">
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Vendedor
+        </span>
+        <span class="text-sm font-medium text-ink">{{ sellerName() }}</span>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Productos pendientes
+        </span>
+        <ul class="flex flex-col gap-0.5 text-sm text-ink">
+          @for (item of pendingItems(); track item.productId) {
+            <li>
+              <span class="font-semibold">{{ item.quantity }}×</span>
+              {{ item.productName }}
+              <span class="text-xs text-ink-soft">({{ item.productSku }})</span>
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="dispatch-date"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          Fecha
+        </label>
+        <p-datepicker
+          inputId="dispatch-date"
+          formControlName="date"
+          dateFormat="dd/mm/yy"
+          appendTo="body"
+          styleClass="w-full"
+          [showIcon]="true"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="dispatch-order-number"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+        >
+          N.° de orden de entrega
+        </label>
+        <p-inputnumber
+          inputId="dispatch-order-number"
+          formControlName="deliveryOrderNumber"
+          [min]="minOrderNumber"
+          [useGrouping]="false"
+          [autofocus]="true"
+          placeholder="Ej. 4821"
+          styleClass="w-full"
+          inputStyleClass="w-full"
+          [attr.aria-describedby]="
+            orderNumberInvalid()
+              ? 'dispatch-order-number-error'
+              : 'dispatch-order-number-hint'
+          "
+        />
+        @if (orderNumberInvalid()) {
+          <span id="dispatch-order-number-error" class="text-xs text-red-600" role="alert">
+            Escribí el número entero de la orden de entrega, desde
+            {{ minOrderNumber }}.
+          </span>
+        } @else {
+          <span id="dispatch-order-number-hint" class="text-xs text-ink-soft">
+            El del papel que viaja con la carga. No se puede repetir.
+          </span>
+        }
+      </div>
+    </div>
+
+    <!-- The API keeps no link between a dispatch and an order, so nothing
+         here can tell whether this order's load already went out. -->
+    <p class="text-xs font-medium text-amber-800">
+      <i class="pi pi-exclamation-triangle mr-1" aria-hidden="true"></i>
+      Si esta preventa ya tiene un despacho en camino, no crees otro.
+    </p>
+
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <p-button
+        type="button"
+        label="Cancelar"
+        severity="secondary"
+        [text]="true"
+        [disabled]="saving()"
+        (onClick)="cancel()"
+      />
+      <p-button
+        type="submit"
+        label="Crear despacho"
+        icon="pi pi-truck"
+        severity="success"
+        [loading]="saving()"
+        [disabled]="saving() || form.invalid"
+      />
+    </div>
+  </form>
+</p-dialog>

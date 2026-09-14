@@ -58,6 +58,15 @@
               (onClick)="openAssignDialog()"
             />
           }
+          @if (canDispatch()) {
+            <p-button
+              label="Crear despacho"
+              icon="pi pi-truck"
+              severity="success"
+              [disabled]="acting()"
+              (onClick)="openDispatchDialog()"
+            />
+          }
           @if (canUnassign()) {
             <p-button
               label="Devolver a la cola"
@@ -83,6 +92,27 @@
 
       @if (actionError(); as message) {
         <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+      }
+
+      @if (createdDispatch(); as dispatch) {
+        <div
+          role="status"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+        >
+          <span>
+            <i class="pi pi-check-circle mr-1 text-xs" aria-hidden="true"></i>
+            Despacho creado con la orden de entrega N.°
+            {{ dispatch.deliveryOrderNumber }}. El vendedor lo verá entre sus
+            cargas.
+          </span>
+          <a
+            routerLink="/despacho"
+            class="inline-flex items-center gap-1 font-semibold underline-offset-2 hover:underline"
+          >
+            Ver despachos
+            <i class="pi pi-arrow-right text-xs" aria-hidden="true"></i>
+          </a>
+        </div>
       }
     </div>
 
@@ -370,6 +400,13 @@
         </div>
       </section>
     }
+
+    <!-- Create dispatch dialog: only the day and the paper's number are asked -->
+    <app-create-dispatch-dialog
+      [order]="order"
+      [(visible)]="dispatchDialogOpen"
+      (created)="onDispatchCreated($event)"
+    />
 
     <!-- Assign dialog -->
     <p-dialog

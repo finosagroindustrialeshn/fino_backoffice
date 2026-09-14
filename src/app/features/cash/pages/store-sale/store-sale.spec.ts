@@ -44,6 +44,7 @@ interface PageInternals {
     exceedsStock: boolean;
     minPrice: number;
     belowMinPrice: boolean;
+    isvExempt: boolean;
   }[];
   results(): readonly { id: string; name: string; inCart: boolean }[];
   query(): string;
@@ -59,8 +60,12 @@ interface PageInternals {
   isEmpty(): boolean;
   itemCount(): number;
   total(): number;
-  taxableBase(): number;
-  tax(): number;
+  breakdown(): {
+    taxableBase: number;
+    exemptBase: number;
+    isv: number;
+    total: number;
+  };
   hasStockIssue(): boolean;
   hasPriceIssue(): boolean;
   balanceDue(): number;
@@ -83,6 +88,7 @@ function product(
   sku: string,
   price: number,
   minPrice = price / 2,
+  isvExempt = false,
 ): Product {
   return {
     id,
@@ -99,6 +105,7 @@ function product(
     allowedDiscountPercent: Math.floor(((price - minPrice) / price) * 100),
     categoryId: null,
     presentationId: null,
+    isvExempt,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -110,6 +117,8 @@ const PRODUCTS = [
   product('p2', 'Sal 25kg', 'SAL25', 430),
   // No discount allowed: the floor is the price itself.
   product('p3', 'Cal 20kg', 'CAL20', 200, 200),
+  // Exempt from ISV by law: its price carries no tax to split out.
+  product('p4', 'Semilla maíz 1kg', 'SEM01', 100, 50, true),
 ];
 
 const SALE_ID = '11111111-1111-4111-8111-111111111111';
@@ -135,7 +144,7 @@ describe('StoreSale', () => {
         { provide: SaleDataClient, useValue: { create } },
         {
           provide: ProductDataClient,
-          useValue: { list: () => of({ items: PRODUCTS, meta: { total: 3 } }) },
+          useValue: { list: () => of({ items: PRODUCTS, meta: { total: 4 } }) },
         },
         {
           provide: ClientDataClient,
@@ -150,8 +159,9 @@ describe('StoreSale', () => {
                   { productId: 'p1', quantity: 10, updatedAt: '' },
                   { productId: 'p2', quantity: 3, updatedAt: '' },
                   { productId: 'p3', quantity: 5, updatedAt: '' },
+                  { productId: 'p4', quantity: 20, updatedAt: '' },
                 ],
-                meta: { total: 3 },
+                meta: { total: 4 },
               }),
           },
         },
@@ -288,9 +298,43 @@ describe('StoreSale', () => {
       addFirst('urea'); // 1150 = 1000 + 15%
 
       expect(cmp.total()).toBe(1150);
-      expect(cmp.taxableBase()).toBeCloseTo(1000, 6);
-      expect(cmp.tax()).toBeCloseTo(150, 6);
-      expect(cmp.taxableBase() + cmp.tax()).toBeCloseTo(cmp.total(), 6);
+      expect(cmp.breakdown()).toEqual({
+        taxableBase: 1000,
+        exemptBase: 0,
+        isv: 150,
+        total: 1150,
+      });
+    });
+
+    it('keeps an exempt line out of the taxable base and the ISV', () => {
+      addFirst('semilla'); // 100, exempt
+      addFirst('urea'); // 1150 = 1000 + 15%
+
+      expect(cmp.lines()[0]?.isvExempt).toBe(true);
+      expect(cmp.lines()[1]?.isvExempt).toBe(false);
+      expect(cmp.breakdown()).toEqual({
+        taxableBase: 1000,
+        exemptBase: 100,
+        isv: 150,
+        total: 1250,
+      });
+      expect(cmp.total()).toBe(1250);
+    });
+
+    // A product the catalog no longer resolves is treated as taxable: the
+    // fiscally conservative reading, never a silent exemption.
+    it('treats a line for an unresolved product as taxable', () => {
+      addFirst('semilla'); // exempt while resolved
+      cmp.items.at(0).controls.productId.setValue('ghost');
+      cmp.items.at(0).controls.unitPrice.setValue(115);
+
+      expect(cmp.lines()[0]?.isvExempt).toBe(false);
+      expect(cmp.breakdown()).toEqual({
+        taxableBase: 100,
+        exemptBase: 0,
+        isv: 15,
+        total: 115,
+      });
     });
 
     it('flags a line that outruns warehouse stock', () => {
@@ -432,6 +476,58 @@ describe('StoreSale', () => {
         paymentMethod: 'CASH',
         items: [{ productId: 'p1', quantity: 2, unitPrice: 1150 }],
       } satisfies CreateSalePayload);
+    });
+
+    // The split is display only: the rows appear, the payload does not change.
+    it('shows the ISV split for a mixed cart and sends the lines untouched', async () => {
+      addFirst('semilla'); // 100, exempt
+      addFirst('urea'); // 1150 = 1000 + 15%
+      setQuantity(1, 2);
+      fixture.detectChanges();
+
+      const rows = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('dl > div'),
+      ).map((row) => row.textContent?.replace(/\s+/g, ' ').trim());
+      expect(rows).toEqual([
+        'Subtotal gravado L 2,000.00',
+        'Subtotal exento L 100.00',
+        'ISV (15 %) incluido L 300.00',
+        'Total L 2,400.00',
+      ]);
+      const tags = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('p-tag'),
+      ).filter((t) => t.textContent?.includes('Exento'));
+      expect(tags).toHaveLength(1);
+
+      await cmp.submit();
+
+      expect(create).toHaveBeenCalledWith({
+        channel: 'STORE',
+        paymentType: 'CASH',
+        paymentMethod: 'CASH',
+        items: [
+          { productId: 'p4', quantity: 1, unitPrice: 100 },
+          { productId: 'p1', quantity: 2, unitPrice: 1150 },
+        ],
+      } satisfies CreateSalePayload);
+    });
+
+    it('hides the exempt row on an all-taxable cart and the ISV rows on an all-exempt one', () => {
+      addFirst('urea');
+      fixture.detectChanges();
+      let text = (fixture.nativeElement as HTMLElement).querySelector('dl')?.textContent ?? '';
+      expect(text).toContain('Subtotal gravado');
+      expect(text).toContain('ISV (15 %)');
+      expect(text).not.toContain('Subtotal exento');
+
+      cmp.clearCart();
+      addFirst('semilla');
+      fixture.detectChanges();
+      text = (fixture.nativeElement as HTMLElement).querySelector('dl')?.textContent ?? '';
+      expect(text).toContain('Subtotal exento');
+      expect(text).not.toContain('Subtotal gravado');
+      expect(text).not.toContain('ISV (15 %)');
+      expect(text).toContain('Total');
     });
 
     it('sends a transfer with its reference', async () => {

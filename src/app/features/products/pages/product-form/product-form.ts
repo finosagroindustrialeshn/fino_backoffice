@@ -19,6 +19,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
+import { CheckboxModule } from 'primeng/checkbox';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
@@ -34,6 +35,7 @@ import { ProductCategoryDataClient } from '../../../catalogs/product-categories/
 import type { ProductPresentation } from '../../../catalogs/product-presentations/models/product-presentation.model';
 import { ProductPresentationDataClient } from '../../../catalogs/product-presentations/services/product-presentation-data';
 import {
+  PRODUCT_BOOLEAN_FIELDS,
   PRODUCT_FIELD_LABELS,
   type CompositionItem,
   type Product,
@@ -110,6 +112,7 @@ function previewPriceFloor(
     ReactiveFormsModule,
     RouterLink,
     ButtonModule,
+    CheckboxModule,
     FileDropzone,
     ImageDropzone,
     InputNumberModule,
@@ -181,6 +184,8 @@ export class ProductForm implements OnInit {
       wholeNumber,
     ]),
     description: this.fb.control(''),
+    // Informational only — prices stay ISV-inclusive whatever this says.
+    isvExempt: this.fb.control(false),
     composition: this.composition,
   });
 
@@ -242,6 +247,7 @@ export class ProductForm implements OnInit {
       price: product.price,
       maxDiscountPercent: product.maxDiscountPercent,
       description: product.description ?? '',
+      isvExempt: product.isvExempt,
     });
 
     this.composition.clear();
@@ -307,6 +313,7 @@ export class ProductForm implements OnInit {
         imageUrl,
         technicalSheetUrl,
         composition: raw.composition.map((row) => this.toComponent(row)),
+        isvExempt: raw.isvExempt,
       };
 
       const id = this.productId();
@@ -425,9 +432,18 @@ export class ProductForm implements OnInit {
     return PRODUCT_FIELD_LABELS[field] ?? field;
   }
 
-  /** An empty value reads as a dash: the field was blank, not unknown. */
-  protected changeValue(value: string | null): string {
-    return value === null || value === '' ? '—' : value;
+  /**
+   * An empty value reads as a dash: the field was blank, not unknown. Boolean
+   * fields arrive as the text "true"/"false" and read as a plain yes/no.
+   */
+  protected changeValue(field: string, value: string | null): string {
+    if (value === null || value === '') {
+      return '—';
+    }
+    if (PRODUCT_BOOLEAN_FIELDS.has(field)) {
+      return value === 'true' ? 'Sí' : 'No';
+    }
+    return value;
   }
 
 }
