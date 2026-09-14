@@ -13,9 +13,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom, type Observable } from 'rxjs';
 
 import type { Paginated } from '../../../../core/http/pagination.model';
-import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { Table, TableModule } from 'primeng/table';
@@ -50,7 +48,6 @@ interface SelectOption<T> {
     FormsModule,
     RouterLink,
     ButtonModule,
-    ConfirmDialogModule,
     InputTextModule,
     SelectModule,
     TableModule,
@@ -58,21 +55,18 @@ interface SelectOption<T> {
   ],
   templateUrl: './product-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [ConfirmationService],
 })
 export class ProductList implements OnInit {
   private readonly products = inject(ProductDataClient);
   private readonly categories = inject(ProductCategoryDataClient);
   private readonly presentations = inject(ProductPresentationDataClient);
   private readonly auth = inject(AuthSession);
-  private readonly confirmation = inject(ConfirmationService);
   private readonly table = viewChild.required<Table>('dt');
 
   protected readonly canManage = computed(() => {
     const role = this.auth.role();
     return role === 'ADMIN' || role === 'SUPERVISOR';
   });
-  protected readonly canDelete = computed(() => this.auth.role() === 'ADMIN');
 
   // Filters — read inside the fetcher closure so reload() uses the latest values.
   /** Bound to the search box for instant feedback; debounced into `appliedSearch`. */
@@ -199,43 +193,15 @@ export class ProductList implements OnInit {
     this.clearRowError(product.id);
     try {
       await firstValueFrom(
-        this.products.setActive(product.id, !product.isActive),
+        product.isActive
+          ? this.products.deactivate(product.id)
+          : this.products.activate(product.id),
       );
       this.list.reload();
     } catch (error) {
       this.setRowError(
         product.id,
         this.toMessage(error, 'No se pudo actualizar el estado.'),
-      );
-    } finally {
-      this.stopPending(product.id);
-    }
-  }
-
-  protected confirmDelete(product: Product): void {
-    this.confirmation.confirm({
-      header: 'Eliminar producto',
-      message: `¿Eliminar este producto? "${product.name}" se borrará de forma permanente.`,
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Eliminar',
-      rejectLabel: 'Cancelar',
-      acceptButtonStyleClass: 'p-button-danger',
-      accept: () => {
-        void this.remove(product);
-      },
-    });
-  }
-
-  private async remove(product: Product): Promise<void> {
-    this.startPending(product.id);
-    this.clearRowError(product.id);
-    try {
-      await firstValueFrom(this.products.remove(product.id));
-      this.list.reload();
-    } catch (error) {
-      this.setRowError(
-        product.id,
-        this.toMessage(error, 'No se pudo eliminar el producto.'),
       );
     } finally {
       this.stopPending(product.id);

@@ -26,6 +26,7 @@ interface FormInternals {
   readonly form: {
     patchValue(value: Record<string, unknown>): void;
     readonly invalid: boolean;
+    readonly controls: { readonly isvExempt: { readonly value: boolean } };
   };
   previewFloor(): {
     minPrice: number;
@@ -63,6 +64,7 @@ function product(overrides: Partial<Product> = {}): Product {
     allowedDiscountPercent: 20,
     categoryId: CATEGORY_ID,
     presentationId: PRESENTATION_ID,
+    isvExempt: false,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -196,6 +198,22 @@ describe('ProductForm', () => {
       expect(create).not.toHaveBeenCalled();
     });
 
+    it('sends isvExempt false unless the exemption is ticked', async () => {
+      cmp.form.patchValue(VALID_FIELDS);
+
+      await cmp.submit();
+
+      expect(create.mock.calls[0]?.[0]?.isvExempt).toBe(false);
+    });
+
+    it('sends isvExempt true when the exemption is ticked', async () => {
+      cmp.form.patchValue({ ...VALID_FIELDS, isvExempt: true });
+
+      await cmp.submit();
+
+      expect(create.mock.calls[0]?.[0]?.isvExempt).toBe(true);
+    });
+
     it('previews the floor the API will enforce as the figures change', () => {
       cmp.form.patchValue({ cost: 60, price: 100, maxDiscountPercent: 20 });
       expect(cmp.previewFloor()).toEqual({
@@ -234,6 +252,32 @@ describe('ProductForm', () => {
       expect(update.mock.calls[0]?.[0]).toBe(PRODUCT_ID);
       expect(update.mock.calls[0]?.[1]).toEqual(
         expect.objectContaining({ maxDiscountPercent: null }),
+      );
+    });
+  });
+
+  describe('editing an ISV-exempt product', () => {
+    beforeEach(async () => {
+      await setup(product({ isvExempt: true }));
+    });
+
+    it('loads the exemption from the product and keeps it on save', async () => {
+      expect(cmp.form.controls.isvExempt.value).toBe(true);
+
+      await cmp.submit();
+
+      expect(update.mock.calls[0]?.[1]).toEqual(
+        expect.objectContaining({ isvExempt: true }),
+      );
+    });
+
+    it('sends false once the exemption is unticked', async () => {
+      cmp.form.patchValue({ isvExempt: false });
+
+      await cmp.submit();
+
+      expect(update.mock.calls[0]?.[1]).toEqual(
+        expect.objectContaining({ isvExempt: false }),
       );
     });
   });

@@ -205,10 +205,15 @@
           </td>
 
           <td class="hidden md:table-cell">
-            <p-tag
-              [value]="product.isActive ? 'Activo' : 'Inactivo'"
-              [severity]="product.isActive ? 'success' : 'secondary'"
-            />
+            <div class="flex flex-wrap items-center gap-1.5">
+              <p-tag
+                [value]="product.isActive ? 'Activo' : 'Inactivo'"
+                [severity]="product.isActive ? 'success' : 'secondary'"
+              />
+              @if (product.isvExempt) {
+                <p-tag value="Exento ISV" severity="info" />
+              }
+            </div>
           </td>
 
           <td class="hidden md:table-cell">
@@ -238,17 +243,6 @@
                         : 'Activar producto ') + product.name
                     "
                     (onClick)="toggleActive(product)"
-                  />
-                }
-                @if (canDelete()) {
-                  <p-button
-                    icon="pi pi-trash"
-                    severity="danger"
-                    [text]="true"
-                    [rounded]="true"
-                    [disabled]="isPending(product.id)"
-                    [ariaLabel]="'Eliminar producto ' + product.name"
-                    (onClick)="confirmDelete(product)"
                   />
                 }
               </div>
@@ -299,6 +293,9 @@
                 [value]="product.isActive ? 'Activo' : 'Inactivo'"
                 [severity]="product.isActive ? 'success' : 'secondary'"
               />
+              @if (product.isvExempt) {
+                <p-tag value="Exento ISV" severity="info" />
+              }
             </div>
 
             <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
@@ -344,17 +341,6 @@
                     (onClick)="toggleActive(product)"
                   />
                 }
-                @if (canDelete()) {
-                  <p-button
-                    icon="pi pi-trash"
-                    severity="danger"
-                    [text]="true"
-                    [rounded]="true"
-                    [disabled]="isPending(product.id)"
-                    [ariaLabel]="'Eliminar producto ' + product.name"
-                    (onClick)="confirmDelete(product)"
-                  />
-                }
               </div>
               @if (rowError(product.id); as message) {
                 <span class="text-xs text-red-600" role="alert">
@@ -382,5 +368,3 @@
     </p-table>
   </div>
 </div>
-
-<p-confirmDialog />

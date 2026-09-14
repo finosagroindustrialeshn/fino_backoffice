@@ -42,6 +42,11 @@ export interface Product {
   readonly allowedDiscountPercent: number;
   readonly categoryId: string | null;
   readonly presentationId: string | null;
+  /**
+   * Exempt from ISV by law (agricultural inputs and the like). Informational:
+   * prices are ISV-inclusive either way, so no total changes with this flag.
+   */
+  readonly isvExempt: boolean;
   readonly isActive: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -64,6 +69,7 @@ export interface ProductPayload {
   readonly maxDiscountPercent?: number | null;
   readonly categoryId: string;
   readonly presentationId: string;
+  readonly isvExempt: boolean;
   readonly isActive: boolean;
 }
 
@@ -103,5 +109,15 @@ export const PRODUCT_FIELD_LABELS: Record<string, string> = {
   maxDiscountPercent: 'Descuento máximo (%)',
   categoryId: 'Categoría',
   presentationId: 'Presentación',
+  isvExempt: 'Exento de ISV',
   isActive: 'Estado',
 };
+
+/**
+ * Logged fields whose values are booleans. The log carries them as the text
+ * "true"/"false", which reads better as a plain yes/no.
+ */
+export const PRODUCT_BOOLEAN_FIELDS: ReadonlySet<string> = new Set([
+  'isvExempt',
+  'isActive',
+]);
