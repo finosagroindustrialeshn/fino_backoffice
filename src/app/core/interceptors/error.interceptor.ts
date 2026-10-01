@@ -26,7 +26,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401) {
+      // A failed login attempt answers 401 too, but it is not an expired
+      // session — logging out and redirecting here would wipe the form's own
+      // error handling before it ever runs.
+      if (error.status === 401 && !req.url.endsWith('/auth/login')) {
         void auth.logout();
         void router.navigate(['/login']);
       }

@@ -84,28 +84,53 @@
 
       <div class="flex flex-col gap-1.5">
         <label
-          for="user-phone"
+          for="user-username"
           class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
         >
-          Teléfono
+          Usuario (opcional)
         </label>
         <input
           pInputText
-          id="user-phone"
-          formControlName="phone"
-          inputmode="tel"
-          autocomplete="tel"
+          id="user-username"
+          formControlName="username"
+          autocomplete="username"
           class="w-full"
           [attr.aria-invalid]="
-            form.controls.phone.invalid && form.controls.phone.touched
+            form.controls.username.invalid && form.controls.username.touched
           "
         />
-        @if (form.controls.phone.touched && form.controls.phone.invalid) {
+        @if (form.controls.username.touched && form.controls.username.invalid) {
           <span class="text-xs text-red-600" role="alert">
-            El teléfono es obligatorio.
+            Solo letras minúsculas y números, sin espacios.
           </span>
         }
       </div>
+    </div>
+
+    <!-- Phone -->
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="user-phone"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+      >
+        Teléfono
+      </label>
+      <input
+        pInputText
+        id="user-phone"
+        formControlName="phone"
+        inputmode="tel"
+        autocomplete="tel"
+        class="w-full"
+        [attr.aria-invalid]="
+          form.controls.phone.invalid && form.controls.phone.touched
+        "
+      />
+      @if (form.controls.phone.touched && form.controls.phone.invalid) {
+        <span class="text-xs text-red-600" role="alert">
+          El teléfono es obligatorio.
+        </span>
+      }
     </div>
 
     <!-- Password + role -->

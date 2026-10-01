@@ -162,14 +162,26 @@
           </td>
 
           <td class="hidden md:table-cell">
-            <p-button
-              icon="pi pi-pencil"
-              severity="secondary"
-              [text]="true"
-              [rounded]="true"
-              [routerLink]="['/usuarios', user.id, 'editar']"
-              [ariaLabel]="'Editar a ' + user.fullName"
-            />
+            <div class="flex items-center gap-1">
+              <p-button
+                icon="pi pi-pencil"
+                severity="secondary"
+                [text]="true"
+                [rounded]="true"
+                [routerLink]="['/usuarios', user.id, 'editar']"
+                [ariaLabel]="'Editar a ' + user.fullName"
+              />
+              @if (canResetPasswords()) {
+                <p-button
+                  icon="pi pi-key"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  (onClick)="openResetPassword(user)"
+                  [ariaLabel]="'Restablecer contraseña de ' + user.fullName"
+                />
+              }
+            </div>
           </td>
 
           <!-- Mobile card: one cell, everything laid out by hand -->
@@ -187,14 +199,26 @@
                   <span class="text-sm text-ink-soft">{{ user.email }}</span>
                 </div>
               </div>
-              <p-button
-                icon="pi pi-pencil"
-                severity="secondary"
-                [text]="true"
-                [rounded]="true"
-                [routerLink]="['/usuarios', user.id, 'editar']"
-                [ariaLabel]="'Editar a ' + user.fullName"
-              />
+              <div class="flex items-center gap-1">
+                <p-button
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  [routerLink]="['/usuarios', user.id, 'editar']"
+                  [ariaLabel]="'Editar a ' + user.fullName"
+                />
+                @if (canResetPasswords()) {
+                  <p-button
+                    icon="pi pi-key"
+                    severity="secondary"
+                    [text]="true"
+                    [rounded]="true"
+                    (onClick)="openResetPassword(user)"
+                    [ariaLabel]="'Restablecer contraseña de ' + user.fullName"
+                  />
+                }
+              </div>
             </div>
 
             <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -233,3 +257,11 @@
     </p-table>
   </div>
 </div>
+
+<app-reset-password-dialog
+  [(visible)]="resetDialogOpen"
+  [userName]="resetTarget()?.fullName ?? ''"
+  [saving]="resettingPassword()"
+  [error]="resetError()"
+  (submitted)="onResetPassword($event)"
+/>

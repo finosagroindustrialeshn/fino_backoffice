@@ -54,4 +54,10 @@ export class UserDataClient {
   updateRole(id: string, role: Role): Observable<UserProfile> {
     return this.api.patch<UserProfile>(`/users/${id}/role`, { role });
   }
+
+  resetPassword(id: string, newPassword: string): Observable<UserProfile> {
+    return this.api.patch<UserProfile>(`/users/${id}/reset-password`, {
+      newPassword,
+    });
+  }
 }
