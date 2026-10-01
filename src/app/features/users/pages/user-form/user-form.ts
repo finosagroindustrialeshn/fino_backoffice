@@ -60,6 +60,7 @@ export class UserForm {
   protected readonly form = this.fb.group({
     fullName: this.fb.control('', [Validators.required]),
     email: this.fb.control('', [Validators.required, Validators.email]),
+    username: this.fb.control('', [Validators.pattern(/^[a-z0-9]+$/)]),
     phone: this.fb.control('', [Validators.required]),
     password: this.fb.control('', [
       Validators.required,
@@ -82,9 +83,11 @@ export class UserForm {
     this.saving.set(true);
     this.formError.set(null);
     try {
+      const username = raw.username.trim();
       const payload: CreateUserPayload = {
         fullName: raw.fullName.trim(),
         email: raw.email.trim(),
+        ...(username ? { username } : {}),
         phone: raw.phone.trim(),
         password: raw.password,
         role: raw.role,

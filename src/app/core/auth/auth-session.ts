@@ -12,8 +12,21 @@ import {
 import type { UserProfile } from './user-profile.model';
 
 export interface LoginCredentials {
-  readonly email: string;
+  readonly identifier: string;
   readonly password: string;
+}
+
+/** Response data for POST /auth/login. accessToken/refreshToken are real Supabase tokens. */
+interface LoginResponseData {
+  readonly accessToken: string;
+  readonly refreshToken: string;
+  readonly expiresIn: number;
+  readonly user: {
+    readonly id: string;
+    readonly email: string;
+    readonly fullName: string;
+    readonly role: string;
+  };
 }
 
 /**
@@ -77,10 +90,16 @@ export class AuthSession {
     return this.initialSessionLoaded;
   }
 
-  async login({ email, password }: LoginCredentials): Promise<void> {
-    const { error } = await this.supabase.auth.signInWithPassword({
-      email,
-      password,
+  async login({ identifier, password }: LoginCredentials): Promise<void> {
+    const data = await firstValueFrom(
+      this.api.post<LoginResponseData>('/auth/login', {
+        identifier,
+        password,
+      }),
+    );
+    const { error } = await this.supabase.auth.setSession({
+      access_token: data.accessToken,
+      refresh_token: data.refreshToken,
     });
     if (error) {
       throw error;
@@ -89,6 +108,13 @@ export class AuthSession {
 
   async logout(): Promise<void> {
     await this.supabase.auth.signOut();
+  }
+
+  async changePassword(payload: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<void> {
+    await firstValueFrom(this.api.patch<void>('/auth/password', payload));
   }
 
   /**

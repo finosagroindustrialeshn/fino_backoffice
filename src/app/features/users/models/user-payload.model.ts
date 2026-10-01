@@ -7,6 +7,7 @@ import type { Role } from '../../../core/auth/user-profile.model';
  */
 export interface CreateUserPayload {
   readonly email: string;
+  readonly username?: string;
   readonly fullName: string;
   readonly password: string;
   readonly phone: string;
