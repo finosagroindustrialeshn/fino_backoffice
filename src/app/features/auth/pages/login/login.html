@@ -91,29 +91,29 @@
         }
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5">
-          <!-- Email -->
+          <!-- Identifier (email or username) -->
           <div class="flex flex-col gap-1.5">
             <label
-              for="email"
+              for="identifier"
               class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
             >
-              Correo
+              Correo o usuario
             </label>
             <input
               pInputText
-              id="email"
-              type="email"
-              formControlName="email"
-              autocomplete="email"
+              id="identifier"
+              type="text"
+              formControlName="identifier"
+              autocomplete="username"
               placeholder="ana.castillo@finoagro.hn"
               class="w-full"
               [attr.aria-invalid]="
-                form.controls.email.invalid && form.controls.email.touched
+                form.controls.identifier.invalid && form.controls.identifier.touched
               "
             />
-            @if (form.controls.email.touched && form.controls.email.invalid) {
+            @if (form.controls.identifier.touched && form.controls.identifier.invalid) {
               <span class="text-xs text-red-600" role="alert">
-                Ingresá un correo válido.
+                Ingresá tu correo o usuario.
               </span>
             }
           </div>

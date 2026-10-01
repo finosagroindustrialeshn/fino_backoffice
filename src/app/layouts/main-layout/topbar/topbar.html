@@ -30,4 +30,11 @@
     </button>
     <p-menu #userMenu [model]="userMenuItems" [popup]="true" appendTo="body" />
   </div>
+
+  <app-change-password-dialog
+    [(visible)]="changePasswordOpen"
+    [saving]="changingPassword()"
+    [error]="changePasswordError()"
+    (submitted)="onChangePassword($event)"
+  />
 </header>

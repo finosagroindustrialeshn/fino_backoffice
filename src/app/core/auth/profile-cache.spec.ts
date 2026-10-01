@@ -12,6 +12,7 @@ const OTHER_USER_ID = '9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d';
 const PROFILE: UserProfile = {
   id: USER_ID,
   email: 'ana@fino.hn',
+  username: null,
   fullName: 'Ana Castillo',
   phone: null,
   role: 'SUPERVISOR',

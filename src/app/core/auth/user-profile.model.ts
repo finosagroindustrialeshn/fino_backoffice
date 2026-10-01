@@ -19,6 +19,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 export interface UserProfile {
   readonly id: string;
   readonly email: string;
+  readonly username: string | null;
   readonly fullName: string;
   readonly phone: string | null;
   readonly role: Role;

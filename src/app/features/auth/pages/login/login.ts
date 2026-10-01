@@ -16,6 +16,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 
 import { AuthSession } from '../../../../core/auth/auth-session';
+import { isApiError } from '../../../../core/http/api-error';
 
 /**
  * Hand-tuned rather than random: spread across the width and staggered with
@@ -57,7 +58,7 @@ export class Login {
   protected readonly backgroundLeaves = BACKGROUND_LEAVES;
 
   protected readonly form = this.fb.group({
-    email: this.fb.control('', [Validators.required, Validators.email]),
+    identifier: this.fb.control('', [Validators.required]),
     password: this.fb.control('', [Validators.required]),
   });
 
@@ -70,9 +71,9 @@ export class Login {
     this.submitting.set(true);
     this.errorMessage.set(null);
 
-    const { email, password } = this.form.getRawValue();
+    const { identifier, password } = this.form.getRawValue();
     try {
-      await this.auth.login({ email, password });
+      await this.auth.login({ identifier, password });
       await this.router.navigate(['/dashboard']);
     } catch (error) {
       this.submitting.set(false);
@@ -81,14 +82,12 @@ export class Login {
   }
 
   private toMessage(error: unknown): string {
-    const raw =
-      error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
-    if (/invalid login credentials/i.test(raw)) {
-      return 'Correo o contraseña incorrectos.';
+    if (isApiError(error) && error.status === 401) {
+      return 'Correo/usuario o contraseña incorrectos.';
     }
-    if (/email not confirmed/i.test(raw)) {
-      return 'Tu correo aún no fue confirmado.';
+    if (isApiError(error)) {
+      return error.message;
     }
-    return raw;
+    return error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
   }
 }
