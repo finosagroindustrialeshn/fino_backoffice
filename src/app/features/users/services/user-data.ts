@@ -7,7 +7,11 @@ import type {
   PaginationQuery,
 } from '../../../core/http/pagination.model';
 import type { Role, UserProfile } from '../../../core/auth/user-profile.model';
-import type { CreateUserPayload } from '../models/user-payload.model';
+import type {
+  CreateUserPayload,
+  UpdateUserEmailPayload,
+  UpdateUserPayload,
+} from '../models/user-payload.model';
 
 export interface UserListQuery extends PaginationQuery {
   readonly role?: Role;
@@ -41,6 +45,17 @@ export class UserDataClient {
 
   create(payload: CreateUserPayload): Observable<UserProfile> {
     return this.api.post<UserProfile>('/users', payload);
+  }
+
+  updateProfile(id: string, payload: UpdateUserPayload): Observable<UserProfile> {
+    return this.api.patch<UserProfile>(`/users/${id}`, payload);
+  }
+
+  updateEmail(
+    id: string,
+    payload: UpdateUserEmailPayload,
+  ): Observable<UserProfile> {
+    return this.api.patch<UserProfile>(`/users/${id}/email`, payload);
   }
 
   activate(id: string): Observable<UserProfile> {
