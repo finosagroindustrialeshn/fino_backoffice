@@ -5,8 +5,10 @@ import {
   signal,
 } from '@angular/core';
 import {
+  type AbstractControl,
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  type ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -20,8 +22,12 @@ import {
   ROLE_LABELS,
   type Role,
 } from '../../../../core/auth/user-profile.model';
-import type { CreateUserPayload } from '../../models/user-payload.model';
+import {
+  type CreateUserPayload,
+  USERNAME_PATTERN,
+} from '../../models/user-payload.model';
 import { UserDataClient } from '../../services/user-data';
+import { validEmailIfPresent } from '../../utils/user-validators';
 
 interface RoleOption {
   readonly label: string;
@@ -30,6 +36,15 @@ interface RoleOption {
 
 /** Minimum password length the form enforces before hitting the API. */
 const MIN_PASSWORD_LENGTH = 8;
+
+/** The API needs a login: an email, or a username when there is no email. */
+function requireEmailOrUsername(
+  group: AbstractControl,
+): ValidationErrors | null {
+  const email = String(group.get('email')?.value ?? '').trim();
+  const username = String(group.get('username')?.value ?? '').trim();
+  return email || username ? null : { emailOrUsernameRequired: true };
+}
 
 @Component({
   selector: 'app-user-form',
@@ -57,17 +72,20 @@ export class UserForm {
     Object.keys(ROLE_LABELS) as Role[]
   ).map((value) => ({ label: ROLE_LABELS[value], value }));
 
-  protected readonly form = this.fb.group({
-    fullName: this.fb.control('', [Validators.required]),
-    email: this.fb.control('', [Validators.required, Validators.email]),
-    username: this.fb.control('', [Validators.pattern(/^[a-z0-9]+$/)]),
-    phone: this.fb.control('', [Validators.required]),
-    password: this.fb.control('', [
-      Validators.required,
-      Validators.minLength(MIN_PASSWORD_LENGTH),
-    ]),
-    role: this.fb.control<Role | null>(null, [Validators.required]),
-  });
+  protected readonly form = this.fb.group(
+    {
+      fullName: this.fb.control('', [Validators.required]),
+      email: this.fb.control('', [validEmailIfPresent]),
+      username: this.fb.control('', [Validators.pattern(USERNAME_PATTERN)]),
+      phone: this.fb.control(''),
+      password: this.fb.control('', [
+        Validators.required,
+        Validators.minLength(MIN_PASSWORD_LENGTH),
+      ]),
+      role: this.fb.control<Role | null>(null, [Validators.required]),
+    },
+    { validators: requireEmailOrUsername },
+  );
 
   protected async submit(): Promise<void> {
     if (this.form.invalid) {
@@ -83,12 +101,14 @@ export class UserForm {
     this.saving.set(true);
     this.formError.set(null);
     try {
-      const username = raw.username.trim();
+      const email = raw.email.trim();
+      const username = raw.username.trim().toLowerCase();
+      const phone = raw.phone.trim();
       const payload: CreateUserPayload = {
         fullName: raw.fullName.trim(),
-        email: raw.email.trim(),
+        ...(email ? { email } : {}),
         ...(username ? { username } : {}),
-        phone: raw.phone.trim(),
+        ...(phone ? { phone } : {}),
         password: raw.password,
         role: raw.role,
       };

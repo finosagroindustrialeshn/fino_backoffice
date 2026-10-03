@@ -28,7 +28,7 @@
     <header class="flex flex-col gap-1">
       <h2 class="font-heading text-2xl font-bold text-ink">Editar usuario</h2>
       <p class="text-sm text-ink-soft">
-        Cambiá el rol o el estado de acceso del usuario.
+        Cambiá los datos, el rol o el estado de acceso del usuario.
       </p>
     </header>
 
@@ -46,7 +46,7 @@
       (ngSubmit)="submit()"
       class="flex flex-col gap-6 rounded-2xl border border-ink/10 bg-white p-6"
     >
-      <!-- Identity (read-only) -->
+      <!-- Identity -->
       <div class="flex items-center gap-3">
         <span
           class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-mist text-base font-semibold text-brand"
@@ -57,15 +57,118 @@
         <div class="flex flex-col">
           <span class="font-medium text-ink">{{ u.fullName }}</span>
           <span class="text-sm text-ink-soft">{{ u.email }}</span>
-          @if (u.phone) {
-            <span class="text-sm text-ink-soft">{{ u.phone }}</span>
-          }
         </div>
       </div>
 
-      <p class="text-xs text-ink-soft">
-        El nombre, correo y teléfono no se editan desde acá.
-      </p>
+      <!-- Full name + email + phone + username -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="flex flex-col gap-1.5 sm:col-span-2">
+          <label
+            for="user-fullname"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Nombre completo
+          </label>
+          <input
+            pInputText
+            id="user-fullname"
+            formControlName="fullName"
+            autocomplete="name"
+            class="w-full"
+            [attr.aria-invalid]="
+              form.controls.fullName.invalid && form.controls.fullName.touched
+            "
+          />
+          @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
+            <span class="text-xs text-red-600" role="alert">
+              El nombre es obligatorio.
+            </span>
+          }
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="user-email"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Correo electrónico (opcional)
+          </label>
+          <input
+            pInputText
+            id="user-email"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            inputmode="email"
+            class="w-full"
+            [attr.aria-invalid]="
+              form.controls.email.invalid && form.controls.email.touched
+            "
+          />
+          @if (form.controls.email.touched && form.controls.email.hasError('required')) {
+            <span class="text-xs text-red-600" role="alert">
+              El correo no puede quedar vacío. Este usuario ya tiene uno.
+            </span>
+          } @else if (form.controls.email.touched && form.controls.email.invalid) {
+            <span class="text-xs text-red-600" role="alert">
+              Ingresá un correo válido.
+            </span>
+          } @else if (u.email) {
+            <span class="text-xs text-ink-soft">
+              Es la credencial de acceso. Al cambiarlo, inicia sesión con el nuevo.
+            </span>
+          } @else {
+            <span class="text-xs text-ink-soft">
+              Este usuario no tiene correo. Podés agregarlo; es opcional.
+            </span>
+          }
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="user-phone"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Teléfono (opcional)
+          </label>
+          <input
+            pInputText
+            id="user-phone"
+            formControlName="phone"
+            inputmode="tel"
+            autocomplete="tel"
+            class="w-full"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="user-username"
+            class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
+          >
+            Usuario
+          </label>
+          <input
+            pInputText
+            id="user-username"
+            formControlName="username"
+            autocomplete="username"
+            class="w-full"
+            [attr.aria-invalid]="
+              form.controls.username.invalid && form.controls.username.touched
+            "
+          />
+          @if (form.controls.username.touched && form.controls.username.invalid) {
+            <span class="text-xs text-red-600" role="alert">
+              De 3 a 30 caracteres: letras, números, "." o "_".
+            </span>
+          } @else {
+            <span class="text-xs text-ink-soft">
+              Sirve para iniciar sesión.
+            </span>
+          }
+        </div>
+      </div>
 
       <hr class="border-ink/10" />
 

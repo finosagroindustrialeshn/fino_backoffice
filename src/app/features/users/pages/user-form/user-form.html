@@ -54,14 +54,14 @@
       }
     </div>
 
-    <!-- Email + phone -->
+    <!-- Email + username -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div class="flex flex-col gap-1.5">
         <label
           for="user-email"
           class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
         >
-          Correo electrónico
+          Correo electrónico (opcional)
         </label>
         <input
           pInputText
@@ -87,7 +87,7 @@
           for="user-username"
           class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
         >
-          Usuario (opcional)
+          Usuario
         </label>
         <input
           pInputText
@@ -101,11 +101,24 @@
         />
         @if (form.controls.username.touched && form.controls.username.invalid) {
           <span class="text-xs text-red-600" role="alert">
-            Solo letras minúsculas y números, sin espacios.
+            De 3 a 30 caracteres: letras, números, "." o "_".
+          </span>
+        } @else {
+          <span class="text-xs text-ink-soft">
+            Obligatorio si no hay correo. Sirve para iniciar sesión.
           </span>
         }
       </div>
     </div>
+
+    @if (
+      form.hasError('emailOrUsernameRequired') &&
+      (form.controls.email.touched || form.controls.username.touched)
+    ) {
+      <span class="-mt-3 text-xs text-red-600" role="alert">
+        Ingresá un correo o un usuario.
+      </span>
+    }
 
     <!-- Phone -->
     <div class="flex flex-col gap-1.5">
@@ -113,7 +126,7 @@
         for="user-phone"
         class="text-xs font-semibold uppercase tracking-wide text-ink-soft"
       >
-        Teléfono
+        Teléfono (opcional)
       </label>
       <input
         pInputText
@@ -122,15 +135,7 @@
         inputmode="tel"
         autocomplete="tel"
         class="w-full"
-        [attr.aria-invalid]="
-          form.controls.phone.invalid && form.controls.phone.touched
-        "
       />
-      @if (form.controls.phone.touched && form.controls.phone.invalid) {
-        <span class="text-xs text-red-600" role="alert">
-          El teléfono es obligatorio.
-        </span>
-      }
     </div>
 
     <!-- Password + role -->
