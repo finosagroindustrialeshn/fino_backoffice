@@ -1,3 +1,4 @@
+import { ROUTE_ACCESS } from '../../core/auth/route-access';
 import type { Role } from '../../core/auth/user-profile.model';
 
 export interface NavChild {
@@ -33,20 +34,20 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Despacho',
         icon: 'pi pi-box',
         route: '/despacho',
-        roles: ['ADMIN', 'SUPERVISOR'],
+        roles: ROUTE_ACCESS.despacho,
       },
       {
         label: 'Retorno',
         icon: 'pi pi-replay',
         route: '/retorno',
-        roles: ['ADMIN', 'SUPERVISOR'],
+        roles: ROUTE_ACCESS.retorno,
       },
       { label: 'Mapa de rutas', icon: 'pi pi-map', route: '/mapa' },
       {
         label: 'Vendedores',
         icon: 'pi pi-map-marker',
         route: '/vendedores',
-        roles: ['ADMIN', 'SUPERVISOR'],
+        roles: ROUTE_ACCESS.vendedores,
       },
       // No role filter: the API already scopes a SELLER to their own shifts.
       { label: 'Jornadas', icon: 'pi pi-clock', route: '/jornadas' },
@@ -56,7 +57,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Caja',
         icon: 'pi pi-wallet',
         route: '/caja',
-        roles: ['ADMIN', 'SUPERVISOR'],
+        roles: ROUTE_ACCESS.caja,
       },
     ],
   },
@@ -73,13 +74,13 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Contabilidad',
         icon: 'pi pi-calculator',
         route: '/contabilidad',
-        roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
+        roles: ROUTE_ACCESS.contabilidad,
       },
       {
         label: 'Reportes',
         icon: 'pi pi-chart-bar',
         route: '/reportes',
-        roles: ['ADMIN', 'SUPERVISOR', 'ACCOUNTANT'],
+        roles: ROUTE_ACCESS.reportes,
         children: [
           { label: 'Ventas', route: '/reportes/ventas' },
           { label: 'Caja', route: '/reportes/caja' },
@@ -97,19 +98,19 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Productos',
         icon: 'pi pi-shopping-bag',
         route: '/productos',
-        roles: ['ADMIN', 'SUPERVISOR'],
+        roles: ROUTE_ACCESS.productos,
       },
       {
         label: 'Inventario',
         icon: 'pi pi-inbox',
         route: '/inventario',
-        roles: ['ADMIN', 'SUPERVISOR'],
+        roles: ROUTE_ACCESS.inventario,
       },
       {
         label: 'Catálogos',
         icon: 'pi pi-tags',
         route: '/catalogos',
-        roles: ['ADMIN', 'SUPERVISOR'],
+        roles: ROUTE_ACCESS.catalogos,
         children: [
           { label: 'Categorías de producto', route: '/catalogos/categorias-producto' },
           { label: 'Presentaciones', route: '/catalogos/presentaciones' },
@@ -127,7 +128,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Empleados',
         icon: 'pi pi-id-card',
         route: '/empleados',
-        roles: ['ADMIN', 'SUPERVISOR'],
+        roles: ROUTE_ACCESS.empleados,
         children: [
           { label: 'Empleados', route: '/empleados/lista' },
           { label: 'Puestos', route: '/empleados/puestos' },
@@ -137,7 +138,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Usuarios y roles',
         icon: 'pi pi-shield',
         route: '/usuarios',
-        roles: ['ADMIN'],
+        roles: ROUTE_ACCESS.usuarios,
       },
     ],
   },
