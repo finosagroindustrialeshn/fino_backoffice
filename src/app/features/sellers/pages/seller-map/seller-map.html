@@ -21,8 +21,9 @@
       role="alert"
       class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
     >
-      Se perdió la conexión con las ubicaciones: {{ message }}. Se muestra la última posición
-      conocida.
+      <span class="block font-semibold">Se perdió la conexión con las ubicaciones.</span>
+      <span class="block">{{ message }}</span>
+      <span class="block">Se muestra la última posición conocida.</span>
     </p>
   }
 
@@ -64,7 +65,7 @@
           >
             Buscando vendedores…
           </p>
-        } @else if (!hasSellers()) {
+        } @else if (!hasSellers() && !feedError()) {
           <p
             class="absolute inset-x-3 top-3 rounded-xl border border-ink/10 bg-white/95 p-3 text-sm text-ink-soft shadow-lg sm:max-w-sm"
             aria-live="polite"

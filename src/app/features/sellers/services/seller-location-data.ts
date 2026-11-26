@@ -1,6 +1,7 @@
 import { inject, Injectable, type OnDestroy } from '@angular/core';
 import { onValue, ref, type Unsubscribe } from 'firebase/database';
 
+import { describeFirebaseError } from '../../../core/firebase/firebase-error';
 import { FirebaseService } from '../../../core/firebase/firebase.client';
 import {
   parseSellerLocations,
@@ -47,8 +48,10 @@ export class SellerLocationDataClient implements OnDestroy {
       // Firebase reports permission failures here, not as a thrown error.
       (error) =>
         onError(
-          error.message ||
+          describeFirebaseError(
+            error,
             'No se pudo conectar con la ubicación de los vendedores.',
+          ),
         ),
     );
   }
