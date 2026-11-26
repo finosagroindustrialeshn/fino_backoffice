@@ -19,12 +19,11 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 
 import { DateRangePresets } from '../../../../shared/components/date-range-presets/date-range-presets';
+import { agingSeverity, type AgingSeverity } from '../../../../shared/utils/aging-severity';
 import { formatDay, lastNDays, type DateRange } from '../../../../shared/utils/date-range';
 import { parseRange } from '../../../../shared/utils/query-params';
 import {
   agingRangeLabel,
-  agingSeverity,
-  type AgingSeverity,
   type DashboardSummary,
 } from '../../models/dashboard.model';
 import { DashboardDataClient } from '../../services/dashboard-data';

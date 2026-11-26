@@ -36,7 +36,7 @@ import {
 } from '../../models/cash-report.model';
 import { CashCollections } from '../../components/cash-collections/cash-collections';
 import { ReportsCashDataClient } from '../../services/reports-cash-data';
-import { validateCashRange } from '../../utils/date-range';
+import { validateCashRange } from '../../utils/cash-range';
 import { parseRange } from '../../../../shared/utils/query-params';
 
 /** Window used when the URL carries no range — well inside the 92-day cap. */

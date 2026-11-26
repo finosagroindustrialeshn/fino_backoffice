@@ -68,6 +68,9 @@ export class AuthSession {
    */
   private profileUserId: string | null = null;
 
+  /** Settles when the current user's role is usable; see profileReady(). */
+  private profileResolved: Promise<void> = Promise.resolve();
+
   /**
    * Resolves once the persisted session (if any) has been hydrated.
    * authGuard awaits this so a hard refresh doesn't redirect to /login
@@ -88,6 +91,18 @@ export class AuthSession {
 
   async ready(): Promise<void> {
     return this.initialSessionLoaded;
+  }
+
+  /**
+   * Resolves once the role is known as well as it is going to be: immediately
+   * with no session or a cached profile, otherwise when /auth/me settles
+   * (success or failure; never rejects). `ready()` only covers the session,
+   * so role-dependent guards must await this too or a cache miss (new tab,
+   * deep link) would read a null role.
+   */
+  async profileReady(): Promise<void> {
+    await this.initialSessionLoaded;
+    return this.profileResolved;
   }
 
   async login({ identifier, password }: LoginCredentials): Promise<void> {
@@ -127,6 +142,7 @@ export class AuthSession {
     const userId = session?.user.id ?? null;
     if (!userId) {
       this.profileUserId = null;
+      this.profileResolved = Promise.resolve();
       this._profile.set(null);
       clearCachedProfile();
       return;
@@ -141,8 +157,10 @@ export class AuthSession {
     // name and a role immediately, then confirm it against the API. A role
     // revoked while the tab was closed is corrected within one round trip,
     // and the API rejects the stale role in the meantime regardless.
-    this._profile.set(readCachedProfile(userId));
-    void this.syncProfile(userId);
+    const cached = readCachedProfile(userId);
+    this._profile.set(cached);
+    const sync = this.syncProfile(userId);
+    this.profileResolved = cached ? Promise.resolve() : sync;
   }
 
   private async syncProfile(userId: string): Promise<void> {

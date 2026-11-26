@@ -17,6 +17,7 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 
+import { agingSeverity, type AgingSeverity } from '../../../../shared/utils/aging-severity';
 import { formatDay, type DateRange } from '../../../../shared/utils/date-range';
 import { parseRange, parseUuid } from '../../../../shared/utils/query-params';
 import { SALE_STATUS_LABELS } from '../../../sales/models/sale.model';
@@ -25,10 +26,8 @@ import {
   AGING_SEVERITY_LABELS,
   STATEMENT_ENTRY_LABELS,
   agingRangeLabel,
-  agingSeverity,
   type AgingBucket,
   type AgingReport,
-  type AgingSeverity,
   type ClientReceivable,
   type ClientStatement as ClientStatementData,
   type StatementEntry,

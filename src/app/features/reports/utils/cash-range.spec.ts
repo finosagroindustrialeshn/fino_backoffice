@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { lastNDays } from '../../../shared/utils/date-range';
-import { MAX_CASH_RANGE_DAYS, validateCashRange } from './date-range';
+import { MAX_CASH_RANGE_DAYS, validateCashRange } from './cash-range';
 
 describe('validateCashRange', () => {
   it('rejects a missing range — the cash endpoints require both bounds', () => {

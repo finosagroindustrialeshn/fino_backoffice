@@ -1,3 +1,5 @@
+import type { AgingSeverity } from '../../../shared/utils/aging-severity';
+
 /**
  * Accounts receivable (cuentas por cobrar) models.
  *
@@ -119,31 +121,12 @@ export const STATEMENT_ENTRY_LABELS: Record<StatementEntryKind, string> = {
   PAYMENT: 'Abono',
 };
 
-/**
- * How urgent a band is. Derived from `fromDays` rather than the label so a
- * relabelled band on the API side still lands in the right severity.
- */
-export type AgingSeverity = 'current' | 'due' | 'overdue' | 'critical';
-
 export const AGING_SEVERITY_LABELS: Record<AgingSeverity, string> = {
   current: 'Al día',
   due: 'Vencida',
   overdue: 'Vencida +60',
   critical: 'Crítica',
 };
-
-export function agingSeverity(bucket: AgingBucket): AgingSeverity {
-  if (bucket.fromDays >= 90) {
-    return 'critical';
-  }
-  if (bucket.fromDays >= 60) {
-    return 'overdue';
-  }
-  if (bucket.fromDays >= 30) {
-    return 'due';
-  }
-  return 'current';
-}
 
 /** Human-readable span of a band, e.g. `0 a 30 días` / `90 días o más`. */
 export function agingRangeLabel(bucket: AgingBucket): string {
