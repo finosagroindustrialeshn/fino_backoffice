@@ -58,22 +58,6 @@ export interface DashboardReceivablesSummary {
   readonly buckets: readonly AgingBucket[];
 }
 
-/** How urgent an aging band is. Derived from `fromDays`, mirrors accounts-receivable's own severity scale. */
-export type AgingSeverity = 'current' | 'due' | 'overdue' | 'critical';
-
-export function agingSeverity(bucket: AgingBucket): AgingSeverity {
-  if (bucket.fromDays >= 90) {
-    return 'critical';
-  }
-  if (bucket.fromDays >= 60) {
-    return 'overdue';
-  }
-  if (bucket.fromDays >= 30) {
-    return 'due';
-  }
-  return 'current';
-}
-
 /** Human-readable span of a band, e.g. `0 a 30 días` / `90 días o más`. */
 export function agingRangeLabel(bucket: AgingBucket): string {
   return bucket.toDays === null

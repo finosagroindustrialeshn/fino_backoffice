@@ -15,6 +15,7 @@ import { TableModule } from 'primeng/table';
 
 import { fetchAllPages } from '../../../../core/http/fetch-all-pages';
 import { LazyList } from '../../../../core/http/lazy-list';
+import { agingSeverity, type AgingSeverity } from '../../../../shared/utils/aging-severity';
 import { formatDay } from '../../../../shared/utils/date-range';
 import {
   columnLetter,
@@ -25,9 +26,7 @@ import {
 import {
   AGING_SEVERITY_LABELS,
   agingRangeLabel,
-  agingSeverity,
   type AgingBucket,
-  type AgingSeverity,
   type DebtorRow,
   type DebtorSortBy,
   type ReceivableSummary,
